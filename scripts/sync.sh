@@ -44,7 +44,13 @@ rsync -a --delete "${ROCKNIX_DEVICE_DIR}/patches/linux/"                     "${
 # kernel.conf - ROCKNIX keeps using "7.0" for the 7.1.x series)
 rsync -a --delete "${ROCKNIX_PROJECT_DIR}/packages/linux/patches/${ROCKNIX_VERSION_PATCH_DIR:-${KERNEL_VERSION%.*}}/" "${KERNEL_DIR}/patches/30-version/"
 # dts / config / bootloader packaging
-rsync -a --delete "${ROCKNIX_DEVICE_DIR}/linux/dts/"                 "${KERNEL_DIR}/dts/"
+# SM8550 keeps its DTS out-of-tree under linux/dts/; SM8750 has no such dir —
+# its DTS lands via the patch stack (0047-arm64-dts-qcom-Add-AYN-Odin3.patch).
+if [ -d "${ROCKNIX_DEVICE_DIR}/linux/dts" ]; then
+  rsync -a --delete "${ROCKNIX_DEVICE_DIR}/linux/dts/"               "${KERNEL_DIR}/dts/"
+else
+  log "  (no out-of-tree dts/ for ${ROCKNIX_SOC} — DTS comes from the patch stack)"
+fi
 rsync -a          "${ROCKNIX_DEVICE_DIR}/linux/linux.aarch64.conf"   "${KERNEL_DIR}/config/"
 rsync -a          "${ROCKNIX_DEVICE_DIR}/config/kernel-firmware.dat" "${KERNEL_DIR}/config/"
 rsync -a --delete "${ROCKNIX_DEVICE_DIR}/bootloader/"               "${KERNEL_DIR}/bootloader/"
