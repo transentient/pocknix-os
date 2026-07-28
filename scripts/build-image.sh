@@ -173,6 +173,13 @@ read_pkglist() {
 
 configure_keyring() {
   local root="$1"
+  # HOLODOR: Holo Core preview packages are unsigned (SigLevel Optional) and
+  # there is no archlinuxarm keyring in the rootfs — init only, no populate.
+  if [ "${ROOTFS_FLAVOR:-holo}" = "holo" ]; then
+    log "initialising pacman keyring (holo: init only, preview pkgs unsigned)"
+    chroot "${root}" pacman-key --init
+    return 0
+  fi
   log "initialising pacman keyring (archlinuxarm)"
   chroot "${root}" pacman-key --init
   chroot "${root}" pacman-key --populate archlinuxarm

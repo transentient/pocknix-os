@@ -10,7 +10,8 @@ dbus-broker
 mkinitcpio
 
 # --- boot splash ---
-plymouth             # spinner splash over the silent boot (cmdline: quiet loglevel=3 ... splash).
+# HOLODOR: not in Holo Core preview — no splash in v0; rebuild in localrepo later
+#plymouth             # spinner splash over the silent boot (cmdline: quiet loglevel=3 ... splash).
                      #   We boot with NO initramfs, so this is plymouth's late mode: its systemd
                      #   units start plymouthd from the rootfs at sysinit; DRM_MSM=y means the
                      #   display is already up by then. Theme/config in overlay
@@ -29,7 +30,8 @@ dosfstools
 util-linux
 parted              # pocknix-install-internal repartitions the internal UFS (+ partprobe)
 rsync               # pocknix-install-internal clones the running rootfs to the internal ext4
-cloud-guest-utils   # growpart — pocknix-expand-root grows the root partition to fill the SD on first boot
+# HOLODOR: not in Holo Core preview — growpart absent from Holo; root auto-expand disabled in v0 — rebuild in localrepo
+#cloud-guest-utils   # growpart — pocknix-expand-root grows the root partition to fill the SD on first boot
 
 # --- graphics stack ---
 # mesa + vulkan-freedreno install from ALARM here to satisfy bootstrap deps, then
@@ -106,7 +108,8 @@ zram-generator       # compressed-RAM swap (zram0, zstd) via /etc/systemd/zram-g
                      #   earlier/cleaner kills under pressure instead of the kernel OOM backstop.)
 
 # --- CPU scheduler (gaming) ---
-scx-scheds           # sched_ext schedulers incl. scx_lavd (big.LITTLE / latency-aware).
+# HOLODOR: not in Holo Core preview — rebuild in localrepo; kernel ships BTF ready for scx_lavd
+#scx-scheds           # sched_ext schedulers incl. scx_lavd (big.LITTLE / latency-aware).
                      #   pocknix-lavd.service runs `scx_lavd --autopilot`. Needs the
                      #   SCHED_CLASS_EXT + DEBUG_INFO_BTF kernel (build-kernel.sh) and the
                      #   schedutil governor (kernel default) for LAVD's per-core DVFS.

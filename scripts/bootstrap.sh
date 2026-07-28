@@ -8,24 +8,33 @@ need_root bootstrap
 for t in curl tar rsync; do need_tool "$t"; done
 
 mkdir -p "${CACHE_DIR}"
-tarball="${CACHE_DIR}/${ALARM_TARBALL}"
-url="${ALARM_MIRROR}/${ALARM_TARBALL}"
-
-if [ ! -f "${tarball}" ]; then
-  log "downloading ALARM rootfs: ${url}"
-  curl -fL --retry 3 -o "${tarball}" "${url}"
+# HOLODOR: base flavor selection — holo (Valve Holo Core, default) or alarm
+# (upstream pocknix behavior, kept as fallback). See config/pocknix.conf.
+if [ "${ROOTFS_FLAVOR}" = "holo" ]; then
+  tarball="${CACHE_DIR}/${HOLO_TARBALL}"
+  url="${HOLO_MIRROR}/${HOLO_TARBALL}"
+  sha="${HOLO_ROOTFS_SHA256}"
 else
-  log "using cached ALARM rootfs: ${tarball}"
+  tarball="${CACHE_DIR}/${ALARM_TARBALL}"
+  url="${ALARM_MIRROR}/${ALARM_TARBALL}"
+  sha="${POCKNIX_ALARM_SHA256}"
 fi
 
-# verify (hermetic builds: set POCKNIX_ALARM_SHA256)
-if [ -n "${POCKNIX_ALARM_SHA256}" ]; then
+if [ ! -f "${tarball}" ]; then
+  log "downloading ${ROOTFS_FLAVOR} rootfs: ${url}"
+  curl -fL --retry 3 -o "${tarball}" "${url}"
+else
+  log "using cached ${ROOTFS_FLAVOR} rootfs: ${tarball}"
+fi
+
+# verify (hermetic builds: pin the flavor's sha var)
+if [ -n "${sha}" ]; then
   log "verifying sha256"
-  echo "${POCKNIX_ALARM_SHA256}  ${tarball}" | sha256sum -c - \
-    || die "ALARM tarball sha256 mismatch — refusing to build"
+  echo "${sha}  ${tarball}" | sha256sum -c - \
+    || die "${ROOTFS_FLAVOR} tarball sha256 mismatch — refusing to build"
   ok "checksum verified"
 else
-  warn "POCKNIX_ALARM_SHA256 is unset — build is NOT reproducible (pin it for releases)"
+  warn "rootfs sha256 is unset — build is NOT reproducible (pin it for releases)"
 fi
 
 log "extracting rootfs -> ${ROOTFS_DIR}"
