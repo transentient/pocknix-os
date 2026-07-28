@@ -19,7 +19,16 @@ for t in curl tar rsync; do need_tool "$t"; done
 # dep) can never leak into another SoC's builds.
 BROOT="${BUILD_DIR}/pkgbuild-root-${SOC}"   # the makepkg build chroot (reused across runs)
 LOCALREPO="${LOCALREPO_DIR}"                # build/localrepo/${SOC} (set in lib.sh)
-TARBALL="${CACHE_DIR}/${ALARM_TARBALL}"
+# HOLODOR: the build chroot MUST match the image's userland — packages built
+# against ALARM's rolling glibc could break on Holo's pinned snapshot. Same
+# flavor selection as bootstrap.sh.
+if [ "${ROOTFS_FLAVOR:-holo}" = "holo" ]; then
+  TARBALL="${CACHE_DIR}/${HOLO_TARBALL}"
+  TARBALL_URL="${HOLO_MIRROR}/${HOLO_TARBALL}"
+else
+  TARBALL="${CACHE_DIR}/${ALARM_TARBALL}"
+  TARBALL_URL="${ALARM_MIRROR}/${ALARM_TARBALL}"
+fi
 REPO_DB="pocknix.db.tar.gz"
 
 cleanup() { chroot_umount "${BROOT}" 2>/dev/null || true
@@ -31,17 +40,19 @@ setup_chroot() {
     log "reusing build chroot: ${BROOT}"
   else
     mkdir -p "${CACHE_DIR}"
-    [ -f "${TARBALL}" ] || { log "downloading ALARM tarball for build chroot"; \
-      curl -fL --retry 3 -o "${TARBALL}" "${ALARM_MIRROR}/${ALARM_TARBALL}"; }
+    [ -f "${TARBALL}" ] || { log "downloading ${ROOTFS_FLAVOR:-holo} tarball for build chroot"; \
+      curl -fL --retry 3 -o "${TARBALL}" "${TARBALL_URL}"; }
     log "creating build chroot -> ${BROOT} (one-time; ~1.5 GB with base-devel)"
     rm -rf "${BROOT}"; mkdir -p "${BROOT}"
     if have bsdtar; then bsdtar -xpf "${TARBALL}" -C "${BROOT}"
     else tar -xpf "${TARBALL}" -C "${BROOT}" --numeric-owner; fi
     maybe_install_qemu "${BROOT}"
-    cp -f "${CONFIG_DIR}/pacman.conf.in" "${BROOT}/etc/pacman.conf"   # ALARM-only base
+    cp -f "${CONFIG_DIR}/pacman.conf.in" "${BROOT}/etc/pacman.conf"   # flavor base
     chroot_mount "${BROOT}"
     chroot "${BROOT}" pacman-key --init
-    chroot "${BROOT}" pacman-key --populate archlinuxarm
+    # HOLODOR: no archlinuxarm keyring on holo (preview pkgs unsigned)
+    [ "${ROOTFS_FLAVOR:-holo}" = "holo" ] || \
+      chroot "${BROOT}" pacman-key --populate archlinuxarm
     chroot "${BROOT}" pacman -Syu --noconfirm --needed base-devel sudo
     chroot_umount "${BROOT}"
   fi
