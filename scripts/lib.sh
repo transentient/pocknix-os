@@ -65,6 +65,9 @@ need_tool(){ have "$1" || die "missing required tool: $1"; }
 # --- chroot mount/teardown (idempotent) ------------------------------------
 chroot_mount() {
   local root="$1"
+  # HOLODOR: the Holo Core rootfs tarball is container-style — it ships without
+  # /dev, /proc and /sys. Create the mount points before binding (no-op on ALARM).
+  mkdir -p "${root}/dev" "${root}/proc" "${root}/sys" "${root}/run" "${root}/tmp"
   mount --bind /dev      "${root}/dev"
   mount --bind /dev/pts  "${root}/dev/pts"
   mount -t proc  proc    "${root}/proc"
