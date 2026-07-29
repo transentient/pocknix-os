@@ -5,14 +5,18 @@
 # only the launcher/switch scripts — it does NOT depend() on this stack, to keep makepkg from
 # dragging the whole KDE/Qt tree into the build chroot (see packages/pocknix-desktop/PKGBUILD).
 
-plasma-mobile        # mobile shell + the startplasmamobile session entrypoint
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#plasma-mobile        # mobile shell + the startplasmamobile session entrypoint
 plasma-workspace     # startplasma-wayland + plasmashell (the shell host)
 kwin                 # the Wayland compositor Plasma Mobile runs on
-plasma-nano          # minimal shell container the mobile shell builds on
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#plasma-nano          # minimal shell container the mobile shell builds on
 plasma-nm            # Wi-Fi / network applet (touch UI)
 powerdevil           # power / brightness / suspend management
-plasma-settings      # mobile settings app
-kscreen              # kscreen-doctor -> the panel rotation/scale transform (rotated-DSI crux)
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#plasma-settings      # mobile settings app
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#kscreen              # kscreen-doctor -> the panel rotation/scale transform (rotated-DSI crux)
 xdg-user-dirs        # ~/Documents,Pictures,Videos,… integration (Dolphin Places, file dialogs)
 
 # On-screen keyboard: provided by plasma-mobile itself (the `plasma-keyboard` component) and works
@@ -23,28 +27,40 @@ xdg-user-dirs        # ~/Documents,Pictures,Videos,… integration (Dolphin Plac
 # Plasma Mobile ships only the shell; it does NOT pull a terminal/editor/file-manager. Add the
 # standard KDE apps the user expects. (These are desktop apps but run fine touch/mobile.)
 konsole              # terminal emulator
-kate                 # advanced text editor — ALSO provides /usr/bin/kwrite (no standalone kwrite pkg)
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#kate                 # advanced text editor — ALSO provides /usr/bin/kwrite (no standalone kwrite pkg)
 dolphin              # KDE file manager
-kcalc                # calculator
-ark                  # archive manager
-unrar                # .rar backend for ark (and CLI extraction)
-gwenview             # image viewer
-okular               # document / PDF viewer
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#kcalc                # calculator
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#ark                  # archive manager
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#unrar                # .rar backend for ark (and CLI extraction)
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#gwenview             # image viewer
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#okular               # document / PDF viewer
 
 # --- browsers ---
-firefox              # Firefox
-angelfish            # Plasma Mobile's touch-first web browser
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#firefox              # Firefox
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#angelfish            # Plasma Mobile's touch-first web browser
 
 # --- Plasma Mobile gear (touch-first apps) ---
-koko                 # image gallery
-kclock               # clock / alarms / timers
-kweather             # weather
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#koko                 # image gallery
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#kclock               # clock / alarms / timers
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#kweather             # weather
 
 # --- Android apps (Waydroid) ---
 # Plasma Mobile ships the "Waydroid support" settings KCM but NOT the daemon. waydroid is in Arch
 # extra/ALARM (pulls lxc, python-gbinder, nftables, dnsmasq…). Needs the kernel's binder+binderfs
 # (added in build-kernel.sh). First run still needs `waydroid init` (downloads the Android image).
-waydroid
+# HOLODOR: not in Holo Core preview (v0: game mode first)
+#waydroid
 
 # --- app store (Flatpak) ---
 # Discover is the native KDE store and ships a Flatpak backend; flatpak provides the runtime.
