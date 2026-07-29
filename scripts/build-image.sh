@@ -100,7 +100,13 @@ install_local_packages() {
   _pkgs=()
   while read -r _p; do _pkgs+=("pocknix/${_p}"); done \
     < <(read_pkglist "${CONFIG_DIR}/packages/pocknix-emulation.list")
-  chroot "${root}" pacman -S --noconfirm --needed "${_pkgs[@]}"
+  # HOLODOR: the emulation list may be fully commented (v0 is Steam-only) —
+  # pacman errors on an empty target list.
+  if [ ${#_pkgs[@]} -eq 0 ]; then
+    log "pocknix-emulation.list is empty — skipping emulation set"
+  else
+    chroot "${root}" pacman -S --noconfirm --needed "${_pkgs[@]}"
+  fi
   # Source-built emulators are OPTIONAL-warn (first-ever aarch64 builds = likeliest to fail; a
   # missing one just leaves that system out of ES-DE, which degrades gracefully) — don't fail the
   # whole image over 3DS/GameCube/WiiU.
