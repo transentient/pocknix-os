@@ -304,7 +304,15 @@ bootstrap_steam_seed() {
 
 main() {
   # 1. base rootfs
-  "${POCKNIX_ROOT}/scripts/bootstrap.sh"
+  # HOLODOR: resumable builds — Valve's preview CDN times out sporadically, and
+  # every phase below is idempotent (pacman --needed, guarded bake, cp overlays).
+  # Set HOLODOR_RESUME=1 to reuse the existing extracted rootfs instead of
+  # re-extracting (which would discard the pacman cache and completed installs).
+  if [ "${HOLODOR_RESUME:-0}" = "1" ] && [ -x "${ROOTFS_DIR}/usr/bin/pacman" ]; then
+    log "resuming with existing rootfs (HOLODOR_RESUME=1): ${ROOTFS_DIR}"
+  else
+    "${POCKNIX_ROOT}/scripts/bootstrap.sh"
+  fi
 
   # 1b. build the local pocknix-* packages (own build chroot) -> build/localrepo
   # HOLODOR: skippable when the localrepo is already complete — the full-catalog
