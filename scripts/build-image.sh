@@ -307,7 +307,15 @@ main() {
   "${POCKNIX_ROOT}/scripts/bootstrap.sh"
 
   # 1b. build the local pocknix-* packages (own build chroot) -> build/localrepo
-  "${POCKNIX_ROOT}/scripts/build-packages.sh"
+  # HOLODOR: skippable when the localrepo is already complete — the full-catalog
+  # refresh retries previously-failed packages (es-de → a 4h wxwidgets compile)
+  # that the image doesn't install. Set HOLODOR_SKIP_PKGPHASE=1 to trust the
+  # existing localrepo (build_local_pkgs still dies if the kernel pkg is absent).
+  if [ "${HOLODOR_SKIP_PKGPHASE:-0}" = "1" ]; then
+    log "skipping package-refresh phase (HOLODOR_SKIP_PKGPHASE=1 — using existing localrepo)"
+  else
+    "${POCKNIX_ROOT}/scripts/build-packages.sh"
+  fi
 
   # 2. pacman config + repos inside the rootfs
   mkdir -p "${LOCAL_REPO_DIR}"
