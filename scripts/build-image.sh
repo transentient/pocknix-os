@@ -280,7 +280,17 @@ bootstrap_steam_seed() {
     if ! chroot "${root}" test -f "${steam}/steamrtarm64/steamui.so" \
        || ! chroot "${root}" test -f "${steam}/package/steam_client_steamdeck_publicbeta_linuxarm64.installed"; then
       umount "${root}/dev/shm" 2>/dev/null || true
-      die "steam bake incomplete (no steamui.so / .installed) — the seed is broken. Re-run (POCKNIX_REBOOTSTRAP_STEAM=1 forces a clean rebake)."
+      # HOLODOR: the in-chroot Xvfb self-update never writes the .installed
+      # manifest on SD-card build hosts (>1h, deterministic). The client tree +
+      # runtime are present; without the manifest Steam simply re-verifies /
+      # finishes its layout on first boot (post-OOBE, real network) — the
+      # SteamOS-like OOBE covers that path anyway. Allow shipping that seed.
+      if [ "${HOLODOR_ALLOW_INCOMPLETE_BAKE:-0}" = "1" ] \
+         && chroot "${root}" test -f "${steam}/steamrtarm64/steamui.so"; then
+        warn "steam bake unfinalized (no .installed manifest) — shipping anyway; first boot finalizes (HOLODOR_ALLOW_INCOMPLETE_BAKE=1)"
+      else
+        die "steam bake incomplete (no steamui.so / .installed) — the seed is broken. Re-run (POCKNIX_REBOOTSTRAP_STEAM=1 forces a clean rebake)."
+      fi
     fi
     # strip per-session cruft AND registry.vdf (like armada) so the seed shows the OOBE on first boot
     # — the user configures Wi-Fi there; pocknix-steamos-shim's steamos-update keeps the OOBE's
