@@ -116,11 +116,11 @@ fi
 #    libvpx.so.6, libav*), so it self-updates and lays out the complete install, writing the
 #    channel .installed manifest. Without that manifest the seed would re-install on first boot.
 log "Bootstrapping native client under Xvfb (self-update + install layout; can take minutes)..."
-LD_LIBRARY_PATH="${CLIENT_DIR}:${STEAM}/lib/aarch64-linux-gnu" \
-  # HOLODOR: 900s starved out on SD-card builds — the self-update's package
-  # extraction alone can exceed 15min under fsync-heavy small-file I/O, and the
-  # kill lands mid-extract, so the .installed manifest (written last) never
-  # appears. Overridable for slower/faster media.
+# HOLODOR: 900s starved out on SD-card builds — the self-update's package
+# extraction alone can exceed 15min under fsync-heavy small-file I/O, and the
+# kill landed mid-extract, so the .installed manifest (written last) never
+# appeared. Overridable for slower/faster media.
+env LD_LIBRARY_PATH="${CLIENT_DIR}:${STEAM}/lib/aarch64-linux-gnu" \
   timeout "${POCKNIX_STEAM_BOOTSTRAP_TIMEOUT:-3600}" xvfb-run -a "${CLIENT_DIR}/steam" -steamdeck -exitsteam || true
 
 installed_manifest="${STEAM}/package/${STEAM_ARM_MANIFEST_NAME}.installed"
