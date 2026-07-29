@@ -16,7 +16,17 @@ STEAM="${STEAM:-${HOME}/.local/share/Steam}"
 STEAM_DOT="${STEAM_DOT:-${HOME}/.steam}"
 RUNTIME_DIR="${STEAM}/steam-runtime-steamrt-arm64"
 CLIENT_DIR="${STEAM}/steamrtarm64"
-RUNTIME_TAR_URL="https://repo.steampowered.com/steamrt3c/images/latest-public-beta/steam-runtime-steamrt-arm64.tar.xz"
+# HOLODOR: Valve's edge cache 403s plain GETs on the latest-public-beta ALIAS
+# path (HEAD 307s fine — verified 2026-07-29, any UA, any region). The .txt
+# pointer + versioned path works, so resolve the version first and fall back
+# to the alias only if the pointer is unreachable.
+RUNTIME_BASE="https://repo.steampowered.com/steamrt3c/images"
+RUNTIME_VER="$(wget -qO- --timeout=20 "${RUNTIME_BASE}/latest-public-beta.txt" | tr -d '[:space:]')"
+if [ -n "${RUNTIME_VER}" ]; then
+  RUNTIME_TAR_URL="${RUNTIME_BASE}/${RUNTIME_VER}/steam-runtime-steamrt-arm64.tar.xz"
+else
+  RUNTIME_TAR_URL="${RUNTIME_BASE}/latest-public-beta/steam-runtime-steamrt-arm64.tar.xz"
+fi
 STEAM_CDN="https://client-update.steamstatic.com"
 STEAM_ARM_CHANNEL="steamdeck_publicbeta"
 STEAM_ARM_MANIFEST_NAME="steam_client_${STEAM_ARM_CHANNEL}_linuxarm64"

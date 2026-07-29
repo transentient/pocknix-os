@@ -266,7 +266,13 @@ bootstrap_steam_seed() {
     # shadow the HOST's /dev/shm (the bind aliases the same path), then mount a private tmpfs.
     mount --make-rprivate "${root}/dev" 2>/dev/null || true
     mount -t tmpfs tmpfs "${root}/dev/shm"
-    chroot "${root}" rm -rf "${home}"; chroot "${root}" mkdir -p "${home}"
+    # HOLODOR: only wipe the seed home on an explicit clean rebake — the die
+    # message below promises "the bake is cached, so a retry resumes", and an
+    # unconditional wipe made that a lie (every retry re-downloaded ~1GB).
+    if [ "${POCKNIX_REBOOTSTRAP_STEAM:-0}" = "1" ]; then
+      chroot "${root}" rm -rf "${home}"
+    fi
+    chroot "${root}" mkdir -p "${home}"
     if ! chroot "${root}" env HOME="${home}" /usr/bin/pocknix-steam-install; then
       umount "${root}/dev/shm" 2>/dev/null || true
       die "steam bake failed (pocknix-steam-install in chroot). Check network + retry (the bake is cached, so a retry resumes)."
