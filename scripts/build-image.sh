@@ -239,6 +239,29 @@ install_firmware() {
     # gen80000 A830 GPU firmware — shipped an image with no GPU once). Fetch
     # every manifest entry that the rootfs doesn't already have (checking the
     # .zst-compressed form Holo's packages use; the kernel loads either).
+    # HOLODOR: ROCKNIX keeps the per-SoC vendor blobs (WCN7860 wifi, qca BT,
+    # adsp/cdsp, audio topology, vpu) in a SEPARATE repo — ROCKNIX/extra-firmware,
+    # under SM8750/**. They are NOT in upstream linux-firmware at all, so the
+    # manifest reconcile below cannot supply them. Without these: no wifi, no BT,
+    # no audio DSP (v0 shipped exactly that way).
+    local xfw_rev="${ROCKNIX_EXTRA_FIRMWARE_REV:-99e17b0d20fe888ea3b4b100945724090533515f}"
+    local xfw_tar="${CACHE_DIR}/rocknix-extra-firmware-${xfw_rev}.tar.gz"
+    local xfw_dir="${BUILD_DIR}/extra-firmware-${xfw_rev}"
+    if [ ! -d "${xfw_dir}/extra-firmware-${xfw_rev}/${ROCKNIX_SOC}" ]; then
+      log "fetching ROCKNIX extra-firmware (${ROCKNIX_SOC} vendor blobs)"
+      curl -fsSL --retry 3 -o "${xfw_tar}" \
+        "https://github.com/ROCKNIX/extra-firmware/archive/${xfw_rev}.tar.gz" \
+        || die "could not fetch ROCKNIX extra-firmware (wifi/bt/dsp firmware)"
+      mkdir -p "${xfw_dir}"; tar -xzf "${xfw_tar}" -C "${xfw_dir}"
+    fi
+    local xfw_src="${xfw_dir}/extra-firmware-${xfw_rev}/${ROCKNIX_SOC}"
+    if [ -d "${xfw_src}" ]; then
+      log "installing ${ROCKNIX_SOC} vendor firmware ($(du -sh "${xfw_src}" | cut -f1)) -> rootfs"
+      rsync -a --chown=root:root "${xfw_src}/" "${root}/usr/lib/firmware/"
+    else
+      die "ROCKNIX extra-firmware has no ${ROCKNIX_SOC}/ tree — wifi/bt/dsp would be missing"
+    fi
+
     local dat="${KERNEL_DIR}/config/kernel-firmware.dat" fetched=0 missing=0 f
     if [ -f "${dat}" ]; then
       log "no ${SOC} firmware overlay — reconciling rootfs against ${dat} (fetching gaps from upstream linux-firmware)"
