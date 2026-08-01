@@ -234,7 +234,36 @@ install_firmware() {
     # linux-firmware-qcom packages already put in the rootfs.
     log "no ${SOC} firmware overlay (expected: all blobs come from ALARM linux-firmware packages)"
   else
-    warn "ROCKNIX firmware overlay not at ${FW_SRC} — run 'make sync' (wifi/audio firmware will be missing)"
+    # HOLODOR: SM8750 also ships NO overlay — its manifest blobs live in RECENT
+    # upstream linux-firmware, which Holo Core's pinned snapshot predates (the
+    # gen80000 A830 GPU firmware — shipped an image with no GPU once). Fetch
+    # every manifest entry that the rootfs doesn't already have (checking the
+    # .zst-compressed form Holo's packages use; the kernel loads either).
+    local dat="${KERNEL_DIR}/config/kernel-firmware.dat" fetched=0 missing=0 f
+    if [ -f "${dat}" ]; then
+      log "no ${SOC} firmware overlay — reconciling rootfs against ${dat} (fetching gaps from upstream linux-firmware)"
+      while IFS= read -r f || [ -n "$f" ]; do
+        f="$(echo "$f" | tr -d '[:space:]')"; [ -z "$f" ] && continue
+        if [ -e "${root}/usr/lib/firmware/${f}" ] || [ -e "${root}/usr/lib/firmware/${f}.zst" ]; then
+          continue
+        fi
+        mkdir -p "${root}/usr/lib/firmware/$(dirname "${f}")"
+        if curl -fsSL --retry 3 --max-time 120 \
+             -o "${root}/usr/lib/firmware/${f}" \
+             "https://web.git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/${f}"; then
+          chown root:root "${root}/usr/lib/firmware/${f}"; chmod 644 "${root}/usr/lib/firmware/${f}"
+          log "  fetched ${f}"
+          fetched=$((fetched+1))
+        else
+          warn "  could NOT fetch ${f} — device may lack this firmware"
+          missing=$((missing+1))
+        fi
+      done < "${dat}"
+      [ "${missing}" -gt 0 ] && die "firmware manifest incomplete (${missing} unfetchable) — refusing to build a blind image"
+      log "firmware reconciled (${fetched} fetched)"
+    else
+      warn "ROCKNIX firmware overlay not at ${FW_SRC} and no manifest at ${dat} — wifi/gpu/audio firmware may be missing"
+    fi
   fi
 }
 
