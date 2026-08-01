@@ -316,7 +316,7 @@ bootstrap_steam_seed() {
       # SteamOS-like OOBE covers that path anyway. Allow shipping that seed.
       if [ "${HOLODOR_ALLOW_INCOMPLETE_BAKE:-0}" = "1" ] \
          && chroot "${root}" test -f "${steam}/steamrtarm64/steamui.so"; then
-        warn "steam bake unfinalized (no .installed manifest) — shipping anyway; first boot finalizes (HOLODOR_ALLOW_INCOMPLETE_BAKE=1)"
+        warn "DANGER: shipping an UNFINALIZED steam seed — this caused an unrecoverable Steam update loop on v0"
       else
         die "steam bake incomplete (no steamui.so / .installed) — the seed is broken. Re-run (POCKNIX_REBOOTSTRAP_STEAM=1 forces a clean rebake)."
       fi

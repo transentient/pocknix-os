@@ -135,7 +135,7 @@ GS_LOG="${HOME}/pocknix-steam.log"
 # Steam's fossilize background shader compile stealing CPU during play).
 env -u WAYLAND_DISPLAY \
   GAMESCOPE_FAKE_OUTPUT_MM="${PANEL_MM}" \
-  gamescope -W "${W}" -H "${H}" -r "${REFRESH}" --xwayland-count 2 --mangoapp --backend drm \
+  gamescope -W "${W}" -H "${H}" --xwayland-count 2 --mangoapp --backend drm \
     --force-orientation "${ORIENT}" --use-rotation-shader -e -- \
     env LD_LIBRARY_PATH="${LDLP}" "${CLIENT}" -gamepadui -steamos3 -steampal -steamdeck -noverifyfiles -noshaders \
   >"${GS_LOG}" 2>&1
