@@ -89,10 +89,16 @@ sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync
 
 ## Known-open work
 
-- Restore the 3 packages missing from Holo (commented in base.list): **cloud-guest-utils/
-  growpart** (root auto-expand currently fails on-device — v0.2 card was expanded from
-  fusor), **scx-scheds** (pocknix-lavd.service fails: no /usr/bin/scx_lavd), plymouth
-- Retire the dying SanDisk; flash a fresh card (above) and re-verify clean boot end-to-end
+- ~~growpart / scx_lavd~~ RESTORED (2026-08-03 overnight): ALARM binaries via localrepo —
+  cloud-guest-utils direct, scx-scheds via packages/scx-scheds (repackaged: ALARM's
+  'libgcc' dep → Holo's 'gcc-libs'). plymouth still commented (cosmetic, needs theme work)
+- **Audio WORKS** (2026-08-03): bsp 0.2.0-3 ships ROCKNIX's Odin 3 UCM (speaker verified
+  on hardware). Headphones jack-detect profile untested. Games launched before the fix
+  attach to the dummy sink — restart the game for sound
+- Retire the dying SanDisk; flash a fresh card (above) and re-verify clean boot end-to-end.
+  **The current build/image/sm8750/pocknix-sm8750-sd.img (built overnight 08-03) has
+  EVERYTHING: fw-initramfs KERNEL, audio UCM, growpart, scx_lavd, Wi-Fi preseed** —
+  spot-check verified; just dd it
 - The localrepo kernel package still carries the OLD pocknix-build-bootimg (no fw
   initramfs) — fusor can't rebuild it (no kernel out tree); the rootfs copy is patched,
   but rebuild linux-pocknix-sm8750 with the fixed hook at the next kernel build
