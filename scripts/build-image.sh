@@ -135,6 +135,16 @@ install_local_packages() {
   while read -r _p; do _pkgs+=("pocknix/${_p}"); done \
     < <(read_pkglist "${DEVICE_DIR}/packages.list")
   chroot "${root}" pacman -S --noconfirm --needed "${_pkgs[@]}"
+  # Resume-build staleness: everything above is `--needed` on EXPLICIT names, so a package
+  # that only entered as a dependency (the BSP via the device metapackage) never upgrades
+  # when its pkgrel is bumped — a resumed image silently ships the old build (this shipped
+  # a dead-controls BSP once). Re-sync every INSTALLED package that [pocknix] carries:
+  # --needed skips same-version, uninstalled ones (optional emulators) stay absent.
+  _stale=()
+  while read -r _p; do
+    chroot "${root}" pacman -Q "${_p}" >/dev/null 2>&1 && _stale+=("pocknix/${_p}")
+  done < <(chroot "${root}" pacman -Slq pocknix)
+  [ "${#_stale[@]}" -gt 0 ] && chroot "${root}" pacman -S --noconfirm --needed "${_stale[@]}"
   chroot "${root}" pacman -Q "${DEVICE_BSP_PKG}" >/dev/null 2>&1 || {
     die "${DEVICE_BSP_PKG} not installed — the device metapackage should have pulled it. Check devices/${DEVICE}/packages.list and 'make packages'."
   }
