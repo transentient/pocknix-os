@@ -103,6 +103,17 @@ EOF
     sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' "${root}/etc/ssh/sshd_config"
   fi
 
+  # DEV-ONLY Wi-Fi preseed: any *.nmconnection in config/local/ (GITIGNORED — holds the PSK)
+  # is baked in so a dev image comes up on the network without OOBE — invaluable while the
+  # session is unstable and SSH is the only debug path. Release/polished images: empty the
+  # directory first (see HANDOFF known-open work).
+  if compgen -G "${POCKNIX_ROOT}/config/local/*.nmconnection" >/dev/null; then
+    log "preseeding Wi-Fi profiles from config/local/ (DEV image — not for release)"
+    install -d -m 755 "${root}/etc/NetworkManager/system-connections"
+    install -m 600 -o root -g root "${POCKNIX_ROOT}"/config/local/*.nmconnection \
+      "${root}/etc/NetworkManager/system-connections/"
+  fi
+
   # install the committed test-image overlay (diag dump, autologin, NM conf, fan/volume helpers)
   if [ -d "${POCKNIX_ROOT}/overlay" ]; then
     log "installing overlay (diag + autologin + helpers)"

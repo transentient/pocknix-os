@@ -26,3 +26,7 @@
 .DS_Store
 *.swp
 __pycache__/
+
+# dev-image secrets (wifi preseed)
+/config/local/*
+!/config/local/README.md
