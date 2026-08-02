@@ -4,10 +4,16 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## STATUS: IT WORKS. Steam Big Picture runs on the device.
+## STATUS: v0.2 BOOTS CLEAN — Steam, controls, Wi-Fi, zero manual surgery.
 
-First hardware boot succeeded 2026-08-02 after a long debugging marathon. The Odin 3 is
-currently running Holodor from SD, signed in to Steam, controls working.
+2026-08-02 (evening): the reproducible v0.2 image boots straight into Steam on hardware —
+GPU firmware loads from the boot-image initramfs (593512e killed the probe-vs-mount race),
+InputPlumber controls correct out of the box, Wi-Fi preseeded, seed finalized (no update
+loop), root auto-expansion verified (done from fusor; on-device growpart still missing).
+CAVEAT: the current SanDisk Ultra 128GB card is DYING (stuck flash blocks that silently
+ignore writes — recurring fsck damage in /usr/share/icons/breeze). Treat it as a test mule;
+flash the next card (Cliff's older 32GB/64GB candidates — ABL-check them in System Stats
+FIRST) from the current repo + build tree, which now contain every fix.
 
 ## Where things are (on fusor)
 
@@ -30,8 +36,10 @@ Build host prerequisites already installed: `qemu-user-static` + `qemu-user-stat
 
 ## IMMEDIATE NEXT STEP
 
-The v0.2 image was built BEFORE the InputPlumber fixes (commit `d35cd93`), so **it would ship
-with dead controls**. Rebuild before flashing:
+Flash a healthy card (the SanDisk is dying): ABL-check the candidate card first (insert in
+Odin, VOL- menu, System Stats must show the SD), then build + flash. 32GB minimum (image is
+16.4GB), 64GB+ if games go on it. The current build tree already has every fix; a plain
+rebuild works:
 
 ```sh
 cd ~/projects/holodor
@@ -81,7 +89,13 @@ sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync
 
 ## Known-open work
 
-- Rebuild + flash v0.2 (above), then verify a clean boot needs NO manual fixes
+- Restore the 3 packages missing from Holo (commented in base.list): **cloud-guest-utils/
+  growpart** (root auto-expand currently fails on-device — v0.2 card was expanded from
+  fusor), **scx-scheds** (pocknix-lavd.service fails: no /usr/bin/scx_lavd), plymouth
+- Retire the dying SanDisk; flash a fresh card (above) and re-verify clean boot end-to-end
+- The localrepo kernel package still carries the OLD pocknix-build-bootimg (no fw
+  initramfs) — fusor can't rebuild it (no kernel out tree); the rootfs copy is patched,
+  but rebuild linux-pocknix-sm8750 with the fixed hook at the next kernel build
 - Suspend/resume, audio output, X/Y button orientation (A/B confirmed fixed)
 - USB-C host mode: a USB keyboard was not detected at the fallback shell — worth fixing, and a
   USB gadget serial/network console would make future debugging far easier
