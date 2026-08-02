@@ -21,9 +21,14 @@
 # Steam-native pad.
 version: 1
 kind: CompositeDevice
-name: SM8550 family (RSInput)
+name: SM8750 family (RSInput) [holodor]
 
 matches:
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: model
+          value: AYN Odin 3
   - udev:
       sys_path: /sys/firmware/devicetree/base
       attributes:
@@ -57,7 +62,7 @@ source_devices:
     evdev:
       phys_path: rsinput-gamepad/input0
       handler: event*
-    capability_map_id: sm8550_gamepad
+    capability_map_id: holodor_odin3_gamepad
 
   # Back paddles (+ volume-up rocker) live here, not on the gamepad node.
   - group: gamepad
@@ -65,7 +70,7 @@ source_devices:
       name: gpio-keys
       phys_path: gpio-keys/input0
       handler: event*
-    capability_map_id: sm8550_gamepad
+    capability_map_id: holodor_odin3_gamepad
 
 options:
   auto_manage: true
