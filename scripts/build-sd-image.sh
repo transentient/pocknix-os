@@ -30,6 +30,15 @@ OUT="${IMAGE_DIR}/pocknix-${SOC}-sd.img"   # one image per SoC family -> name it
 [ -f "${KERNEL_IMG}" ] || die "no ${KERNEL_IMG} — run 'make kernel' first"
 [ -d "${ROOTFS_DIR}" ] || die "no rootfs at ${ROOTFS_DIR} — run 'sudo make build' first"
 
+# Rootfs integrity: a rootfs copied between hosts WITHOUT root (rsync/scp as a user) silently
+# drops every root-only file (/etc/shadow is 600) and re-owns everything to the copying user —
+# chpasswd then dies mid-build with the opaque "Authentication token manipulation error", and a
+# rootfs like that is unshippable anyway. Catch it up front with a clear message.
+[ -f "${ROOTFS_DIR}/etc/shadow" ] \
+  || die "rootfs has no /etc/shadow — it was copied without root and is missing root-only files. Rebuild it: 'sudo scripts/build-image.sh' (HOLODOR_SKIP_PKGPHASE=1 keeps the localrepo)."
+[ "$(stat -c %u "${ROOTFS_DIR}/etc/passwd")" = "0" ] \
+  || die "rootfs /etc/passwd is not root-owned — the rootfs ownership is corrupt (non-root copy?). Rebuild it: 'sudo scripts/build-image.sh' (HOLODOR_SKIP_PKGPHASE=1 keeps the localrepo)."
+
 LOOP=""; MNT=""
 cleanup() {
   [ -n "${MNT}" ] && mountpoint -q "${MNT}" && umount "${MNT}" 2>/dev/null || true
