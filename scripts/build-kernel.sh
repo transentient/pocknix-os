@@ -312,14 +312,46 @@ assemble_bootimg() {
   gzip -c "${KBUILD}/out/Image" > "${kgz}"
   for d in "${KBUILD}"/out/dtbs/*.dtb; do [ -f "${d}" ] && cat "${d}" >> "${kgz}"; done
   if [ -z "${ramdisk}" ]; then
-    # We don't use an initramfs (UFS/ext4 are built in). Ship a VALID empty cpio
-    # so the kernel unpacks it cleanly instead of printing "Initramfs unpacking
-    # failed" (harmless, but noisy). Falls back to a dummy string if cpio is absent.
-    ramdisk="${KBUILD}/out/ramdisk.empty"
-    if have cpio; then
-      printf '' | cpio -o -H newc --quiet > "${ramdisk}" 2>/dev/null
+    local fwlist="${POCKNIX_ROOT}/kernel/${SOC}/config/bootimg-firmware.list"
+    if [ -f "${fwlist}" ]; then
+      # Boot-critical firmware initramfs. The msm/adreno driver is BUILT-IN and
+      # requests its SQE microcode BEFORE the SD rootfs is mounted; with no
+      # initramfs that request ENOENTs, the GPU never initializes, and gamescope
+      # exits immediately. Whether the probe beats the mount is timing luck —
+      # v0.2 lost the race on hardware, the hand-built v0.1 card happened to win
+      # it. The kernel serves early request_firmware() from the unpacked
+      # initramfs, so embed the listed files (~130KB): from the built rootfs when
+      # present, else fetched from upstream linux-firmware (same source
+      # build-image reconciles the rootfs against).
+      local fwroot="${KBUILD}/out/bootimg-fw" f
+      rm -rf "${fwroot}"; mkdir -p "${fwroot}/lib/firmware"
+      while IFS= read -r f || [ -n "$f" ]; do
+        f="$(echo "$f" | tr -d '[:space:]')"; [ -z "$f" ] && continue
+        mkdir -p "${fwroot}/lib/firmware/$(dirname "${f}")"
+        if [ -e "${ROOTFS_DIR}/usr/lib/firmware/${f}" ]; then
+          cp "${ROOTFS_DIR}/usr/lib/firmware/${f}" "${fwroot}/lib/firmware/${f}"
+        elif ! curl -fsSL --retry 3 --max-time 120 -o "${fwroot}/lib/firmware/${f}" \
+               "https://web.git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/${f}"; then
+          die "bootimg firmware ${f}: not in rootfs and unfetchable — without it the GPU cannot init (see bootimg-firmware.list)"
+        fi
+      done < "${fwlist}"
+      ramdisk="${KBUILD}/out/ramdisk.fw"
+      if have cpio; then
+        (cd "${fwroot}" && find lib | cpio -o -H newc --quiet) | gzip -9 > "${ramdisk}"
+      else
+        (cd "${fwroot}" && bsdtar --format newc -cf - lib) | gzip -9 > "${ramdisk}"
+      fi
+      log "bootimg: embedded boot-critical firmware initramfs ($(du -h "${ramdisk}" | cut -f1))"
     else
-      printf 'dummy' > "${ramdisk}"
+      # No boot-critical firmware for this SoC. Ship a VALID empty cpio so the
+      # kernel unpacks it cleanly instead of printing "Initramfs unpacking
+      # failed" (harmless, but noisy). Falls back to a dummy string if cpio is absent.
+      ramdisk="${KBUILD}/out/ramdisk.empty"
+      if have cpio; then
+        printf '' | cpio -o -H newc --quiet > "${ramdisk}" 2>/dev/null
+      else
+        printf 'dummy' > "${ramdisk}"
+      fi
     fi
   fi
   log "assembling qcom-abl boot image -> ${IMAGE_DIR}/KERNEL"

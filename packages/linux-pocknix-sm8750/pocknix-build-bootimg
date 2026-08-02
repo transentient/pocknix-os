@@ -22,9 +22,21 @@ tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
 gzip -c /boot/Image > "$tmp/kernel.gz"
 for d in /boot/dtbs/*.dtb; do [ -f "$d" ] && cat "$d" >> "$tmp/kernel.gz"; done
-# valid empty cpio ramdisk (no initramfs; UFS/ext4 are built-in) so the kernel unpacks it cleanly
-if command -v cpio >/dev/null 2>&1; then printf '' | cpio -o -H newc --quiet > "$tmp/ramdisk" 2>/dev/null
-else printf 'dummy' > "$tmp/ramdisk"; fi
+# Boot-critical GPU firmware initramfs: the built-in adreno driver requests its SQE microcode
+# BEFORE the SD rootfs mounts — with an empty ramdisk that request ENOENTs, the GPU never
+# initializes, and gamescope exits immediately (v0.2 shipped that way; the race is timing luck).
+# The kernel serves early request_firmware() from the unpacked initramfs, so pack the gen80000
+# set (~130KB) from the installed firmware tree. Keep in sync with kernel/sm8750/config/
+# bootimg-firmware.list (scripts/build-kernel.sh embeds the same set at build time).
+fwroot="$tmp/fwroot"; mkdir -p "$fwroot/lib/firmware/qcom/sm8750"
+cp /usr/lib/firmware/qcom/gen80000_* "$fwroot/lib/firmware/qcom/" 2>/dev/null || true
+cp /usr/lib/firmware/qcom/sm8750/gen80000_zap.mbn "$fwroot/lib/firmware/qcom/sm8750/" 2>/dev/null || true
+if ! ls "$fwroot"/lib/firmware/qcom/gen80000_* >/dev/null 2>&1; then
+  echo "pocknix-build-bootimg: WARNING: no gen80000 firmware found — KERNEL will boot with a dead GPU"
+fi
+if command -v cpio >/dev/null 2>&1; then (cd "$fwroot" && find lib | cpio -o -H newc --quiet) | gzip -9 > "$tmp/ramdisk"
+elif command -v bsdtar >/dev/null 2>&1; then (cd "$fwroot" && bsdtar --format newc -cf - lib) | gzip -9 > "$tmp/ramdisk"
+else printf 'dummy' > "$tmp/ramdisk"; echo "pocknix-build-bootimg: WARNING: no cpio/bsdtar — shipped a dummy ramdisk (GPU race!)"; fi
 
 python3 "$MKBOOTIMG" \
   --kernel "$tmp/kernel.gz" --ramdisk "$tmp/ramdisk" \
