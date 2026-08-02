@@ -84,7 +84,7 @@ firstboot_config() {
 PARTUUID=${SD_ROOT_PARTUUID}  /       ext4  rw,noatime         0 1
 PARTUUID=${SD_BOOT_PARTUUID}  /flash  vfat  rw,noatime,nofail  0 2
 EOF
-  echo "pocknix" > "${root}/etc/hostname"
+  echo "${SD_HOSTNAME:-holodor}" > "${root}/etc/hostname"
   # Default timezone: the ALARM base ships NO /etc/localtime, so libc (and thus the SteamOS/Plasma
   # clock) silently falls back to UTC and changing the zone in the UI "has no effect" — there's no
   # file for it to land in. Ship a default symlink (overridable via SD_TIMEZONE); the user can change

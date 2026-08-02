@@ -36,7 +36,7 @@ with dead controls**. Rebuild before flashing:
 ```sh
 cd ~/projects/holodor
 sudo env DEVICE=sm8750 HOLODOR_SKIP_PKGPHASE=1 HOLODOR_RESUME=1 bash scripts/build-image.sh
-sudo env DEVICE=sm8750 bash scripts/build-sd-image.sh
+sudo env DEVICE=sm8750 SD_TIMEZONE=Asia/Tokyo bash scripts/build-sd-image.sh
 # then flash natively (fusor has real USB — no Windows/usbipd nonsense):
 lsblk    # confirm the card device FIRST
 sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync status=progress
