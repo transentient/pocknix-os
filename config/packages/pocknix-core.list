@@ -18,3 +18,7 @@ fex-emu                # x86 emulator (thunks)
 fex-rootfs             # ~1.1 GB Arch x86 squashfs the games' libraries resolve from
 pocknix-desktop        # Plasma Mobile session + game<->desktop switch
 pocknix-decky          # Decky loader + Pocknix Control QAM plugin
+cloud-guest-utils      # growpart — pocknix-expand-root grows the root partition on first boot.
+                       #   NOT in Holo Core; ALARM aarch64 binary carried in the localrepo.
+scx-scheds             # sched_ext schedulers incl. scx_lavd (pocknix-lavd.service, autopilot).
+                       #   NOT in Holo Core; ALARM aarch64 binary carried in the localrepo.
