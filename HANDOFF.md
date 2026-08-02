@@ -86,6 +86,8 @@ sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync
 - USB-C host mode: a USB keyboard was not detected at the fallback shell — worth fixing, and a
   USB gadget serial/network console would make future debugging far easier
 - Change default passwords (root/deck = `pocknix`)
+- Dev images bake Cliff's Wi-Fi from `config/local/*.nmconnection` (gitignored) — REMOVE
+  for any polished/shared image (empty `config/local/`); users get Wi-Fi via OOBE
 - pocknix-os has NO LICENSE — filed `shuuri-labs/pocknix-os#21`. Holodor stays PRIVATE until
   upstream picks one.
 
