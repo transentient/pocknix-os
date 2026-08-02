@@ -35,6 +35,11 @@ with dead controls**. Rebuild before flashing:
 
 ```sh
 cd ~/projects/holodor
+# HOLODOR_SKIP_PKGPHASE=1 TRUSTS the localrepo: if a commit touched ANY package source
+# (packages/**, devices/*/packages/**), force-rebuild those packages FIRST or the image
+# silently ships the stale build (this bit us: d35cd93 + 8c73543 bumped pocknix-bsp-sm8750
+# and pocknix-steam, and a skip-phase rebuild shipped dead controls + the -r 120 wedge):
+#   sudo env DEVICE=sm8750 bash scripts/build-packages.sh <pkg>...
 sudo env DEVICE=sm8750 HOLODOR_SKIP_PKGPHASE=1 HOLODOR_RESUME=1 bash scripts/build-image.sh
 sudo env DEVICE=sm8750 SD_TIMEZONE=Asia/Tokyo bash scripts/build-sd-image.sh
 # then flash natively (fusor has real USB — no Windows/usbipd nonsense):
@@ -64,6 +69,15 @@ sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync
    swaps the South/East *source* codes.
 7. **Codecs**: `libav*` ship in the `bins_codecs_*` VZ packages, not the main client. VZ =
    LZMA_ALONE, 7-byte header, crc32+usize in the last 10 bytes.
+8. **Rootfs must never be copied between hosts without root**: a user-level rsync/scp drops
+   every root-only file (/etc/shadow!) and re-owns everything to the copying user — the
+   transferred v0.2 rootfs AND build chroot were both corrupt this way. build-sd-image.sh
+   now fails fast on it. Rootfs + build chroot are cheap to regenerate from build/cache +
+   build/localrepo; only those caches are worth transferring.
+9. **Arch hosts: qemu binfmt needs the C flag** for setuid binaries (sudo) inside aarch64
+   chroots — Arch registers qemu-aarch64 with `FP` only and makepkg's `sudo pacman` fails
+   with "effective uid is not 0" (looks like nosuid, isn't). Fixed on fusor via
+   /etc/binfmt.d/qemu-aarch64-static.conf (flags POCF); documented in fusor's NOTES.md.
 
 ## Known-open work
 
