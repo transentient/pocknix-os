@@ -87,6 +87,15 @@ sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync
    with "effective uid is not 0" (looks like nosuid, isn't). Fixed on fusor via
    /etc/binfmt.d/qemu-aarch64-static.conf (flags POCF); documented in fusor's NOTES.md.
 
+## STATUS UPDATE 2026-08-03: FIRST FULLY-CLEAN BOOT — 64GB card is the daily driver
+
+Everything-image flashed to the 64GB card (byte-for-byte readback-verified), first boot:
+GPU/controls/sound/Wi-Fi/auto-expand(57G)/scx_lavd ALL working, zero surgery. SanDisk
+retired. First-login note: the OOBE client update + unsynced clock caused a one-time
+~40min "stuck at login / connection problem" episode (update-apply I/O starves sshd; the
+bogus RTC date breaks Steam TLS until NTP syncs) — resolved by one power-cycle; the next
+boot verified clean (bootstrap_log: Nothing to do; clock synced).
+
 ## Known-open work
 
 - ~~growpart / scx_lavd~~ RESTORED (2026-08-03 overnight): ALARM binaries via localrepo —
@@ -102,7 +111,14 @@ sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync
 - The localrepo kernel package still carries the OLD pocknix-build-bootimg (no fw
   initramfs) — fusor can't rebuild it (no kernel out tree); the rootfs copy is patched,
   but rebuild linux-pocknix-sm8750 with the fixed hook at the next kernel build
-- Suspend/resume, audio output, X/Y button orientation (A/B confirmed fixed)
+- Suspend/resume, X/Y button orientation in-game (A/B + audio confirmed fixed)
+- UI "slightly glitchy" (Cliff, 08-03, otherwise snappy) — characterize: visual artifacts
+  (gamescope/Turnip) vs hitches (sched/IO)?
+- First-boot clock: RTC comes up with a bogus date → Steam TLS fails until NTP syncs
+  (the "connection problem" at first login). Consider seeding the clock at boot from the
+  build timestamp (e.g. a tmpfiles/service touch-file floor) so TLS works pre-NTP
+- Small unit cleanups: sdcard-mount.sh tries to mount the boot SD's own root partition
+  (add a root-disk guard); disable systemd-networkd-wait-online (we run NetworkManager)
 - USB-C host mode: a USB keyboard was not detected at the fallback shell — worth fixing, and a
   USB gadget serial/network console would make future debugging far easier
 - Change default passwords (root/deck = `pocknix`)
