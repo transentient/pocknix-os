@@ -110,6 +110,17 @@ sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync
   for any polished/shared image (empty `config/local/`); users get Wi-Fi via OOBE
 - pocknix-os has NO LICENSE — filed `shuuri-labs/pocknix-os#21`. Holodor stays PRIVATE until
   upstream picks one.
+- **Lepton watch** (Valve's Waydroid-based Android layer, "Proton for Android"): went live
+  2026-08-01 as a background Steam runtime + Steamworks Android depots (APK/OBB, APK as
+  launch executable) ahead of the Steam Frame launch — the Frame runs our same Holo-family
+  aarch64 SteamOS, and Android games would run NATIVELY on the Odin 3 (no FEX tax).
+  NOT pullable yet (2026-08-03): no package in any Holo snapshot (mash-20251118.3 is still
+  the newest), no store page / public depot — delivery is via the Steam client itself.
+  Our kernel is already ready (binder+binderfs on for Waydroid; MEMFD covers ashmem).
+  WATCH: (a) new `mash-*` snapshots at holo-packages.steamos.cloud (a Holo bump is a
+  whole-base upgrade — deliberate change, HOLO_MIRROR pin in config/pocknix.conf),
+  (b) a lepton runtime/depot appearing in the arm64 client (SteamDB, or on-device under
+  ~/.local/share/Steam), (c) whether Valve gates it to Frame hardware.
 
 ## Credits / license posture
 
