@@ -155,6 +155,24 @@ the newly-public Lepton/FEX tools (went public on Steam 2026-08-01..03).
   (b) a lepton runtime/depot appearing in the arm64 client (SteamDB, or on-device under
   ~/.local/share/Steam), (c) whether Valve gates it to Frame hardware.
 
+## Community intel (AYN Odin 3 Linux Discord, via Cliff 2026-08-04)
+
+Gaps the community sees in Odin 3 Linux generally — our position on each:
+- **Rumble**: dead everywhere; armada issue #134 has the full diagnosis — kernel has
+  qcom_hv_haptics + an rsinput FF bridge (newer than our 7.1.3 snapshot), but the DTS
+  lacks the PMIH0108 hv-haptics node. Our tree confirmed: pmih0108.dtsi included, NO
+  haptics node, driver not in config. FIX PATH = next kernel iteration (bump toward
+  7.1.5, port/enable driver+node+bridge, cross-compile env on fusor) — which ALSO ships
+  the fixed pocknix-build-bootimg hook. Armada reportedly has it working — check their
+  kernel commits when porting.
+- **Sleep/wake**: our resume race is hardened (bsp-common-2); one idle-suspend wedge
+  unexplained. Community sees perf issues too — Qualcomm resume latency is partly
+  inherent (remoteproc restarts).
+- **Battery**: sudden 30-40% drops reported; likely BOTH real (cpuidle state disabled
+  for GMU = idle drain) AND gauge artifacts (pmic_glink battmgr; we log 'health' errors).
+  TODO: battery telemetry logger to separate gauge jumps from true drain.
+- **Lossless Scaling (lsfg-vk)**: hard to set up on armada per community; niche, backlog.
+
 ## Credits / license posture
 
 GPL-2.0-or-later fork of pocknix-os (pending their license), crediting ROCKNIX, Armada,
