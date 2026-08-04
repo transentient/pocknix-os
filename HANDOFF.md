@@ -96,6 +96,16 @@ retired. First-login note: the OOBE client update + unsynced clock caused a one-
 bogus RTC date breaks Steam TLS until NTP syncs) — resolved by one power-cycle; the next
 boot verified clean (bootstrap_log: Nothing to do; clock synced).
 
+## INTERNAL INSTALL DONE 2026-08-04 — awaiting the SD-pull ceremony
+
+`pocknix-install-internal --userdata-gib 32` ran clean from the SD system (sleep-inhibited):
+Android userdata reset to 34GB, sda18=ROCKNIX FAT (KERNEL md5-verified), sda19=HOLODOR_ROOT
+433GB ext4, fstab correct, hardened bsp-common-2/sdcard-automount-5 chroot-installed into
+the clone. NEXT: power off -> REMOVE SD -> power on (internal boots; SD left in = two
+HOLODOR_ROOT partlabels = ambiguous root). SD card = bootable rescue, store it safe.
+FIRST INTERNAL BOOT: verify UFS speed feel, then check whether the Steam client now offers
+the newly-public Lepton/FEX tools (went public on Steam 2026-08-01..03).
+
 ## Known-open work
 
 - ~~growpart / scx_lavd~~ RESTORED (2026-08-03 overnight): ALARM binaries via localrepo —
