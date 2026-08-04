@@ -99,6 +99,16 @@ EOF
   # file for it to land in. Ship a default symlink (overridable via SD_TIMEZONE); the user can change
   # it in the OOBE / Settings (deck is authorised via overlay 50-pocknix-deck.rules -> timedate1).
   chroot "${root}" ln -sfn "/usr/share/zoneinfo/${SD_TIMEZONE:-UTC}" /etc/localtime
+  # The Odin 3's RTC is VOLATILE — every cold boot starts at the epoch. systemd-timesyncd
+  # floors the boot clock to its saved clock file's mtime, but a FRESH image has no such
+  # file, so the very first boot runs at a bogus date until the first NTP sync — which
+  # breaks every TLS connection (hardware-observed: Steam login "connection problem", QR
+  # spinner forever). Seed the file with the BUILD time so first boot starts within hours
+  # of reality instead of at the systemd epoch.
+  install -d -m 755 "${root}/var/lib/systemd/timesync"
+  touch "${root}/var/lib/systemd/timesync/clock"
+  chroot "${root}" chown -R systemd-timesync:systemd-timesync /var/lib/systemd/timesync 2>/dev/null \
+    || warn "could not chown timesync clock seed (systemd-timesync user missing?)"
   if [ -f "${root}/etc/ssh/sshd_config" ]; then
     sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' "${root}/etc/ssh/sshd_config"
   fi
