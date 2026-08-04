@@ -34,6 +34,16 @@ ACTION=$1
 DEVBASE=$2
 DEVICE="/dev/${DEVBASE}"
 
+# Never touch partitions of the disk we booted from: when the OS itself runs off an SD
+# card, the udev add events for the BOOT SD's own partitions land here too, and trying
+# to (re)mount the running root fails every boot as a failed transient unit. Same story
+# after an internal install (root on /dev/sda): a udev replay for sda* must not match.
+ROOT_DISK="$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1)"
+if [[ -n "${ROOT_DISK}" && "${DEVBASE}" == "${ROOT_DISK}"* ]]; then
+    echo "ignoring ${DEVBASE}: partition of the boot disk (${ROOT_DISK})"
+    exit 0
+fi
+
 # The Steam session user (pocknix: deck = 1001; NOT Valve's 1000 = alarm here).
 STEAM_UID=1001
 # SteamOS's deck uid/gid — what a foreign card's files are owned by on disk. Adjacent to ours.

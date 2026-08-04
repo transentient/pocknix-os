@@ -217,6 +217,10 @@ EOF
         systemd-networkd-wait-online.service \
         systemd-networkd-varlink.socket systemd-networkd-resolve-hook.socket \
         systemd-networkd-varlink-metrics.socket >/dev/null 2>&1 || true
+  # disable is NOT enough for wait-online: anything wanting network-online.target pulls
+  # it back in and it fails every boot (networkd manages no links). Mask it — NM's own
+  # NetworkManager-wait-online serves that target.
+  chroot "${root}" systemctl mask systemd-networkd-wait-online.service >/dev/null 2>&1 || true
 
   if [ -n "${SD_WIFI_SSID}" ]; then
     # Guard: a Wi-Fi SSID with no password silently ships an unusable image (the SSID is logged but

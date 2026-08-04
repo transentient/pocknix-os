@@ -1,9 +1,30 @@
 #!/bin/sh
 # Resume side of Option B (see inputplumber-sleep-pre): restart InputPlumber so the
 # virtual controller comes back, but only if WE stopped it on the way down.
+#
+# HARDENED (hardware-observed race, Odin 3 2026-08-04): starting InputPlumber the
+# instant we resume races the kernel's input re-enumeration — source evdev nodes can
+# appear, vanish and reappear for a moment (logs show "Failed to get capabilities …
+# NotFound" for a node that died mid-probe), and a start that lands in that window
+# leaves a session with DEAD CONTROLS until the next suspend/resume. So: wait for the
+# rsinput gamepad to be present (max ~5s), give the nodes a moment to settle, start —
+# then verify the virtual pad actually materialized and restart once if it didn't.
 FLAG=/run/pocknix-inputplumber-resume
 if [ -e "${FLAG}" ]; then
   rm -f "${FLAG}"
+  i=0
+  while ! grep -q 'rsinput-gamepad' /proc/bus/input/devices 2>/dev/null; do
+    [ "${i}" -ge 50 ] && break
+    i=$((i + 1)); sleep 0.1
+  done
+  sleep 0.5
   systemctl start inputplumber
+  # Watchdog: the composite device should re-emit the virtual pad within a few
+  # seconds. If it didn't (we lost the race anyway), one restart re-enumerates
+  # cleanly — the manual workaround was "suspend and resume again"; do it for them.
+  sleep 4
+  if ! grep -qE 'Steam Deck Controller|InputPlumber' /proc/bus/input/devices 2>/dev/null; then
+    systemctl restart inputplumber
+  fi
 fi
 exit 0
