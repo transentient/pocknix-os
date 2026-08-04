@@ -111,7 +111,14 @@ boot verified clean (bootstrap_log: Nothing to do; clock synced).
 - The localrepo kernel package still carries the OLD pocknix-build-bootimg (no fw
   initramfs) — fusor can't rebuild it (no kernel out tree); the rootfs copy is patched,
   but rebuild linux-pocknix-sm8750 with the fixed hook at the next kernel build
-- Suspend/resume, X/Y button orientation in-game (A/B + audio confirmed fixed)
+- Suspend/resume CORE WORKS (2026-08-04: manual, in-game, and rtcwake all verified; RTC is
+  VOLATILE — resets to epoch on cold boot, clock-seed fix 75cf663). Two residuals:
+  (a) InputPlumber controls occasionally dead after resume — re-grab race; workaround:
+  suspend/resume again; harden sleep-post with a delay/retry. (b) ONE unexplained hard
+  wedge after an idle-triggered suspend (2026-08-03 19:01, journal ends at 'PM: suspend
+  entry') — watch for recurrence, bisect with pm_test if it does
+- Vanquish (x86 UE action game via FEX+Proton+DXVK/Turnip) RUNS WELL per Cliff (2026-08-04)
+- X/Y button orientation in-game (A/B + audio confirmed fixed)
 - UI "slightly glitchy" (Cliff, 08-03, otherwise snappy) — characterize: visual artifacts
   (gamescope/Turnip) vs hitches (sched/IO)?
 - First-boot clock: RTC comes up with a bogus date → Steam TLS fails until NTP syncs
