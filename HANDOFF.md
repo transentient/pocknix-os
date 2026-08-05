@@ -172,6 +172,9 @@ Gaps the community sees in Odin 3 Linux generally — our position on each:
   for GMU = idle drain) AND gauge artifacts (pmic_glink battmgr; we log 'health' errors).
   TODO: battery telemetry logger to separate gauge jumps from true drain.
 - **Lossless Scaling (lsfg-vk)**: hard to set up on armada per community; niche, backlog.
+- **Thumbstick RGB**: the stick LED rings don't work on armada either. Likely driven by
+  the RSInput MCU (Android controls them via AYN's app) — investigate whether the MCU
+  protocol exposes LED commands (InputPlumber has LED target support if so).
 
 ## Credits / license posture
 
