@@ -103,8 +103,16 @@ Android userdata reset to 34GB, sda18=ROCKNIX FAT (KERNEL md5-verified), sda19=H
 433GB ext4, fstab correct, hardened bsp-common-2/sdcard-automount-5 chroot-installed into
 the clone. NEXT: power off -> REMOVE SD -> power on (internal boots; SD left in = two
 HOLODOR_ROOT partlabels = ambiguous root). SD card = bootable rescue, store it safe.
-FIRST INTERNAL BOOT: verify UFS speed feel, then check whether the Steam client now offers
-the newly-public Lepton/FEX tools (went public on Steam 2026-08-01..03).
+FIRST INTERNAL BOOT (2026-08-05): SUCCESS — boots fast, Balatro/Elden Ring/Expedition 33
+installed, downloads healthy. Lepton/FEX hunt result: BOTH visible in the client
+(Library search -> Tools filter) but install falls back to "stream from BONESAW" — their
+appinfo carries release-state **ownersonly** = license-gated, NOT hardware-gated. No
+store page => no way to self-grant the free license yet. Valve's pattern (Proton,
+runtimes) auto-grants tool licenses when a game requires them — expect the gate to open
+at/near Frame launch or when Android-depot games ship. Lepton appid = 3029110
+(steamdb.info/app/3029110). FEX appid: TODO extract from appinfo.vdf (v29 header parse —
+script pattern in session notes) next time the device is awake. Device now at
+192.168.1.19 (internal boot lease).
 
 ## Known-open work
 
