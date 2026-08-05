@@ -109,7 +109,11 @@ installed, downloads healthy. Lepton/FEX hunt result: BOTH visible in the client
 appinfo carries release-state **ownersonly** = license-gated, NOT hardware-gated. No
 store page => no way to self-grant the free license yet. Valve's pattern (Proton,
 runtimes) auto-grants tool licenses when a game requires them — expect the gate to open
-at/near Frame launch or when Android-depot games ship. Lepton appid = 3029110
+at/near Frame launch or when Android-depot games ship. Lepton GPU caveat (Discord intel 2026-08-05): Waydroid/Lepton has NO GPU accel on
+Adreno 830 — the container's Android-side mesa predates turnip a8xx (Frame is an
+A750 = a7xx, so Valve won't fix it for us). Our HOST turnip 26.1.5 drives the A830
+fine, so the eventual play is grafting our mesa build into the container's GPU libs.
+Lepton appid = 3029110
 (steamdb.info/app/3029110). FEX appid: TODO extract from appinfo.vdf (v29 header parse —
 script pattern in session notes) next time the device is awake. Device now at
 192.168.1.19 (internal boot lease).
