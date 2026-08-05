@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -13,10 +13,11 @@ license=('GPL2')
 depends=()
 optdepends=('inputplumber: the 001-inputplumber suspend hooks manage its USB/IP deck target')
 source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
+        'wifi-sleep-pre' 'wifi-sleep-post'
         'inputplumber-sleep-pre' 'inputplumber-sleep-post'
         '20-pocknix-powerkey.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -24,6 +25,14 @@ package() {
     "${pkgdir}/usr/lib/systemd/system-sleep/pocknix-sleep"
 
   # suspend/resume hooks (run by the hook above, in name order)
+  # 000-wifi: radio off before sleep — a wedged WCN7860 tx queue makes ath12k's
+  # suspend time out and ABORTS the whole system suspend (looks like instant wake),
+  # and the hung fw kills scanning until reboot. Drain + quiesce first; restore on
+  # resume. Runs FIRST so the fw parks while the other hooks do their work.
+  install -Dm755 "${srcdir}/wifi-sleep-pre" \
+    "${pkgdir}/usr/lib/pocknix/sleep.d/pre/000-wifi"
+  install -Dm755 "${srcdir}/wifi-sleep-post" \
+    "${pkgdir}/usr/lib/pocknix/sleep.d/post/000-wifi"
   # 001-inputplumber: drop the USB/IP virtual controller before sleep so vhci_hcd
   # doesn't veto suspend (the `deck` target attaches over USB/IP); restore on resume.
   install -Dm755 "${srcdir}/inputplumber-sleep-pre" \
