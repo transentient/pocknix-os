@@ -171,8 +171,8 @@ Gaps the community sees in Odin 3 Linux generally — our position on each:
   lacks the PMIH0108 hv-haptics node. Our tree confirmed: pmih0108.dtsi included, NO
   haptics node, driver not in config. FIX PATH = next kernel iteration (bump toward
   7.1.5, port/enable driver+node+bridge, cross-compile env on fusor) — which ALSO ships
-  the fixed pocknix-build-bootimg hook. Armada reportedly has it working — check their
-  kernel commits when porting.
+  the fixed pocknix-build-bootimg hook. Armada CONFIRMED working (2026-08-05: first crashed, maintainer fixed it) — find both
+  the enable commit AND the crash fix in their kernel tree when porting.
 - **Sleep/wake**: our resume race is hardened (bsp-common-2); one idle-suspend wedge
   unexplained. Community sees perf issues too — Qualcomm resume latency is partly
   inherent (remoteproc restarts).
