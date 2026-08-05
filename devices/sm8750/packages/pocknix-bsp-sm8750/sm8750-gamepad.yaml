@@ -44,16 +44,21 @@ mapping:
     target_event:
       gamepad: { button: East }
 
-  # X/Y swap: physical X reports BTN_NORTH -> West; physical Y reports BTN_WEST -> North.
-  - name: West Button (physical X)
+  # X/Y: STRAIGHT-THROUGH on the Odin 3 (hardware-verified 2026-08-06, Cyberpunk field
+  # test: with the sm8550-inherited swap, every Steam X/Y prompt matched the OPPOSITE
+  # labelled button while A/B were right). Same lesson as A/B: the Odin 3's MCU does
+  # not share the Odin 2 family's driver-side X/Y inversion, so label-X (BTN_WEST)
+  # maps to West = Steam X, label-Y (BTN_NORTH) to North = Steam Y — labels win,
+  # consistent with the A/B convention.
+  - name: West Button (label X)
     source_events:
-      - evdev: { event_type: KEY, event_code: BTN_NORTH, value_type: button }
+      - evdev: { event_type: KEY, event_code: BTN_WEST, value_type: button }
     target_event:
       gamepad: { button: West }
 
-  - name: North Button (physical Y)
+  - name: North Button (label Y)
     source_events:
-      - evdev: { event_type: KEY, event_code: BTN_WEST, value_type: button }
+      - evdev: { event_type: KEY, event_code: BTN_NORTH, value_type: button }
     target_event:
       gamepad: { button: North }
 
