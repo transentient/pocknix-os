@@ -143,6 +143,19 @@ script pattern in session notes) next time the device is awake. Device now at
 - X/Y button orientation in-game (A/B + audio confirmed fixed)
 - UI "slightly glitchy" (Cliff, 08-03, otherwise snappy) — characterize: visual artifacts
   (gamescope/Turnip) vs hitches (sched/IO)?
+- **In-game Steam overlay broken** (Cyberpunk, 08-06): overlay elements (Steam menu, game
+  menu, controls diagram) overflow the screen AND input goes dead -> only escape is a
+  forced power-off. gamescope already runs -e + rotation shader, so suspect the ROCKNIX
+  rotation patches' overlay path. Investigate: reproduce with a light game, capture
+  gamescope stderr + journal during overlay, try a newer ROCKNIX gamescope build.
+- **Suspend no-wake #2** (08-06, despite the Wi-Fi guard): device would not resume,
+  needed power-hold. Journal forensics pending next boot (-b -1/-2). If the wedge class
+  recurs, start the pm_test bisection. ALSO: after the forced power-off the session had
+  been stuck in the broken overlay — possibly related, possibly separate.
+- **X/Y FIX STAGED, UNTESTED**: bsp-sm8750 0.2.0-4 (c2a554e) maps X/Y straight-through
+  (Cyberpunk field test showed prompts matching the OPPOSITE labelled button; the
+  sm8550-era driver inversion doesn't exist on the Odin 3 MCU — same lesson as A/B).
+  Install on device + verify in Steam's controller test before calling it done.
 - First-boot clock: RTC comes up with a bogus date → Steam TLS fails until NTP syncs
   (the "connection problem" at first login). Consider seeding the clock at boot from the
   build timestamp (e.g. a tmpfiles/service touch-file floor) so TLS works pre-NTP
