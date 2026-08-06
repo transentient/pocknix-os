@@ -77,6 +77,13 @@ apply_patches() {
 }
 
 install_dts() {
+  # Some SoC trees (sm8750) ship NO dts/ dir — their device trees arrive via the
+  # patch stack (e.g. 0046/0047 add the CQ8725S/Odin3 sources + Makefile entries),
+  # so there is nothing to overlay or register here.
+  if [ ! -d "${KERNEL_DIR}/dts" ]; then
+    log "no ${SOC} dts/ overlay — device trees come from the patch stack, skipping"
+    return 0
+  fi
   log "installing ${SOC} device trees + ensuring Makefile entries"
   rsync -a "${KERNEL_DIR}/dts/" "${KSRC}/arch/arm64/boot/dts/"
   # Register exactly the dts files the SoC tree ships (whatever their prefix —
