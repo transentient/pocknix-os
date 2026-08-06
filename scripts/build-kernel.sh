@@ -69,7 +69,13 @@ apply_patches() {
     n=0
     for p in "${d}"*.patch; do
       [ -f "${p}" ] || continue
-      patch -p1 -d "${KSRC}" < "${p}" >/dev/null || die "patch failed to apply: ${p}"
+      # patch(1) first; fall back to git apply for git-format diffs (renames,
+      # new-file headers with modes) that patch(1) rejects — e.g. the armada-
+      # sourced patches in 40-holodor.
+      patch -p1 -d "${KSRC}" --dry-run -s -f < "${p}" >/dev/null 2>&1 \
+        && patch -p1 -d "${KSRC}" -s -f < "${p}" >/dev/null \
+        || (cd "${KSRC}" && git apply "${p}") \
+        || die "patch failed to apply: ${p}"
       n=$((n+1))
     done
     log "applied $(basename "${d}"): ${n} patches"
