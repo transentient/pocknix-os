@@ -118,6 +118,18 @@ Lepton appid = 3029110
 script pattern in session notes) next time the device is awake. Device now at
 192.168.1.19 (internal boot lease).
 
+## RUMBLE KERNEL STAGED 2026-08-06 — awaiting Cliff-supervised deploy
+
+Kernel build env now on fusor (cross aarch64; base-devel + aarch64-linux-gnu-gcc; make
+kernel works). linux-pocknix-sm8750 **7.1.3-6** in localrepo carries: ArmadaOS's ported
+haptics set (kernel/sm8750/patches/40-holodor/ — see its README for credits/contents),
+DTS hv-haptics+SDAM+rumble/deadzone props (DTB verified), CONFIG_INPUT_QCOM_HV_HAPTICS=m,
+AND the fixed fw-initramfs pocknix-build-bootimg hook (debt closed). DEPLOY (with Cliff):
+scp pkg -> pacman -U on device (hook rebuilds /flash/KERNEL) -> reboot -> TEST: rumble in
+a game, stick deadzones, suspend cycles (PCIe GDSC fix may kill the wedge), controls
+after resume (kernel MCU reinit now backs the sleep-post retry). Keep the old KERNEL.bak
+on /flash as rollback; SD rescue card also boots.
+
 ## Known-open work
 
 - ~~growpart / scx_lavd~~ RESTORED (2026-08-03 overnight): ALARM binaries via localrepo —
