@@ -118,7 +118,22 @@ Lepton appid = 3029110
 script pattern in session notes) next time the device is awake. Device now at
 192.168.1.19 (internal boot lease).
 
-## RUMBLE KERNEL STAGED 2026-08-06 — awaiting Cliff-supervised deploy
+## RUMBLE WORKS 2026-08-06 — kernel 7.1.3-6 DEPLOYED, vibration physically confirmed
+
+Deployed via pacman -U; the FIXED bootimg hook rebuilt /flash/KERNEL on-device (first
+time — debt paid). Boot clean; qcom-hv-haptics probed the PMIC (HAP_CFG 0x501), rsinput
+linked to it (FF bridge live), THREE FF devices exist (raw haptics, gamepad, Steam's
+virtual pad). Remote FF pulses at max strength: CLIFF FELT THEM — both the bridge path
+and the raw path. REMAINING: in-game rumble test (Steam->virtual pad->InputPlumber->
+bridge), suspend cycles under the PCIe-GDSC fix, deadzone feel.
+BONUS RECON same evening: battery charge-control sysfs is LIVE on our kernel
+(charge_control_end/start_threshold, defaults 80/70, writes honored; USB
+input_current_limit exists) — Armada lacks UI for this too => "Battery care" panel in
+the Pocknix Control Decky plugin = high-visibility differentiator, filed. Sleep-drain
+positioning: we do real deep suspend; measure %/hr (telemetry logger) before claiming
+numbers; note the PCIe fix may cost some sleep drain — measure the tradeoff.
+
+## RUMBLE KERNEL notes (superseded — kept for the deploy checklist)
 
 Kernel build env now on fusor (cross aarch64; base-devel + aarch64-linux-gnu-gcc; make
 kernel works). linux-pocknix-sm8750 **7.1.3-6** in localrepo carries: ArmadaOS's ported
