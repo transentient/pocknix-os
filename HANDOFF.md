@@ -185,10 +185,22 @@ on /flash as rollback; SD rescue card also boots.
   official default "Gamepad" template from the game's controller page (Library, NOT the
   broken in-game overlay). System layer is raw-capture-proven correct; per-game configs
   are the last place old chaos hides. NEVER edit binding VDFs while Steam runs.
-- **Suspend no-wake #2** (08-06, despite the Wi-Fi guard): device would not resume,
-  needed power-hold. Journal forensics pending next boot (-b -1/-2). If the wedge class
-  recurs, start the pm_test bisection. ALSO: after the forced power-off the session had
-  been stuck in the broken overlay — possibly related, possibly separate.
+- **Suspend no-wake wedge: SOLVED 2026-08-08** (pending field confirmation). The boot
+  ledger showed 100% of boots wedged since the rumble kernel; two controlled rtcwake
+  module-bisection rounds convicted rsinput — specifically patch 0508 (MCU reinit on
+  resume, ironically imported to FIX resume). Kernel 7.1.3-7 ships without it (parked in
+  patches-disabled/ for a 7.1.5 iteration; armada runs it fine on their base — find the
+  supporting delta before re-adopting). The rsinput sleep-guard hooks (bsp-common
+  0.1.0-4) are DISABLED on-device for naked kernel validation — restore the two files
+  from the package if the wedge somehow returns. NOTE: the guard's side effect (module
+  yank under a running game) crashes some games (Cyberpunk) — don't ship it enabled
+  long-term.
+- **Cyberpunk X/Y mystery: SOLVED** — Cliff had remapped X<->Y in Steam Input during the
+  wrong-map era; after the map fix underneath, his remap became the bug (the autosave
+  also ended up mangled: BOTH X and Y bound to xinput Y). Quarantined
+  (controller_steamos_handheld.vdf.mangled.bak); game falls back to default template.
+  LESSON: layered fixes fight — when a layer gets fixed, audit the compensations made
+  above it (Steam per-game configs are the last hiding place).
 - **X/Y FIX STAGED, UNTESTED**: bsp-sm8750 0.2.0-4 (c2a554e) maps X/Y straight-through
   (Cyberpunk field test showed prompts matching the OPPOSITE labelled button; the
   sm8550-era driver inversion doesn't exist on the Odin 3 MCU — same lesson as A/B).
