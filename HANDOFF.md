@@ -170,11 +170,21 @@ on /flash as rollback; SD rescue card also boots.
 - X/Y button orientation in-game (A/B + audio confirmed fixed)
 - UI "slightly glitchy" (Cliff, 08-03, otherwise snappy) — characterize: visual artifacts
   (gamescope/Turnip) vs hitches (sched/IO)?
-- **In-game Steam overlay broken** (Cyberpunk, 08-06): overlay elements (Steam menu, game
-  menu, controls diagram) overflow the screen AND input goes dead -> only escape is a
-  forced power-off. gamescope already runs -e + rotation shader, so suspect the ROCKNIX
-  rotation patches' overlay path. Investigate: reproduce with a light game, capture
-  gamescope stderr + journal during overlay, try a newer ROCKNIX gamescope build.
+- **In-game Steam overlay broken — REFRAMED 08-07 (live forensics during a stuck state)**:
+  not a gamescope/rotation bug. Evidence: zombie steamwebhelper present in the wreckage
+  (both occurrences), Steam suddenly discovering the RAW gpio-keys-paddles device it
+  should never see (doubled input paths = the "two competing menus"), game itself healthy
+  underneath. Working theory: a mystery SECOND InputPlumber instance ran at boot+44s and
+  its shutdown un-hid a source device the main instance was managing -> Steam grabbed it;
+  overlay chaos + webhelper death follow. TODO: find what spawns the second IP instance
+  (pid 7059 that boot); verify paddle visibility to Steam in a healthy session; consider
+  re-asserting udev hides post-boot. RESCUE PROTOCOL (no more 15s power holds): SSH in,
+  pkill the game process -> Steam UI recovers.
+- **Cyberpunk per-game layout scar** (08-07): the game played during the map-troubleshoot
+  era carries a swapped X/Y layout in its per-game Steam Input config. Fix = apply the
+  official default "Gamepad" template from the game's controller page (Library, NOT the
+  broken in-game overlay). System layer is raw-capture-proven correct; per-game configs
+  are the last place old chaos hides. NEVER edit binding VDFs while Steam runs.
 - **Suspend no-wake #2** (08-06, despite the Wi-Fi guard): device would not resume,
   needed power-hold. Journal forensics pending next boot (-b -1/-2). If the wedge class
   recurs, start the pm_test bisection. ALSO: after the forced power-off the session had
