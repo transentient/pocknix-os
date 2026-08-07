@@ -4,7 +4,35 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## STATUS: v0.2 BOOTS CLEAN — Steam, controls, Wi-Fi, zero manual surgery.
+## CURRENT STATE 2026-08-08 (read this first; sections below are chronological history)
+
+Daily driver = internal UFS install, kernel 7.1.3-7 (rumble stack, suspend wedge FIXED —
+0508 excised and field-validated), bsp-sm8750 0.2.0-6 (the wiretap-proven ASYMMETRIC
+button map — A/B crossed, X/Y straight; do NOT "fix" it, read knowledge item 6),
+bsp-common 0.1.0-4 (wifi + inputplumber sleep hooks; rsinput guard files REMOVED on
+device — kernel fix supersedes). Audio, Wi-Fi, charge-limits, auto-expand: all working.
+Buttons verified end-to-end IN-GAME. Suspend/resume clean on the new kernel.
+
+TOMORROW'S DOCKET (in order):
+0. RUMBLE IN-GAME (Cyberpunk) — the week's unclaimed prize; test FIRST before anything
+   can crash. Hardware rumble is proven (remote FF pulses felt); only Steam->game routing
+   unverified.
+1. OVERLAY JAM — 100% reproducer: Steam menu while in Cyberpunk -> doubled/oversized
+   menus + dead input. Theory: input-path jam + steamwebhelper death. Suspend-cycle
+   un-jams it (corroborates). Rescue: ssh + pkill GameThread. Hunt with the wiretap +
+   live gamescopectl during a jam.
+2. SUSPEND-DURING-GAME controller loss — sleep hooks restart InputPlumber, running games
+   never re-acquire the recreated pad ("controller disconnected"). FIX DIRECTION: move
+   the IP target off deck/USB-IP (vhci suspend veto is WHY we stop IP) to a uhid target
+   (ds5 — ROCKNIX's approach) so IP survives suspend. SteamOS-parity sleep is the prize.
+3. Artists: reply to Tall-Bass (boot video + palette answer + comms channel; front-runner,
+   ~$272, same TZ); nudge Finamore for pixel-native samples ($300-500, elite timing).
+4. Battery telemetry logger (drain %/hr awake+asleep) — needed before any public claims.
+5. Public-release track: README + install docs -> Cliff's two dogfood installs; Steam
+   seed decision (download-at-first-boot needs a network-install fallback in the
+   launcher — test hard); per-install password generation; strip Wi-Fi preseed.
+
+## STATUS 2026-08-02: v0.2 BOOTS CLEAN — Steam, controls, Wi-Fi, zero manual surgery.
 
 2026-08-02 (evening): the reproducible v0.2 image boots straight into Steam on hardware —
 GPU firmware loads from the boot-image initramfs (593512e killed the probe-vs-mount race),
