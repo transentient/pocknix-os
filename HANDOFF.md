@@ -228,6 +228,15 @@ Gaps the community sees in Odin 3 Linux generally — our position on each:
   the RSInput MCU (Android controls them via AYN's app) — investigate whether the MCU
   protocol exposes LED commands (InputPlumber has LED target support if so).
 
+## Future: sm8550 family expansion (RP6 / Odin 2 line / 8 Gen 2 devices)
+
+After Odin 3 reaches public quality: the pocknix harness's HOME TURF is sm8550 — our
+repo still carries its maintained devices/sm8550 + kernel/sm8550 trees (we inherited our
+board configs FROM them), Adreno 740 turnip is MORE mature than our A830, and Holodor's
+inventions (Holo graft, seed bake, fw-initramfs, clock seed, sleep hooks, battery-care)
+are SoC-agnostic. Costs: physical hardware per board for QA (the last 10% is always
+board quirks) + multiplied release testing. ~10x the addressable audience.
+
 ## Credits / license posture
 
 GPL-2.0-or-later fork of pocknix-os (pending their license), crediting ROCKNIX, Armada,
