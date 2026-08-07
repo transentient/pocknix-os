@@ -44,22 +44,27 @@ mapping:
     target_event:
       gamepad: { button: East }
 
-  # X/Y cross-map. RAW-CAPTURE VERIFIED 2026-08-06 (exclusive evdev grab, labelled
-  # presses): the Odin 3 MCU emits pure POSITION codes (label-A/east=BTN_EAST,
-  # B/south=BTN_SOUTH, X/north=BTN_NORTH, Y/west=BTN_WEST). AYN's labels are
-  # Nintendo-layout, so LABELS-WIN requires cross-mapping BOTH pairs: north
-  # (label X) -> West = Steam X, west (label Y) -> North = Steam Y — mirroring
-  # the East/South pair above. (The 0.2.0-4 straight-through change was wrong —
-  # it was chasing a Steam-side "Nintendo Button Layout" toggle, not the map.)
-  - name: West Button (label X, north position)
+  # X/Y: STRAIGHT-THROUGH — and this time it's END-TO-END WIRETAP-VERIFIED
+  # (2026-08-08: evdev tap on Steam's virtual x360 pad while pressing labelled
+  # buttons in-game). The trap: Linux's legacy names cross X/Y in the HEADERS
+  # (BTN_NORTH==BTN_X, BTN_WEST==BTN_Y), and InputPlumber's deck target follows
+  # that letter-consistent convention for X/Y — so the MCU's position codes are
+  # ALREADY letter-correct for this pair and must pass through unchanged, while
+  # A/B (whose evdev aliases are position-consistent: BTN_SOUTH==BTN_A,
+  # BTN_EAST==BTN_B) genuinely need the cross above. The resulting asymmetric
+  # map LOOKS wrong and is right; both "consistent" variants are half-broken.
+  # (History: -4 had this right; -5 "fixed" it backwards off a misread of the
+  # deck-diagram test screen; the wiretap settled it: with -5, Steam emitted
+  # xinput-Y for label-X. Full story: HANDOFF "button saga".)
+  - name: West Button (label Y, west position)
     source_events:
-      - evdev: { event_type: KEY, event_code: BTN_NORTH, value_type: button }
+      - evdev: { event_type: KEY, event_code: BTN_WEST, value_type: button }
     target_event:
       gamepad: { button: West }
 
-  - name: North Button (label Y, west position)
+  - name: North Button (label X, north position)
     source_events:
-      - evdev: { event_type: KEY, event_code: BTN_WEST, value_type: button }
+      - evdev: { event_type: KEY, event_code: BTN_NORTH, value_type: button }
     target_event:
       gamepad: { button: North }
 
