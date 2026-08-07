@@ -72,9 +72,21 @@ sudo dd if=build/image/sm8750/pocknix-sm8750-sd.img of=/dev/sdX bs=4M conv=fsync
    screen stays black while Steam otherwise looks healthy.
 5. **Ownership**: never touch `/home/deck` as root. 126 root-owned files there made every Steam
    update fail to apply. `chown -R deck:deck /home/deck` fixed it.
-6. **InputPlumber**: composite configs gate on the devicetree model string (`AYN Odin 3`) — the
-   upstream list has RP6/Odin 2 only. AYN labels buttons Nintendo-style, so the capability map
-   swaps the South/East *source* codes.
+6. **InputPlumber / THE BUTTON SAGA (final, wiretap-proven 2026-08-08)**: composite configs
+   gate on the dt model string (`AYN Odin 3`). The Odin 3 MCU emits pure POSITION codes
+   (raw-capture proven); AYN labels are Nintendo-style; and the CORRECT capability map is
+   ASYMMETRIC — A/B pair crossed, X/Y pair straight — because Linux's legacy evdev aliases
+   are themselves asymmetric (BTN_SOUTH==BTN_A/BTN_EAST==BTN_B are position-named, but
+   BTN_NORTH==BTN_X/BTN_WEST==BTN_Y are letter-crossed) and InputPlumber's deck target
+   follows the aliases. Both "consistent-looking" maps are half-broken; bsp 0.2.0-6 is
+   the truth. VERIFY INPUT BUGS AT THE LAST BOUNDARY: evdev-wiretap Steam's virtual x360
+   pad during labelled presses (script pattern in session notes) — intermediate layers
+   (test screens, configs) all lie in different ways. Steam's test screen draws a DECK
+   diagram: positions always look crossed on Nintendo-labelled hardware; judge by
+   LETTERS + function. Per-game Steam Input configs AND their cloud copies are where old
+   compensating remaps hide (Cyberpunk carried both a cloud remap and a mangled autosave).
+   NEVER restart inputplumber / deploy input configs while a game runs (mid-game
+   controller yank = crash or disconnect).
 7. **Codecs**: `libav*` ship in the `bins_codecs_*` VZ packages, not the main client. VZ =
    LZMA_ALONE, 7-byte header, crc32+usize in the last 10 bytes.
 8. **Rootfs must never be copied between hosts without root**: a user-level rsync/scp drops
