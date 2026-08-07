@@ -28,7 +28,11 @@ TOMORROW'S DOCKET (in order):
 3. Artists: reply to Tall-Bass (boot video + palette answer + comms channel; front-runner,
    ~$272, same TZ); nudge Finamore for pixel-native samples ($300-500, elite timing).
 4. Battery telemetry logger (drain %/hr awake+asleep) — needed before any public claims.
-5. Public-release track: README + install docs -> Cliff's two dogfood installs; Steam
+5. batocera.pocket PATCH KIT staged + primed (kernel/sm8750/patches-staged/batocera-pocket/
+   — READ ITS README): 0513 = suspend-saga full-closure candidate (restores 0508 safely),
+   HTR3212 stick RGB (driver + DTS mapped), headset-USBSS, a8xx GPU stability pair, amp
+   race fix. Reference fan/charge-limit/wifi scripts in docs/reference/batocera-pocket/.
+6. Public-release track: README + install docs -> Cliff's two dogfood installs; Steam
    seed decision (download-at-first-boot needs a network-install fallback in the
    launcher — test hard); per-install password generation; strip Wi-Fi preseed.
 
