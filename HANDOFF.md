@@ -27,7 +27,10 @@ TOMORROW'S DOCKET (in order):
    (ds5 — ROCKNIX's approach) so IP survives suspend. SteamOS-parity sleep is the prize.
 3. Artists: reply to Tall-Bass (boot video + palette answer + comms channel; front-runner,
    ~$272, same TZ); nudge Finamore for pixel-native samples ($300-500, elite timing).
-4. Battery telemetry logger (drain %/hr awake+asleep) — needed before any public claims.
+4. ~~Battery telemetry logger~~ DONE 08-08 + eco/balanced/performance power profiles
+   SHIPPED (CLI pocknix-power-mode + QAM Power-tab selector; eco measured: same load
+   10C cooler, fan OFF, charges faster). Fan hotspot fix deployed. Next: per-profile
+   game benchmarks (Ashes built-in bench), sleep-drain %/hr from overnight CSV gaps.
 5. batocera.pocket PATCH KIT staged + primed (kernel/sm8750/patches-staged/batocera-pocket/
    — READ ITS README): 0513 = suspend-saga full-closure candidate (restores 0508 safely),
    HTR3212 stick RGB (driver + DTS mapped), headset-USBSS, a8xx GPU stability pair, amp
