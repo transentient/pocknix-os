@@ -1,9 +1,14 @@
 import { PanelSection } from "@decky/ui";
 import type { Dispatch, SetStateAction } from "react";
-import { setFanMode, setLavdMode } from "../backend";
+import { setFanMode, setLavdMode, setPowerMode } from "../backend";
 import { SelectEdit } from "../components/widgets";
 import type { Config } from "../types";
 
+const powerOptions = [
+  { data: "eco", label: "Eco (cool & quiet, ~60% clocks)" },
+  { data: "balanced", label: "Balanced (~80% clocks)" },
+  { data: "performance", label: "Performance (uncapped)" },
+];
 const fanOptions = [
   { data: "quiet", label: "Quiet" },
   { data: "moderate", label: "Moderate" },
@@ -22,13 +27,14 @@ export function Power({ config, setConfig, reload }: {
   const applyMode = async (setter: (mode: string) => Promise<Config>, mode: string) => {
     try {
       const next = await setter(mode);
-      setConfig((current) => (current ? { ...current, fanMode: next.fanMode, lavdMode: next.lavdMode } : current));
+      setConfig((current) => (current ? { ...current, fanMode: next.fanMode, powerMode: next.powerMode, lavdMode: next.lavdMode } : current));
     } catch (error) {
       reload();
     }
   };
   return (
     <PanelSection title="PERFORMANCE">
+      <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
       <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions} onChange={(mode) => applyMode(setFanMode, mode)} />
       <SelectEdit label="CPU Scheduler" value={config.lavdMode} options={lavdOptions} onChange={(mode) => applyMode(setLavdMode, mode)} />
     </PanelSection>

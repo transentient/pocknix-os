@@ -6,11 +6,14 @@ from .system import atomically_write, run_cmd
 # unknown/absent value as the default, so a bad write degrades gracefully.
 FAN_MODE_FILE = Path("/var/lib/pocknix/fan-mode")
 LAVD_MODE_FILE = Path("/var/lib/pocknix/lavd-mode")
+POWER_MODE_FILE = Path("/var/lib/pocknix/power-mode")
 
 FAN_MODES = ("quiet", "moderate", "performance")
 FAN_DEFAULT = "quiet"
 LAVD_MODES = ("autopilot", "performance")
 LAVD_DEFAULT = "autopilot"
+POWER_MODES = ("eco", "balanced", "performance")
+POWER_DEFAULT = "performance"
 
 
 def _read_mode(path, allowed, default):
@@ -29,6 +32,17 @@ def lavd_mode():
     # pocknix-lavd-mode also accepts balanced/powersave for experiments; the UI only
     # offers autopilot/performance, so map anything else back to the default.
     return _read_mode(LAVD_MODE_FILE, LAVD_MODES, LAVD_DEFAULT)
+
+
+def power_mode():
+    return _read_mode(POWER_MODE_FILE, POWER_MODES, POWER_DEFAULT)
+
+
+def set_power_mode(mode):
+    if mode not in POWER_MODES:
+        raise ValueError(f"unknown power mode: {mode!r}")
+    # The helper applies cpu/gpu caps immediately and persists the mode itself.
+    run_cmd(["/usr/local/bin/pocknix-power-mode", mode])
 
 
 def set_fan_mode(mode):

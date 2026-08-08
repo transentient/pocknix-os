@@ -3,6 +3,7 @@ import type { Config, SdcardInfo, Tweaks, UpdateInfo, UpdateStatus } from "./typ
 
 export const getConfig = () => call<[], Config>("get_config");
 export const setFanMode = (mode: string) => call<[string], Config>("set_fan_mode", mode);
+export const setPowerMode = (mode: string) => call<[string], Config>("set_power_mode", mode);
 export const setLavdMode = (mode: string) => call<[string], Config>("set_lavd_mode", mode);
 export const saveTweaks = (data: Tweaks) => call<[Tweaks], Config>("save_tweaks", data);
 export const detectSdcard = () => call<[], SdcardInfo>("detect_sdcard");
