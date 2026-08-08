@@ -47,7 +47,10 @@ trap '[ -e "${FAN_EN}" ] && echo 0 > "${FAN_EN}" 2>/dev/null; exit 0' INT TERM
 LAST=""
 while :; do
   TEMPS="$(curve_temps)"
-  TEMP="$(awk '{s+=$1;n++} END{printf "%d", (n? s/n : 0)}' ${SENSORS} 2>/dev/null)"
+  # HOTTEST zone, not the average: telemetry caught the Odin 3 at a 95C GPU hotspot
+  # with the fan at the lowest tier because dozens of cool zones diluted the mean
+  # (2026-08-08, shader-compile storm). Fans exist for hotspots.
+  TEMP="$(awk '{if($1>m)m=$1} END{printf "%d", m}' ${SENSORS} 2>/dev/null)"
   i=1; SPEED=0
   for th in ${TEMPS}; do
     if [ "${TEMP}" -gt "${th}" ]; then SPEED="$(echo ${SPEEDS} | cut -d' ' -f${i})"; break; fi
