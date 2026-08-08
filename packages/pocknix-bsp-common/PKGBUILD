@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=4
+pkgrel=5
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -16,9 +16,10 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'wifi-sleep-pre' 'wifi-sleep-post'
         'rsinput-sleep-pre' 'rsinput-sleep-post'
         'inputplumber-sleep-pre' 'inputplumber-sleep-post'
+        'pocknix-telemetryd' 'pocknix-telemetry.service'
         '20-pocknix-powerkey.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -54,6 +55,13 @@ package() {
     "${pkgdir}/usr/lib/pocknix/sleep.d/pre/003-sdam-debug"
   install -Dm755 "${srcdir}/sdam-debug-post" \
     "${pkgdir}/usr/lib/pocknix/sleep.d/post/003-sdam-debug"
+
+  # Telemetry: 60s battery/thermal/clock sampler -> /var/lib/pocknix/telemetry.csv.
+  # Data-first power work: sleep-drain %/hr, per-scenario watts, fan/thermal curves.
+  install -Dm755 "${srcdir}/pocknix-telemetryd" \
+    "${pkgdir}/usr/lib/pocknix/pocknix-telemetryd"
+  install -Dm644 "${srcdir}/pocknix-telemetry.service" \
+    "${pkgdir}/usr/lib/systemd/system/pocknix-telemetry.service"
 
   # Power button: wake-and-stay (HandlePowerKey=ignore) instead of systemd's default
   # poweroff (which made a wake-press shut the device down). Sleep via the Steam menu.

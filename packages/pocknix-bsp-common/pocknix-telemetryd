@@ -1,0 +1,38 @@
+#!/bin/sh
+# pocknix-telemetryd — 60s battery/thermal/clock sampler -> /var/lib/pocknix/telemetry.csv
+#
+# Why: battery complaints ("65%->18% while installing a game", community "sudden 30-40%
+# drops") and fan/thermal tuning need DATA, not anecdotes. One row per minute; a gap in
+# timestamps brackets a suspend, and the capacity delta across the gap IS the sleep
+# drain. CSV is trivially plottable and cheap (<2MB/month; size-capped below).
+OUT=/var/lib/pocknix/telemetry.csv
+B=/sys/class/power_supply/battery
+mkdir -p "$(dirname "$OUT")"
+[ -s "$OUT" ] || echo "epoch,capacity,status,voltage_uv,current_ua,watts,temp_max_c,cpu0_khz,cpu_big_khz,gpu_hz,fan_pwm,brightness" > "$OUT"
+max_temp() {
+  m=0
+  for h in /sys/class/hwmon/hwmon*/; do
+    case "$(cat "$h/name" 2>/dev/null)" in
+      cpu*|gpuss*|ddr_thermal)
+        t=$(cat "$h/temp1_input" 2>/dev/null || echo 0)
+        [ "$t" -gt "$m" ] && m=$t ;;
+    esac
+  done
+  echo $((m/1000))
+}
+while :; do
+  cap=$(cat $B/capacity 2>/dev/null); st=$(cat $B/status 2>/dev/null)
+  v=$(cat $B/voltage_now 2>/dev/null || echo 0); c=$(cat $B/current_now 2>/dev/null || echo 0)
+  w=$(awk "BEGIN{printf \"%.2f\", ($v/1e6)*($c/1e6)}")
+  f0=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2>/dev/null || echo 0)
+  fb=$(cat /sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq 2>/dev/null || echo 0)
+  g=$(cat /sys/class/devfreq/*.gpu/cur_freq 2>/dev/null | head -1 || echo 0)
+  fan=$(cat /sys/class/hwmon/hwmon*/pwm1 2>/dev/null | head -1 || echo 0)
+  bl=$(cat /sys/class/backlight/*/brightness 2>/dev/null | head -1 || echo 0)
+  echo "$(date +%s),$cap,$st,$v,$c,$w,$(max_temp),$f0,$fb,$g,$fan,$bl" >> "$OUT"
+  # size cap ~4MB: keep the newest half
+  if [ "$(wc -c < "$OUT")" -gt 4194304 ]; then
+    tail -n 20000 "$OUT" > "$OUT.tmp" && mv "$OUT.tmp" "$OUT"
+  fi
+  sleep 60
+done
