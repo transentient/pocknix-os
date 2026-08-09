@@ -20,10 +20,12 @@ class Plugin:
 
     async def set_fan_mode(self, mode):
         await asyncio.to_thread(set_fan_mode, mode)
+        return await self.get_config()
 
     async def set_power_mode(self, mode):
         await asyncio.to_thread(set_power_mode, mode)
         return await self.get_config()
+
 
     async def set_lavd_mode(self, mode):
         await asyncio.to_thread(set_lavd_mode, mode)
