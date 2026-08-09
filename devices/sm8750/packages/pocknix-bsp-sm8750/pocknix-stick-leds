@@ -1,0 +1,28 @@
+#!/bin/sh
+# pocknix-stick-leds — drive the Odin 3 thumbstick RGB rings (HTR3212, 4 zones/stick).
+# usage: pocknix-stick-leds RRGGBB | off | status
+# LEDs appear as /sys/class/leds/{r,l}:{r,g,b}{1..4} (labels from the DTS; kernel
+# 7.1.3-9+ with LEDS_HTR3212). Dead on every other Odin 3 distro as of 2026-08-09.
+L=/sys/class/leds
+case "${1:-status}" in
+  status)
+    ls -d $L/r:* $L/l:* 2>/dev/null | head -4 || echo "no stick LEDs (kernel too old?)"
+    exit 0 ;;
+  off) R=0; G=0; B=0 ;;
+  [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])
+    R=$((0x${1%????})); G=$((0x$(echo $1 | cut -c3-4))); B=$((0x${1#????})) ;;
+  *) echo "usage: $0 RRGGBB|off|status"; exit 2 ;;
+esac
+found=0
+for side in r l; do
+  for z in 1 2 3 4; do
+    for c in r g b; do
+      f="$L/${side}:${c}${z}/brightness"
+      [ -w "$f" ] || continue
+      max=$(cat "$L/${side}:${c}${z}/max_brightness" 2>/dev/null || echo 255)
+      case $c in r) v=$R;; g) v=$G;; b) v=$B;; esac
+      echo $((v * max / 255)) > "$f" && found=$((found+1))
+    done
+  done
+done
+[ "$found" -gt 0 ] && echo "stick LEDs: #${1} (${found} channels)" || echo "no writable stick LEDs found"
