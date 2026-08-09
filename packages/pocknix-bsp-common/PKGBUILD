@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=6
+pkgrel=7
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -18,9 +18,10 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'inputplumber-sleep-pre' 'inputplumber-sleep-post'
         'pocknix-telemetryd' 'pocknix-telemetry.service'
         'pocknix-power-mode' 'pocknix-power-mode.service'
+        'pocknix-wifi-heal'
         '20-pocknix-powerkey.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -69,6 +70,10 @@ package() {
     "${pkgdir}/usr/local/bin/pocknix-power-mode"
   install -Dm644 "${srcdir}/pocknix-power-mode.service" \
     "${pkgdir}/usr/lib/systemd/system/pocknix-power-mode.service"
+
+  # Post-resume Wi-Fi self-heal (called async by the 000-wifi post hook).
+  install -Dm755 "${srcdir}/pocknix-wifi-heal" \
+    "${pkgdir}/usr/lib/pocknix/pocknix-wifi-heal"
 
   # Power button: wake-and-stay (HandlePowerKey=ignore) instead of systemd's default
   # poweroff (which made a wake-press shut the device down). Sleep via the Steam menu.

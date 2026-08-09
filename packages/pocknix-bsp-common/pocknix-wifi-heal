@@ -1,0 +1,32 @@
+#!/bin/sh
+# pocknix-wifi-heal — post-resume Wi-Fi verification with escalating recovery.
+# Ported idea from batocera.pocket's resume toggle+resilience (credit lukemotion);
+# our escalation adds a PCIe remove/rescan = full ath12k firmware reload, no reboot.
+# Called async by the 000-wifi resume hook; logs to /var/lib/pocknix/wifi-heal.log.
+LOG=/var/lib/pocknix/wifi-heal.log
+say() { echo "$(date -Iseconds) $*" >> "$LOG"; }
+healthy() {
+  ip route show default 2>/dev/null | grep -q . || return 1
+  c=$(nmcli networking connectivity check 2>/dev/null)
+  [ "$c" = "full" ] || [ "$c" = "limited" ]
+}
+wait_healthy() {
+  i=0
+  while [ $i -lt "$1" ]; do healthy && return 0; sleep 2; i=$((i+1)); done
+  return 1
+}
+wait_healthy 10 && { say "ok (no action)"; exit 0; }
+say "unhealthy after resume -> radio cycle"
+nmcli radio wifi off 2>/dev/null; sleep 2; nmcli radio wifi on 2>/dev/null
+wait_healthy 8 && { say "recovered via radio cycle"; exit 0; }
+say "still unhealthy -> PCIe reset (full fw reload)"
+PCI=$(basename "$(readlink -f /sys/class/net/wlan0/device 2>/dev/null)" 2>/dev/null)
+if [ -n "$PCI" ] && [ -e "/sys/bus/pci/devices/$PCI/remove" ]; then
+  nmcli radio wifi off 2>/dev/null; sleep 1
+  echo 1 > "/sys/bus/pci/devices/$PCI/remove"; sleep 2
+  echo 1 > /sys/bus/pci/rescan; sleep 4
+  nmcli radio wifi on 2>/dev/null
+  wait_healthy 12 && { say "recovered via PCIe reset"; exit 0; }
+fi
+say "UNRECOVERED — manual toggle or reboot needed"
+exit 0

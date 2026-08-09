@@ -4,5 +4,8 @@ FLAG=/run/pocknix-wifi-resume
 if [ -e "${FLAG}" ]; then
   rm -f "${FLAG}"
   nmcli radio wifi on 2>/dev/null || true
+  # Verify + self-heal in the background (radio cycle -> PCIe fw reload) so the
+  # resume path never blocks. See pocknix-wifi-heal.
+  setsid /usr/lib/pocknix/pocknix-wifi-heal >/dev/null 2>&1 &
 fi
 exit 0
