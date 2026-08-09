@@ -76,7 +76,7 @@ build() {
   # the llvm-libs runtime dep entirely. No VA/VDPAU/XA (no such hardware paths on msm), no
   # rusticl/OpenCL, no vulkan layers (mangohud is our overlay; device-select is pointless with
   # one GPU). freedreno-kmds=msm only (no virtio guests here).
-  meson setup build "mesa-${pkgver}" --prefix=/usr --buildtype=plain \
+  meson setup build "mesa-main" --prefix=/usr --buildtype=plain \
     -Db_ndebug=true \
     -Dplatforms=x11,wayland \
     -Dglx=dri \
@@ -143,7 +143,7 @@ package_mesa-next() {
     ln -sr usr/lib/libGLX_{mesa,indirect}.so.0
   )
 
-  install -Dm644 "mesa-${pkgver}/docs/license.rst" -t "${pkgdir}/usr/share/licenses/${pkgname}"
+  install -Dm644 "mesa-main/docs/license.rst" -t "${pkgdir}/usr/share/licenses/${pkgname}"
 }
 
 package_vulkan-freedreno-next() {
@@ -158,5 +158,5 @@ package_vulkan-freedreno-next() {
 
   mv "${srcdir}/vkfdreno"/* "${pkgdir}"
 
-  install -Dm644 "mesa-${pkgver}/docs/license.rst" -t "${pkgdir}/usr/share/licenses/${pkgname}"
+  install -Dm644 "mesa-main/docs/license.rst" -t "${pkgdir}/usr/share/licenses/${pkgname}"
 }
