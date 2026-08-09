@@ -31,8 +31,11 @@ TOMORROW'S DOCKET (in order):
    SHIPPED (CLI pocknix-power-mode + QAM Power-tab selector; eco measured: same load
    10C cooler, fan OFF, charges faster). Fan hotspot fix deployed. Next: per-profile
    game benchmarks (Ashes built-in bench), sleep-drain %/hr from overnight CSV gaps.
-5. KERNEL 7.1.3-9 + bsp-7 STAGED IN LOCALREPO (deploy ceremony: kernel+bsp -> reboot ->
-   suspend soak -> pocknix-stick-leds 00FF00). Remaining staged: GPU pair 0050/0051.
+5. ~~7.1.3-9 ceremony~~ DONE 08-09: SUSPEND SAGA CLOSED (0513+0508 validated, 3/3 soak,
+   rsinput loaded through sleep, buttons fine post-resume) + STICK LEDS GLOW
+   (pocknix-stick-leds, 24ch, Hodor-orange debut). Headphone jack now testable (0605).
+   Remaining staged: GPU pair 0050/0051 (own soak). Polish: LEDs-off-in-sleep hook;
+   ship autoconnect-retries=0 in wifi preseed (NM retry-exhaustion sulk, fixed live).
 6. batocera.pocket PATCH KIT staged + primed (kernel/sm8750/patches-staged/batocera-pocket/
    — READ ITS README): 0513 = suspend-saga full-closure candidate (restores 0508 safely),
    HTR3212 stick RGB (driver + DTS mapped), headset-USBSS, a8xx GPU stability pair, amp
