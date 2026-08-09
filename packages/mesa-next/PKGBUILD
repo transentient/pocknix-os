@@ -31,7 +31,7 @@ pkgdesc="Mesa trimmed for the RP6/SM8550: freedreno GL + turnip Vulkan, cortex-x
 arch=('aarch64')
 url="https://www.mesa3d.org/"
 license=("MIT AND BSD-3-Clause AND SGI-B-2.0")
-makedepends=(
+makedepends=(glslang 
   # toolchain / build system
   meson ninja python-mako python-packaging python-yaml python-ply
   # linked libs (subset of Arch's — no llvm/rust/clang: llvm=disabled, no rusticl, no NVK)
