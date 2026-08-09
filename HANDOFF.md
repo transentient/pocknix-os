@@ -31,11 +31,13 @@ TOMORROW'S DOCKET (in order):
    SHIPPED (CLI pocknix-power-mode + QAM Power-tab selector; eco measured: same load
    10C cooler, fan OFF, charges faster). Fan hotspot fix deployed. Next: per-profile
    game benchmarks (Ashes built-in bench), sleep-drain %/hr from overnight CSV gaps.
-5. batocera.pocket PATCH KIT staged + primed (kernel/sm8750/patches-staged/batocera-pocket/
+5. KERNEL 7.1.3-9 + bsp-7 STAGED IN LOCALREPO (deploy ceremony: kernel+bsp -> reboot ->
+   suspend soak -> pocknix-stick-leds 00FF00). Remaining staged: GPU pair 0050/0051.
+6. batocera.pocket PATCH KIT staged + primed (kernel/sm8750/patches-staged/batocera-pocket/
    — READ ITS README): 0513 = suspend-saga full-closure candidate (restores 0508 safely),
    HTR3212 stick RGB (driver + DTS mapped), headset-USBSS, a8xx GPU stability pair, amp
    race fix. Reference fan/charge-limit/wifi scripts in docs/reference/batocera-pocket/.
-6. Public-release track: README + install docs -> Cliff's two dogfood installs; Steam
+7. Public-release track: README + install docs -> Cliff's two dogfood installs; Steam
    seed decision (download-at-first-boot needs a network-install fallback in the
    launcher — test hard); per-install password generation; strip Wi-Fi preseed.
 
