@@ -143,3 +143,16 @@ Your Android bootloader backup from A.2 remains your deep-recovery option.
 - Games with kernel anti-cheat (e.g. Elden Ring's EAC) do not run yet.
 - Suspending while a game is running may disconnect the controller in-game (exit to
   Steam first for reliable in-game suspend).
+
+---
+
+## Appendix: enabling SSH / setting passwords (tinkerers)
+
+Release images ship the Steam Deck way: no passwords exist and SSH is off — there is
+nothing to attack until you opt in. To enable remote access:
+
+1. Switch to Desktop Mode, open a terminal (Konsole).
+2. `passwd` — set a password for the `deck` user (it will not ask for an old one).
+3. `sudo systemctl enable --now sshd` — SSH is now on, key or password auth as you
+   configure it. (`sudo passwd root` first if you want direct root SSH; better:
+   ssh in as deck and use sudo.)

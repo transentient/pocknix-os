@@ -86,7 +86,14 @@ populate_arm_efi_boot() {
 firstboot_config() {
   local root="$1"
   log "configuring first boot (root login, fstab, ssh, network, hostname)"
-  echo "root:${SD_ROOT_PASSWORD}" | chroot "${root}" chpasswd
+  if [ "${HOLODOR_RELEASE:-0}" = "1" ]; then
+    # RELEASE (Steam Deck model): no credential exists at all — password deleted, so
+    # console/desktop login works and `passwd` lets the owner set their own; sshd is
+    # not enabled (below), so there is no remote surface until the owner opts in.
+    chroot "${root}" passwd -d root >/dev/null
+  else
+    echo "root:${SD_ROOT_PASSWORD}" | chroot "${root}" chpasswd
+  fi
   cat > "${root}/etc/fstab" <<EOF
 # pocknix-os test image
 # noatime: no software here needs atime; dropping atime write-backs cuts flash writes (SteamOS/ROCKNIX do the same).
@@ -110,14 +117,18 @@ EOF
   chroot "${root}" chown -R systemd-timesync:systemd-timesync /var/lib/systemd/timesync 2>/dev/null \
     || warn "could not chown timesync clock seed (systemd-timesync user missing?)"
   if [ -f "${root}/etc/ssh/sshd_config" ]; then
-    sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' "${root}/etc/ssh/sshd_config"
+    if [ "${HOLODOR_RELEASE:-0}" != "1" ]; then
+      sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' "${root}/etc/ssh/sshd_config"
+    fi
   fi
 
   # DEV-ONLY Wi-Fi preseed: any *.nmconnection in config/local/ (GITIGNORED — holds the PSK)
   # is baked in so a dev image comes up on the network without OOBE — invaluable while the
   # session is unstable and SSH is the only debug path. Release/polished images: empty the
   # directory first (see HANDOFF known-open work).
-  if compgen -G "${POCKNIX_ROOT}/config/local/*.nmconnection" >/dev/null; then
+  if [ "${HOLODOR_RELEASE:-0}" = "1" ] && compgen -G "${POCKNIX_ROOT}/config/local/*.nmconnection" >/dev/null; then
+    log "RELEASE build: refusing to bake config/local Wi-Fi profiles (dev-only)"
+  elif compgen -G "${POCKNIX_ROOT}/config/local/*.nmconnection" >/dev/null; then
     log "preseeding Wi-Fi profiles from config/local/ (DEV image — not for release)"
     install -d -m 755 "${root}/etc/NetworkManager/system-connections"
     install -m 600 -o root -g root "${POCKNIX_ROOT}"/config/local/*.nmconnection \
@@ -150,7 +161,11 @@ EOF
   # that home, then we chown it.
   log "creating non-root 'deck' session user (audio + Proton need a normal user)"
   chroot "${root}" useradd -m -u 1001 -U -s /bin/bash -G video,render,input,audio,seat,wheel deck 2>/dev/null || true
-  echo "deck:${SD_DECK_PASSWORD:-${SD_ROOT_PASSWORD}}" | chroot "${root}" chpasswd
+  if [ "${HOLODOR_RELEASE:-0}" = "1" ]; then
+    chroot "${root}" passwd -d deck >/dev/null
+  else
+    echo "deck:${SD_DECK_PASSWORD:-${SD_ROOT_PASSWORD}}" | chroot "${root}" chpasswd
+  fi
   # XDG user dirs in deck's home (Dolphin "Places", file dialogs, screenshots, downloads expect
   # these). The xdg-user-dirs package (desktop.list) also writes ~/.config/user-dirs.dirs at first
   # login so XDG_PICTURES_DIR etc. resolve, but create them here so they exist from first boot.
@@ -284,7 +299,8 @@ EOF
   #   up late, so a disabled udisks2 = empty format list even though the card is present. Enable it
   #   so it is running before Steam inits. (Mounted ext4 libraries still show via our automount; this
   #   is only the raw-drive/format list.) The UDisks2 polkit grant is in 50-pocknix-deck.rules.
-  chroot "${root}" systemctl enable sshd iwd NetworkManager systemd-resolved seatd inputplumber \
+  [ "${HOLODOR_RELEASE:-0}" = "1" ] || chroot "${root}" systemctl enable sshd
+  chroot "${root}" systemctl enable iwd NetworkManager systemd-resolved seatd inputplumber \
         bluetooth upower udisks2 \
         pocknix-diag.service pocknix-expand-root.service \
         pocknix-lavd.service pocknix-gamescope-rt.service \
