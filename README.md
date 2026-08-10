@@ -1,238 +1,76 @@
-# pocknix-os
+# Holodor
 
-An Arch Linux ARM distro for the **Retroid Pocket 6**. It runs Steam's native ARM client and
-boots straight into gamescope-backed SteamOS mode, tuned for the RP6's Qualcomm SM8550.
+**A SteamOS-faithful Linux for the AYN Odin 3.** Valve's Holo Core (the official
+SteamOS aarch64 userland) + the ROCKNIX mainline kernel + the glue to make them love
+a Qualcomm handheld. Boot your Odin 3 into Steam Big Picture; keep Android on the
+side.
 
-## About
+*The name: Holo Core + Odin + a certain gentle giant who held the door.*
 
-pocknix-os turns the RP6 into a handheld that feels like a Steam Deck: power it on and you land
-in Big Picture, pick a game, and play. Under the hood it is a real mutable Arch system, so
-closer to something like **CachyOS than real SteamOS, Bazzite, or armada**. Nothing is locked
-down or image-based:
+## What works (hardware-verified, receipts in the commit log)
 
-- **Mutable.** The root filesystem is writable. Install anything you like with `pacman`.
-- **Updates through pacman.** No image swaps or A/B reboots. `sudo pacman -Syu` and you are current.
-- **Performance tuned for the SM8550.** A custom kernel with the `scx_lavd` scheduler for
-  smooth, low-latency frame pacing, and core packages (the graphics stack and compositor)
-  compiled for modern Snapdragon instruction sets rather than a generic ARM baseline.
-- **Sleep and wake.** Suspend/resume works, but is still **experimental**.
-
-Two sessions ship side by side: the **Steam** session (gamescope + native ARM64 Steam in Big
-Picture) and a **Plasma Mobile desktop** session. The desktop uses **Plasma Mobile rather than
-regular Plasma** on purpose: it is far more touch-friendly, with larger touch targets and
-gesture navigation that might be preferable on such small screens.
-
-> The default password for both the `root` and `deck` users is **pocknix**. If the device
-> locks in desktop mode, tap the little keyboard icon to turn the on-screen numpad into a
-> keyboard and type `pocknix` to log back in.
-
-**Android apps via Waydroid.** pocknix-os includes Waydroid, so you can run Android apps,
-including apps from the Google Play Store, right on the device. Download an APK and a handler
-opens it, installs it, and adds a shortcut to Plasma Mobile, so the app behaves just like a
-native one.
-
-## Supported devices
-
-| Device | SoC Family | Status |
-|---|---|---|
-| Retroid Pocket 6 | SM8550 | ✅ Supported |
-| Retroid Pocket 5 | SM8250 | ✅ Supported |
-| Retroid Pocket Flip 2 | SM8250 | ✅ Supported |
-| AYN Odin 2 | SM8550 | ✅ Supported |
-| AYN Odin 2 Portal | SM8550 | ✅ Supported |
-| AYN Odin 2 Mini | SM8550 | ✅ Supported |
-| AYN Odin 3 | SM8750 | 🚧 In progress |
-| AYN Thor | SM8550 | 📋 Planned |
-
-> **Why is the AYN Thor only "planned"?** The Thor is a dual-screen device, and pocknix gaming
-> is built around gamescope, which is single-screen by design. Making the second screen useful
-> means getting Plasma Mobile working in a dual-screen layout, plus controller support inside
-> Plasma Mobile (outside of Steam), which is still being worked on. I also do not have a
-> dual-screen device on hand to test against yet.
-
-## The kernel
-
-pocknix-os is based on the **ROCKNIX SM8550 kernel** with tweaks layered on top:
-
-- **`scx_lavd` scheduler** for smoother, more consistent frame rates than the stock scheduler.
-- **RP6 panel driver fixes** locking it to a single stable 120Hz mode.
-- **UHS-I SDR104 microSD support** ported from Armbian's downstream `sdhci-msm` driver, lifting
-  microSD reads from ~13 MB/s to ~85 MB/s.
-- **SteamOS microSD support** (`CONFIG_UNICODE` for casefolded cards) plus an automount stack,
-  so cards formatted on a Steam Deck mount and show up in Steam.
-- **Suspend/resume** work merged from the ROCKNIX suspend branch (experimental).
-
-## How to install
-
-Grab the image for your device from the [latest release](https://github.com/shuuri-labs/pocknix-os/releases/latest),
-decompress it (`zstd -d`, or let your flasher handle it), and flash it to a microSD card
-(Balena Etcher, `dd`, etc.). Then follow the steps for your SoC family below.
-
-### SM8550 (Retroid Pocket 6, AYN Odin 2 family)
-
-1. **Install the ROCKNIX ABL bootloader** (follow ROCKNIX's instructions). The stock ABL
-   cannot boot pocknix on these devices.
-2. **Boot into ABL.** Hold **Volume -** while powering on or rebooting. Set your device and
-   boot mode there.
-3. **Insert the flashed microSD and boot.** pocknix-os comes up from the SD card.
-
-> The internal ROCKNIX install boots first. To boot pocknix from SD you may need to uninstall
-> ROCKNIX from internal storage. A **Pocknix Installer** app in the desktop session can install
-> pocknix to internal storage and manage Android/ROCKNIX boot for you.
-
-### SM8250 (Retroid Pocket 5, Retroid Pocket Flip 2)
-
-**No ROCKNIX bootloader is needed** - the stock (factory) ABL boots pocknix directly via
-UEFI GRUB. You only need to switch its boot mode away from Android:
-
-1. **Boot into the stock ABL menu.** Hold **Volume -** while powering on or rebooting.
-2. **Switch the boot mode from Android** to SD/alternative boot.
-3. **Insert the flashed microSD and boot.** pocknix-os comes up from the SD card.
-
-> Android stays untouched on internal storage; switch the boot mode back in the same menu
-> to return to it.
-
-## How to update
-
-Updates ship through the pocknix pacman repo - kernel included, no reflashing. Three ways
-to get them:
-
-- **Pocknix Control (recommended)**: open the Quick Access Menu in game mode, go to the
-  **Pocknix Control** plugin's **Updater** tab, and tap **Update** - checks for and
-  applies updates without leaving game mode.
-- **Pocknix Updater**: switch to desktop mode and launch the **Pocknix Updater** shortcut.
-- **pacman**: run `sudo pacman -Syu` in a terminal, like any Arch system.
-
-## Installing to internal storage
-
-Running from the SD card works, but the OS and your games load much faster from internal
-storage. Installing there requires resizing Android's `userdata` partition, which
-**essentially factory-resets the Android side** (Android itself stays bootable, its user
-data is wiped). Two ways, both from a system booted off the SD:
-
-- **Pocknix Installer**: switch to desktop mode and launch the **Pocknix Installer** shortcut.
-- **Terminal**: run `pocknix-install-internal` (do a `--dry-run` first and read the plan).
-
-See [Install to internal storage](docs/install-to-internal.md) for the full walkthrough,
-including how to uninstall and restore the space to Android.
-
-## How to play games
-
-1. In your Steam **Library**, search for **"Proton 11 ARM"**, then download and install it.
-2. Download a game.
-3. In the game's **Properties → Compatibility**, force it to use **Proton 11 ARM**.
-4. Play.
-
-x86 games run through FEX (x86-on-ARM translation) plus Proton, so many Windows titles "just work". Generally, performance should match or exceed PC emulation under Android through apps like Gamehub/Game Native. Compatibility (the amount of games that boot at all) is likely a little worse, but trust in Gabe - Valve and their contractors are working on it and things are improving rapidly. 
-
-## Emulation
-
-pocknix-os ships **ES-DE** (EmulationStation Desktop Edition) with a set of preconfigured
-emulators. Drop your ROMs into `~/Emulation` and they show up ready to play, no per-emulator
-setup needed.
-
-**Star a game as a favorite in ES-DE and it appears in your Steam library**, so you can launch
-it straight from Big Picture / game mode alongside your Steam titles.
-
-See the [emulation docs](docs/emulation-setup.md) for where ROMs and BIOS files go, and how
-to tweak per-emulator settings.
-
-Supported systems:
-
-| System | Emulator |
+| | Status |
 |---|---|
-| NES / Famicom | RetroArch (FCEUmm) |
-| SNES / Super Famicom | RetroArch (Snes9x) |
-| Nintendo 64 | RetroArch (Mupen64Plus-Next) |
-| Game Boy / Game Boy Color | RetroArch (Gambatte) |
-| Game Boy Advance | RetroArch (mGBA) |
-| Nintendo DS | RetroArch (melonDS) |
-| Nintendo 3DS | Azahar |
-| GameCube / Wii | Dolphin |
-| Nintendo Switch | Eden |
-| Sega Master System / Genesis / Game Gear / Sega CD | RetroArch (Genesis Plus GX) |
-| Sega Saturn | RetroArch (YabaSanshiro) |
-| Sega Dreamcast | RetroArch (Flycast) |
-| PlayStation | RetroArch (DuckStation) |
-| PlayStation 2 | ARMSX2 |
-| PlayStation Portable | PPSSPP |
-| Arcade / Neo Geo | RetroArch (FBNeo) |
+| Steam Big Picture (native ARM64 client) | ✅ boots straight in |
+| x86/x86-64 Windows games (FEX + Proton + DXVK/vkd3d) | ✅ |
+| Controls (buttons, sticks, paddles, deadzones) | ✅ correct out of the box |
+| **Rumble / haptics** | ✅ in-game |
+| **Thumbstick RGB** | ✅ (`pocknix-stick-leds`, and yes it glows) |
+| Audio (speakers) | ✅ |
+| Wi-Fi (with post-sleep self-healing) | ✅ |
+| **Suspend/resume** | ✅ reliable, ~0.7%/hr measured standby drain |
+| Power profiles (Eco/Balanced/Performance) + fan curves | ✅ in Quick Access |
+| Battery charge limiting (80/70 care thresholds) | ✅ |
+| Auto storage expansion, sleep/wake telemetry | ✅ |
+| Optional install to internal UFS (Android preserved, factory-reset) | ✅ |
 
-## Pocknix Control
+## Honest limitations
 
-**Pocknix Control** is a Decky plugin in the Steam session (open the Quick Access menu): a
-control panel for tuning the handheld and managing the system without leaving the couch.
-Four tabs:
+- **AAA titles: ~20 fps** currently, independent of settings — root-caused to the
+  young mainline display pipeline for this SoC (command-mode DSI present path), not
+  the GPU. Indie and light-3D titles run beautifully. Improving upstream.
+- Kernel anti-cheat titles (EAC/BattlEye) don't run yet — an ecosystem-wide ARM
+  frontier that Valve's Steam Frame work is actively pushing.
+- In-game Steam overlay is glitchy in some heavy titles (workaround inside; fix in
+  progress). Headphone jack: plumbing just landed, verification pending.
 
-- **Games**: per-game (or global) tweaks - **FEX Preset** trades x86 translation accuracy
-  for speed, **Audio Buffer** absorbs crackle in busy scenes. Also home to **Add Non-Steam
-  Game**: Steam's own "Add a Non-Steam Game" dialog does not work on pocknix-os (Steam is an
-  X11 app and Plasma Mobile cannot summon new windows for it), so Pocknix Control provides
-  the feature natively in game mode instead.
-- **Power**: fan curve (Quiet / Moderate / Performance) and CPU scheduler mode, applied live.
-- **Storage**: format a microSD card for Steam, Deck-compatible, straight from game mode.
-- **Updater**: check for and install system updates from the Quick Access menu.
+## Install
 
-See the [Pocknix Control docs](docs/pocknix-control.md) for the full tour.
-
-## Known issues
-
-- **The Steam session can take a while to come up**, especially right after a Steam client
-  update. Be patient - it will get there.
-- **On Snapdragon 8 Gen 2 devices** (Retroid Pocket 6, AYN Odin 2 family), **charging during
-  sleep can freeze the device mid-sleep**. Prefer charging while the device is powered on, or
-  fully powered off.
-- **Not all pre-baked emulator configs have been validated yet.** So far **Eden** (Switch),
-  **ARMSX2** (PS2), and **RetroArch mGBA** (Game Boy Advance) are confirmed good; the rest
-  ship with sensible defaults but have not been checked on device. More are being worked
-  through, and community help is very welcome - if you dial in a config, please submit it.
-  Note that some emulators may also need CPU core pinning (`taskset`) to perform well; if
-  yours does, include the pinning in your submission.
+See **[INSTALL.md](INSTALL.md)**. Summary: one-time ROCKNIX bootloader setup (with
+mandatory backup), flash the image to a compatible SD card, boot; optionally install
+to internal storage afterward.
 
 ## Building from source
 
-pocknix-os builds a full image (kernel included) from this repo. The build needs an
-**aarch64 Linux host with root** (it chroots); an Arch/Fedora VM on Apple Silicon or an
-ARM cloud box both work. Quick start:
+The repo is the build system (a fork of the pocknix-os harness): `scripts/build-kernel.sh`,
+`build-packages.sh`, `build-image.sh`, `build-sd-image.sh`, each documented inline.
+You'll want a Linux host with qemu-user binfmt (with the `C` flag — see
+`docs/`), ~50 GB free, and patience for the first package build.
 
-```bash
-make check          # preflight (runs anywhere, no root)
-sudo make kernel    # compile the kernel -> boot image
-sudo make build     # bootstrap + packages + assemble the rootfs
-sudo make sd-image  # flashable SD image -> build/image/<soc>/
-```
+## Credits
 
-`make help` lists every target. Kernel enablement is committed under `kernel/`; only stock
-Linux source and firmware are fetched at build time.
+Holodor stands on extraordinary shoulders:
 
-## Thanks and references
+- **[ROCKNIX](https://github.com/ROCKNIX)** — the SM8750 kernel bring-up, device
+  trees, firmware curation, and the bootloader path. The foundation.
+- **[Valve](https://store.steampowered.com) & [Collabora](https://www.collabora.com)** —
+  Holo Core, the official SteamOS aarch64 userland this project is faithful *to*.
+- **[ArmadaOS](https://github.com/armada-os)** — pioneering SteamOS-on-Odin, the
+  haptics bring-up we ported, and hard-won suspend fixes.
+- **[batocera.pocket](https://github.com/darkplace/batocera.pocket)** (lukemotion,
+  continuing suckbluefrog's work) — the stick-LED driver, Wi-Fi resilience ideas,
+  and more.
+- **[shuuri-labs/pocknix-os](https://github.com/shuuri-labs/pocknix-os)** — the
+  build harness this repo forks.
+- **Teguh Sobirin** — the Odin 3 audio UCM.
+- The **FEX-Emu**, **Mesa/Turnip**, and **InputPlumber** projects.
+- The AYN Odin 3 Linux community on Discord — intel, testing, and honest complaints.
 
-pocknix-os stands on the work of others:
+## License
 
-- [**ROCKNIX**](https://github.com/ROCKNIX/distribution) - the kernel, drivers, and RP6
-  enablement pocknix builds on. This project simply would not exist without it.
-- [**armada**](https://github.com/shuuri-labs/armada) - a sibling RP6 project (Fedora bootc),
-  used as a reference for the session wiring and install-to-internal flow.
-- [**thorch-os**](https://github.com/thorch-os/thorch) - the model for the self-contained,
-  reproducible build harness this repo is shaped after.
+GPL-2.0-or-later (inherited proudly from the projects above). Art assets by
+**ssalmon** (CC-BY 4.0).
 
-And on the wider ecosystem pocknix ships on top of, with thanks to all who build it:
-
-- [**Valve**](https://www.valvesoftware.com/) - Steam, gamescope, Proton, and the whole SteamOS
-  handheld stack that makes this kind of device possible.
-- [**FEX-Emu**](https://github.com/FEX-Emu/FEX) - the x86-on-ARM emulation that lets x86 games
-  run at all.
-- [**Mesa**](https://www.mesa3d.org/) and the **Turnip** driver - the open-source graphics stack
-  driving the Adreno GPU.
-- [**Arch Linux ARM**](https://archlinuxarm.org/) - the aarch64 base and package repositories.
-- [**KDE**](https://kde.org/) and the **Plasma Mobile** team - the touch-friendly desktop
-  session.
-- The **Linux kernel**, **Armbian**, and the many upstream projects whose work this builds on.
-
-## A note on AI
-
-In the interest of transparency: I do use AI as a tool - debugging and performance work,
-comparing against upstream, research, boilerplate, and drafting docs like this one. The
-architecture and every design decision are mine, and nothing lands without me understanding
-and verifying it. I would consider myself an "AI sceptic", however, I'll admit it's been a
-real force multiplier for a lone developer working on this project.
+*Not affiliated with Valve, AYN, or anyone else. Steam is a trademark of Valve Corp.
+This project will factory-reset Android if you install internally, and while every
+step is designed to be reversible, you flash at your own risk.*
