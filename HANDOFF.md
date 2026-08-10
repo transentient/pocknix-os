@@ -13,6 +13,16 @@ bsp-common 0.1.0-4 (wifi + inputplumber sleep hooks; rsinput guard files REMOVED
 device — kernel fix supersedes). Audio, Wi-Fi, charge-limits, auto-expand: all working.
 Buttons verified end-to-end IN-GAME. Suspend/resume clean on the new kernel.
 
+RELEASE CANDIDATE CUT 2026-08-10: build/image/sm8750/holodor-odin3-20260810.img.zst
+(7.2G, sha in same dir). Clean-from-scratch HOLODOR_RELEASE=1 build: no passwords
+(Deck model), sshd off, no wifi preseed, kernel-11 + bsp-7 + LEDs/haptics — spot-check
+all green. Docs INSTALL.md/README.md drafted with [VERIFY] markers. NEXT: SourceForge
+project (Cliff), upload .zst+.sha256, then Cliff's SD dry-run (32GB card, no-AI tinkerer
+roleplay, resolve [VERIFY] markers + fix doc bugs), then internal-install dry-run (wipes
+daily driver — do LAST), then announce (Discord first). Decisions locked: baked seed v1,
+SourceForge hosting, Option C security. RP6 8GB ordered as Act Two (mature sm8550, honest
+floor). Art advance paid to ssalmon_px.
+
 TOMORROW'S DOCKET (in order):
 0. RUMBLE IN-GAME (Cyberpunk) — the week's unclaimed prize; test FIRST before anything
    can crash. Hardware rumble is proven (remote FF pulses felt); only Steam->game routing
