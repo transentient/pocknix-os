@@ -1,9 +1,4 @@
 #!/bin/sh
-# Restore the stick RGB rings after resume (see leds-sleep-pre).
-SAVE=/run/pocknix-leds-resume
-[ -f "${SAVE}" ] || exit 0
-while read -r dir val; do
-  [ -w "${dir}/brightness" ] && echo "${val}" > "${dir}/brightness" 2>/dev/null || true
-done < "${SAVE}"
-rm -f "${SAVE}"
+# Resume: restart the LED animator (re-applies the saved mode/color).
+systemctl start pocknix-stick-leds 2>/dev/null || true
 exit 0

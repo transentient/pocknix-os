@@ -1,11 +1,16 @@
 import { PanelSection } from "@decky/ui";
 import type { Dispatch, SetStateAction } from "react";
-import { setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor } from "../backend";
+import { setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode } from "../backend";
 import { SelectEdit } from "../components/widgets";
 import type { Config } from "../types";
 
-const ledOptions = [
+const ledEffectOptions = [
   { data: "off", label: "Off" },
+  { data: "static", label: "Static" },
+  { data: "rainbow", label: "Rainbow" },
+  { data: "breathe", label: "Breathing" },
+];
+const ledOptions = [
   { data: "ff6600", label: "Hodor Orange" },
   { data: "ff0000", label: "Red" },
   { data: "00ff00", label: "Green" },
@@ -41,6 +46,14 @@ export function Power({ config, setConfig, reload }: {
   setConfig: Dispatch<SetStateAction<Config | null>>;
   reload: () => void;
 }) {
+  const applyLedMode = async (mode: string) => {
+    try {
+      const next = await setLedMode(mode);
+      setConfig((current) => (current ? { ...current, ledMode: next.ledMode } : current));
+    } catch (error) {
+      reload();
+    }
+  };
   const applyLed = async (hex: string) => {
     try {
       const next = await setLedColor(hex);
@@ -69,7 +82,8 @@ export function Power({ config, setConfig, reload }: {
     <PanelSection title="PERFORMANCE">
       <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
       <SelectEdit label="Charge Limit" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
-      <SelectEdit label="Stick LEDs" value={config.ledColor} options={ledOptions} onChange={(hex) => applyLed(hex as string)} />
+      <SelectEdit label="Stick LED Effect" value={config.ledMode} options={ledEffectOptions} onChange={(mode) => applyLedMode(mode as string)} />
+      <SelectEdit label="Stick LED Color" value={config.ledColor} options={ledOptions} onChange={(hex) => applyLed(hex as string)} />
       <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions} onChange={(mode) => applyMode(setFanMode, mode)} />
       <SelectEdit label="CPU Scheduler" value={config.lavdMode} options={lavdOptions} onChange={(mode) => applyMode(setLavdMode, mode)} />
     </PanelSection>

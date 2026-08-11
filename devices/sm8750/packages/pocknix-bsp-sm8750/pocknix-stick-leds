@@ -6,6 +6,7 @@
 # LEDs appear as /sys/class/leds/{r,l}:{r,g,b}{1..4} (kernel 7.1.3-9+ LEDS_HTR3212).
 L=/sys/class/leds
 SAVE=/var/lib/pocknix/led-color
+MODEF=/var/lib/pocknix/led-mode
 
 apply() {  # $1 = RRGGBB or "off"
   case "$1" in
@@ -26,7 +27,8 @@ apply() {  # $1 = RRGGBB or "off"
 
 case "${1:-status}" in
   status)      ls -d $L/r:* 2>/dev/null | head -2 || echo "no stick LEDs (kernel too old?)" ;;
-  save)        mkdir -p "$(dirname "$SAVE")"; echo "$2" > "$SAVE"; apply "$2" && echo "stick LEDs: #$2 (saved)" ;;
+  save)        mkdir -p "$(dirname "$SAVE")"; echo "$2" > "$SAVE"; echo "stick LEDs: color #$2 saved (live via daemon)" ;;
+  mode)        mkdir -p "$(dirname "$MODEF")"; echo "$2" > "$MODEF"; echo "stick LEDs: mode $2" ;;
   apply-saved) [ -r "$SAVE" ] && apply "$(cat "$SAVE")" || exit 0 ;;
   off)         apply off && echo "stick LEDs: off" ;;
   *)           apply "$1" && echo "stick LEDs: #$1" ;;

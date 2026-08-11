@@ -93,7 +93,10 @@ def set_charge_limit(pct):
 
 # --- thumbstick RGB (HTR3212 rings via pocknix-stick-leds) ---
 LED_COLOR_FILE = Path("/var/lib/pocknix/led-color")
-LED_DEFAULT = "off"
+LED_MODE_FILE = Path("/var/lib/pocknix/led-mode")
+LED_DEFAULT = "ff6600"
+LED_MODES = ("off", "static", "rainbow", "breathe")
+LED_MODE_DEFAULT = "static"
 
 
 def led_color():
@@ -106,6 +109,20 @@ def led_color():
 
 def set_led_color(hexcolor):
     hexcolor = str(hexcolor).lstrip("#").lower()
-    if hexcolor not in ("off",) and (len(hexcolor) != 6 or any(c not in "0123456789abcdef" for c in hexcolor)):
+    if len(hexcolor) != 6 or any(c not in "0123456789abcdef" for c in hexcolor):
         raise ValueError(f"bad led color: {hexcolor!r}")
     run_cmd(["/usr/local/bin/pocknix-stick-leds", "save", hexcolor])
+
+
+def led_mode():
+    try:
+        m = LED_MODE_FILE.read_text().strip()
+    except OSError:
+        return LED_MODE_DEFAULT
+    return m if m in LED_MODES else LED_MODE_DEFAULT
+
+
+def set_led_mode(mode):
+    if mode not in LED_MODES:
+        raise ValueError(f"bad led mode: {mode!r}")
+    run_cmd(["/usr/local/bin/pocknix-stick-leds", "mode", mode])

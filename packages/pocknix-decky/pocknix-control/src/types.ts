@@ -33,6 +33,7 @@ export interface Config {
   powerMode: string;
   chargeLimit: number;
   ledColor: string;
+  ledMode: string;
   lavdMode: string;
   tweaks: Tweaks;
   fexProfiles: Record<string, FexProfile>;

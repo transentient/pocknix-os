@@ -6,6 +6,7 @@ export const setFanMode = (mode: string) => call<[string], Config>("set_fan_mode
 export const setPowerMode = (mode: string) => call<[string], Config>("set_power_mode", mode);
 export const setChargeLimit = (pct: number) => call<[number], Config>("set_charge_limit", pct);
 export const setLedColor = (hex: string) => call<[string], Config>("set_led_color", hex);
+export const setLedMode = (mode: string) => call<[string], Config>("set_led_mode", mode);
 export const setLavdMode = (mode: string) => call<[string], Config>("set_lavd_mode", mode);
 export const saveTweaks = (data: Tweaks) => call<[Tweaks], Config>("save_tweaks", data);
 export const detectSdcard = () => call<[], SdcardInfo>("detect_sdcard");

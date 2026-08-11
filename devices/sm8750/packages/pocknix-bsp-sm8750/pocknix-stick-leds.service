@@ -1,10 +1,12 @@
 [Unit]
-Description=pocknix: apply the saved thumbstick RGB color at boot
+Description=pocknix thumbstick RGB LED animator (static/rainbow/breathe)
 After=multi-user.target
 
 [Service]
-Type=oneshot
-ExecStart=/usr/local/bin/pocknix-stick-leds apply-saved
+ExecStart=/usr/local/bin/pocknix-stick-ledsd
+Restart=always
+RestartSec=5
+Nice=15
 
 [Install]
 WantedBy=multi-user.target
