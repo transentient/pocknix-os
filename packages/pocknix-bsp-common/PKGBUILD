@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=10
+pkgrel=11
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -14,7 +14,6 @@ depends=()
 optdepends=('inputplumber: the 001-inputplumber suspend hooks manage its USB/IP deck target')
 source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'wifi-sleep-pre' 'wifi-sleep-post'
-        'rsinput-sleep-pre' 'rsinput-sleep-post'
         'inputplumber-sleep-pre' 'inputplumber-sleep-post'
         'pocknix-telemetryd' 'pocknix-telemetry.service'
         'pocknix-power-mode' 'pocknix-power-mode.service'
@@ -22,7 +21,7 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'leds-sleep-pre' 'leds-sleep-post'
         '20-pocknix-powerkey.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -38,14 +37,6 @@ package() {
     "${pkgdir}/usr/lib/pocknix/sleep.d/pre/000-wifi"
   install -Dm755 "${srcdir}/wifi-sleep-post" \
     "${pkgdir}/usr/lib/pocknix/sleep.d/post/000-wifi"
-  # 002/000b-rsinput: unload the gamepad module around suspend — with rsinput
-  # loaded, resume wedges (bisected 2026-08-08; suspect = 0508 resume reinit).
-  # pre runs AFTER InputPlumber stops (002 > 001); post reloads BEFORE it starts
-  # (000b < 001) so the device exists when IP enumerates.
-  install -Dm755 "${srcdir}/rsinput-sleep-pre" \
-    "${pkgdir}/usr/lib/pocknix/sleep.d/pre/002-rsinput"
-  install -Dm755 "${srcdir}/rsinput-sleep-post" \
-    "${pkgdir}/usr/lib/pocknix/sleep.d/post/000b-rsinput"
   # 001-inputplumber: drop the USB/IP virtual controller before sleep so vhci_hcd
   # doesn't veto suspend (the `deck` target attaches over USB/IP); restore on resume.
   install -Dm755 "${srcdir}/inputplumber-sleep-pre" \
