@@ -1,0 +1,10 @@
+[Unit]
+Description=pocknix: apply the saved thumbstick RGB color at boot
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pocknix-stick-leds apply-saved
+
+[Install]
+WantedBy=multi-user.target

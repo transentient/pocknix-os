@@ -32,6 +32,7 @@ export interface Config {
   fanMode: string;
   powerMode: string;
   chargeLimit: number;
+  ledColor: string;
   lavdMode: string;
   tweaks: Tweaks;
   fexProfiles: Record<string, FexProfile>;

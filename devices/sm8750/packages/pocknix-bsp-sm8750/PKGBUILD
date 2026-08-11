@@ -16,7 +16,7 @@
 #                                matches devices/sm8750/profile.conf
 pkgname=pocknix-bsp-sm8750
 pkgver=0.2.0
-pkgrel=7
+pkgrel=8
 pkgdesc="pocknix board support: SM8750 family (AYN Odin 3) — runtime board dispatch, input map, suspend quirks, audio UCM"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -36,8 +36,8 @@ source=('device.conf'
         '01-rsinput-controller.yaml' 'sm8750-gamepad.yaml'
         'AYN-Odin3.conf' 'HiFi.conf'
         '10-pocknix-deeponly.conf' '30-pocknix-cpuidle.conf'
-        'kernel-cmdline' 'pocknix-stick-leds')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'kernel-cmdline' 'pocknix-stick-leds' 'pocknix-stick-leds.service')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # Runtime device facts: the model dispatcher + per-board files. boards/ is
@@ -84,6 +84,8 @@ package() {
   # Thumbstick RGB helper (HTR3212 rings; needs kernel 7.1.3-9+ LEDS_HTR3212).
   install -Dm755 "${srcdir}/pocknix-stick-leds" \
     "${pkgdir}/usr/local/bin/pocknix-stick-leds"
+  install -Dm644 "${srcdir}/pocknix-stick-leds.service" \
+    "${pkgdir}/usr/lib/systemd/system/pocknix-stick-leds.service"
 
   # Kernel command line for the on-device /flash/KERNEL rebuild (pocknix-build-bootimg,
   # shipped by linux-pocknix-sm8750). One family cmdline (the retired per-device ones

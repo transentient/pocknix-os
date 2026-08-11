@@ -89,3 +89,23 @@ def set_charge_limit(pct):
         (_BATT / "charge_control_start_threshold").write_text(f"{start}\n")
     except OSError:
         pass  # non-fatal: kernel/hardware may not expose it
+
+
+# --- thumbstick RGB (HTR3212 rings via pocknix-stick-leds) ---
+LED_COLOR_FILE = Path("/var/lib/pocknix/led-color")
+LED_DEFAULT = "off"
+
+
+def led_color():
+    try:
+        c = LED_COLOR_FILE.read_text().strip()
+    except OSError:
+        return LED_DEFAULT
+    return c if c else LED_DEFAULT
+
+
+def set_led_color(hexcolor):
+    hexcolor = str(hexcolor).lstrip("#").lower()
+    if hexcolor not in ("off",) and (len(hexcolor) != 6 or any(c not in "0123456789abcdef" for c in hexcolor)):
+        raise ValueError(f"bad led color: {hexcolor!r}")
+    run_cmd(["/usr/local/bin/pocknix-stick-leds", "save", hexcolor])

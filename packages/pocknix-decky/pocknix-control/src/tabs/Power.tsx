@@ -1,9 +1,20 @@
 import { PanelSection } from "@decky/ui";
 import type { Dispatch, SetStateAction } from "react";
-import { setFanMode, setLavdMode, setPowerMode, setChargeLimit } from "../backend";
+import { setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor } from "../backend";
 import { SelectEdit } from "../components/widgets";
 import type { Config } from "../types";
 
+const ledOptions = [
+  { data: "off", label: "Off" },
+  { data: "ff6600", label: "Hodor Orange" },
+  { data: "ff0000", label: "Red" },
+  { data: "00ff00", label: "Green" },
+  { data: "00ffff", label: "Cyan" },
+  { data: "0066ff", label: "Blue" },
+  { data: "8800ff", label: "Purple" },
+  { data: "ff00aa", label: "Pink" },
+  { data: "ffffff", label: "White" },
+];
 const chargeOptions = [
   { data: 80, label: "80% (longest battery lifespan)" },
   { data: 85, label: "85%" },
@@ -30,6 +41,14 @@ export function Power({ config, setConfig, reload }: {
   setConfig: Dispatch<SetStateAction<Config | null>>;
   reload: () => void;
 }) {
+  const applyLed = async (hex: string) => {
+    try {
+      const next = await setLedColor(hex);
+      setConfig((current) => (current ? { ...current, ledColor: next.ledColor } : current));
+    } catch (error) {
+      reload();
+    }
+  };
   const applyCharge = async (pct: number) => {
     try {
       const next = await setChargeLimit(pct);
@@ -50,6 +69,7 @@ export function Power({ config, setConfig, reload }: {
     <PanelSection title="PERFORMANCE">
       <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
       <SelectEdit label="Charge Limit" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
+      <SelectEdit label="Stick LEDs" value={config.ledColor} options={ledOptions} onChange={(hex) => applyLed(hex as string)} />
       <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions} onChange={(mode) => applyMode(setFanMode, mode)} />
       <SelectEdit label="CPU Scheduler" value={config.lavdMode} options={lavdOptions} onChange={(mode) => applyMode(setLavdMode, mode)} />
     </PanelSection>
