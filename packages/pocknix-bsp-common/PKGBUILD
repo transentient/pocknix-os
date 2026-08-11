@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -19,9 +19,10 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'pocknix-telemetryd' 'pocknix-telemetry.service'
         'pocknix-power-mode' 'pocknix-power-mode.service'
         'pocknix-wifi-heal'
+        'leds-sleep-pre' 'leds-sleep-post'
         '20-pocknix-powerkey.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -51,6 +52,12 @@ package() {
     "${pkgdir}/usr/lib/pocknix/sleep.d/pre/001-inputplumber"
   install -Dm755 "${srcdir}/inputplumber-sleep-post" \
     "${pkgdir}/usr/lib/pocknix/sleep.d/post/001-inputplumber"
+  # 004-leds: extinguish the stick RGB rings across suspend (save/restore), so 24
+  # LEDs don't sip the sleep budget. Runs late (004) — after the input teardown.
+  install -Dm755 "${srcdir}/leds-sleep-pre" \
+    "${pkgdir}/usr/lib/pocknix/sleep.d/pre/004-leds"
+  install -Dm755 "${srcdir}/leds-sleep-post" \
+    "${pkgdir}/usr/lib/pocknix/sleep.d/post/004-leds"
   # 003-sdam-debug: Qualcomm PMIC SDAM suspend breadcrumb (fail-soft on non-SPMI
   # hardware — the dd just logs to kmsg and moves on).
   install -Dm755 "${srcdir}/sdam-debug-pre" \
