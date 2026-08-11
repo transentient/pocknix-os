@@ -27,6 +27,7 @@ const definePlugin = (fn) => {
 const getConfig = () => call("get_config");
 const setFanMode = (mode) => call("set_fan_mode", mode);
 const setPowerMode = (mode) => call("set_power_mode", mode);
+const setChargeLimit = (pct) => call("set_charge_limit", pct);
 const setLavdMode = (mode) => call("set_lavd_mode", mode);
 const saveTweaks = (data) => call("save_tweaks", data);
 const detectSdcard = () => call("detect_sdcard");
@@ -363,6 +364,12 @@ function Games({ config, setConfig }) {
     return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "GAME TWEAKS", children: [SP_JSX.jsx(SelectEdit, { label: "Game", value: game?.appid || "", options: editTargetOptions(config), onChange: setSelectedGame }), SP_JSX.jsx("div", { className: "pocknix-note", children: "Changes apply on next game launch" }), !editingDefault ? SP_JSX.jsx(DFL.ToggleField, { label: "Use Per-Game Settings", checked: perGameEnabled, onChange: setPerGameEnabled }) : null, editingDefault || perGameEnabled ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(SelectEdit, { label: "FEX Preset", value: fexValue, options: fexOptions, onChange: (id) => patchSettings({ fexProfile: id }) }), SP_JSX.jsx(SelectEdit, { label: "Audio Buffer", value: audioValue, options: audioLatencyOptions, onChange: (id) => patchSettings({ audioLatency: id }) })] })) : null] }), SP_JSX.jsx(AddGameSection, {})] }));
 }
 
+const chargeOptions = [
+    { data: 80, label: "80% (longest battery lifespan)" },
+    { data: 85, label: "85%" },
+    { data: 90, label: "90%" },
+    { data: 100, label: "100% (charge to full)" },
+];
 const powerOptions = [
     { data: "eco", label: "Eco (cool & quiet, ~60% clocks)" },
     { data: "balanced", label: "Balanced (~80% clocks)" },
@@ -378,6 +385,15 @@ const lavdOptions = [
     { data: "performance", label: "Performance" },
 ];
 function Power({ config, setConfig, reload }) {
+    const applyCharge = async (pct) => {
+        try {
+            const next = await setChargeLimit(pct);
+            setConfig((current) => (current ? { ...current, chargeLimit: next.chargeLimit } : current));
+        }
+        catch (error) {
+            reload();
+        }
+    };
     const applyMode = async (setter, mode) => {
         try {
             const next = await setter(mode);
@@ -387,7 +403,7 @@ function Power({ config, setConfig, reload }) {
             reload();
         }
     };
-    return (SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions, onChange: (mode) => applyMode(setFanMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }));
+    return (SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions, onChange: (mode) => applyMode(setFanMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }));
 }
 
 function cardSummary(card) {

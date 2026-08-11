@@ -31,6 +31,7 @@ export interface GameRef {
 export interface Config {
   fanMode: string;
   powerMode: string;
+  chargeLimit: number;
   lavdMode: string;
   tweaks: Tweaks;
   fexProfiles: Record<string, FexProfile>;

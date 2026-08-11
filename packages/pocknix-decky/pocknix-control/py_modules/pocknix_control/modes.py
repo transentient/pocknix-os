@@ -61,3 +61,31 @@ def set_lavd_mode(mode):
         raise RuntimeError("pocknix-lavd-mode failed to spawn")
     if proc.returncode != 0:
         raise RuntimeError(f"pocknix-lavd-mode failed (rc={proc.returncode}): {(proc.stderr or '').strip()[:300]}")
+
+
+# --- battery charge limit (care thresholds the kernel honors: stop charging at
+#     END, resume at START; "100" = charge to full / limit off) ---
+_BATT = Path("/sys/class/power_supply/battery")
+CHARGE_LIMITS = (80, 85, 90, 100)
+CHARGE_DEFAULT = 100
+
+
+def charge_limit():
+    try:
+        v = int((_BATT / "charge_control_end_threshold").read_text().strip())
+    except (OSError, ValueError):
+        return CHARGE_DEFAULT
+    return v if v in CHARGE_LIMITS else CHARGE_DEFAULT
+
+
+def set_charge_limit(pct):
+    pct = int(pct)
+    if pct not in CHARGE_LIMITS:
+        raise ValueError(f"charge limit {pct} not in {CHARGE_LIMITS}")
+    # start ~10 below end (hysteresis); 100 disables the limit (start=95 avoids churn).
+    start = 95 if pct >= 100 else pct - 10
+    try:
+        (_BATT / "charge_control_end_threshold").write_text(f"{pct}\n")
+        (_BATT / "charge_control_start_threshold").write_text(f"{start}\n")
+    except OSError:
+        pass  # non-fatal: kernel/hardware may not expose it
