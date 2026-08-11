@@ -22,6 +22,22 @@ max_temp() {
 }
 while :; do
   cap=$(cat $B/capacity 2>/dev/null); st=$(cat $B/status 2>/dev/null)
+  # Charge-resume kick: Qualcomm battmgr's start-threshold is STICKY — after charging
+  # stops at the end threshold, it often never resumes when the pack drifts below start,
+  # so a "limited + plugged in" device slowly drains instead of holding (hardware-
+  # observed 2026-08-11: sat plugged at 48% with a 27W charger, not charging). If a
+  # charger is online, we're below the resume point, and we're not charging, re-assert
+  # the end threshold to force the PMIC to re-evaluate. Makes the charge-limit safe.
+  end=$(cat $B/charge_control_end_threshold 2>/dev/null || echo 100)
+  start=$(cat $B/charge_control_start_threshold 2>/dev/null || echo 95)
+  usb_on=0
+  for u in /sys/class/power_supply/*/; do
+    [ "$(cat $u/type 2>/dev/null)" = "USB" ] && [ "$(cat $u/online 2>/dev/null)" = "1" ] && usb_on=1
+  done
+  if [ "$usb_on" = 1 ] && [ "${cap:-100}" -le "${start:-95}" ] && [ "$st" != "Charging" ] && [ "$st" != "Full" ]; then
+    echo "$end" > "$B/charge_control_end_threshold" 2>/dev/null || true
+    st=$(cat $B/status 2>/dev/null)
+  fi
   v=$(cat $B/voltage_now 2>/dev/null || echo 0); c=$(cat $B/current_now 2>/dev/null || echo 0)
   w=$(awk "BEGIN{printf \"%.2f\", ($v/1e6)*($c/1e6)}")
   f0=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2>/dev/null || echo 0)
