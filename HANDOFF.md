@@ -6,9 +6,16 @@ Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
 ## CURRENT STATE 2026-08-08 (read this first; sections below are chronological history)
 
-Daily driver = internal UFS install, kernel 7.1.3-12 (SUSPEND WEDGE FIXED — 0519 UCSI
-USB-role clear; plugged-in soak 4/4 clean, was the week-long white whale) (rumble stack, suspend wedge FIXED —
-0508 excised and field-validated), bsp-sm8750 0.2.0-6 (the wiretap-proven ASYMMETRIC
+Daily driver = internal UFS install, kernel 7.1.3-12. SUSPEND WEDGE FIXED for real:
+0519 (UCSI clears USB role for charger-only Type-C partners) — the wedge only ever
+hung WHILE PLUGGED IN; plugged-in rtcwake soak 4/4 clean. The 08-08 "0508 was the
+wedge" conviction was a FALSE POSITIVE (module bisection confounded by cable state);
+0508 stays active (via ROCKNIX 20-sm8750) as a legit controls-after-resume fix. The
+rsinput sleep-guard built around that false conviction is REMOVED (bsp-common 0.1.0-11)
+— it was redundant and crashed running games on resume. Charge FLAP (separate issue)
+was the multi-port charger renegotiating PD, not a bad cable — use a dedicated port.
+Sleep hooks now = wifi / inputplumber / sdam-debug / leds (four orthogonal, real). (rumble stack, suspend wedge FIXED —
+0508 excised and field-validated), bsp-sm8750 0.2.0-7 (the wiretap-proven ASYMMETRIC
 button map — A/B crossed, X/Y straight; do NOT "fix" it, read knowledge item 6),
 bsp-common 0.1.0-4 (wifi + inputplumber sleep hooks; rsinput guard files REMOVED on
 device — kernel fix supersedes). Audio, Wi-Fi, charge-limits, auto-expand: all working.
