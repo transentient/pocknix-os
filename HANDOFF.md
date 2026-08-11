@@ -37,6 +37,12 @@ daily driver — do LAST), then announce (Discord first). Decisions locked: bake
 SourceForge hosting, Option C security. RP6 8GB ordered as Act Two (mature sm8550, honest
 floor). Art advance paid to ssalmon_px.
 
+TOP LEAD 2026-08-12: suspend-in-game controller continuity — try InputPlumber `persist: true`
+(sibling of auto_manage) in 01-rsinput-controller.yaml. Already in our IP 0.75.2, nobody's
+tried it, directly targets the rsinput-re-enum-on-resume bug. Config-only, zero kernel risk.
+Test = deploy + suspend mid-game. Fallback = IP 0.77.2 + deck-uhid target. Full analysis in
+project memory (2026-08-12 RESEARCH RESULT).
+
 TOMORROW'S DOCKET (in order):
 0. RUMBLE IN-GAME (Cyberpunk) — the week's unclaimed prize; test FIRST before anything
    can crash. Hardware rumble is proven (remote FF pulses felt); only Steam->game routing
