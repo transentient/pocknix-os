@@ -14,7 +14,13 @@ wedge" conviction was a FALSE POSITIVE (module bisection confounded by cable sta
 rsinput sleep-guard built around that false conviction is REMOVED (bsp-common 0.1.0-11)
 — it was redundant and crashed running games on resume. Charge FLAP (separate issue)
 was the multi-port charger renegotiating PD, not a bad cable — use a dedicated port.
-Sleep hooks now = wifi / inputplumber / sdam-debug / leds (four orthogonal, real). (rumble stack, suspend wedge FIXED —
+Sleep hooks now = wifi / inputplumber / sdam-debug / leds (four orthogonal, real).
+Charge-limit UI SHIPS in v1 (Pocknix Control Power tab; the telemetryd charge-kick
+self-heals battmgr's sticky start-threshold). GPU pair 0050/0051: turns out ROCKNIX's
+20-sm8750 now carries them, so they've been ACTIVE in every recent kernel (incl. -12
+which passed the plugged-in soak) — never the wedge (that was USB-role/cable). The
+patches-disabled/ jail is deleted (dead dupes). Four false positives total came from
+the same plugged-in-cable confound: 0508, the GPU pair, and two soak mis-reads. (rumble stack, suspend wedge FIXED —
 0508 excised and field-validated), bsp-sm8750 0.2.0-7 (the wiretap-proven ASYMMETRIC
 button map — A/B crossed, X/Y straight; do NOT "fix" it, read knowledge item 6),
 bsp-common 0.1.0-4 (wifi + inputplumber sleep hooks; rsinput guard files REMOVED on
