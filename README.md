@@ -32,7 +32,7 @@ side.
 - Kernel anti-cheat titles (EAC/BattlEye) don't run yet — an ecosystem-wide ARM
   frontier that Valve's Steam Frame work is actively pushing.
 - In-game Steam overlay is glitchy in some heavy titles (workaround inside; fix in
-  progress). Headphone jack: plumbing just landed, verification pending.
+  progress). Headphone jack: not working yet (jack-detect/routing — speakers are fine).
 
 ## Install
 
