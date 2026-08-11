@@ -35,6 +35,10 @@ while :; do
     [ "$(cat $u/type 2>/dev/null)" = "USB" ] && [ "$(cat $u/online 2>/dev/null)" = "1" ] && usb_on=1
   done
   if [ "$usb_on" = 1 ] && [ "${cap:-100}" -le "${start:-95}" ] && [ "$st" != "Charging" ] && [ "$st" != "Full" ]; then
+    # Re-writing the SAME end value is a no-op; the PMIC only re-evaluates on a CHANGE.
+    # Toggle low-then-back so charging actually resumes. (100 -> down -> 100.)
+    echo "$((cap > 5 ? cap - 5 : 1))" > "$B/charge_control_end_threshold" 2>/dev/null || true
+    sleep 1
     echo "$end" > "$B/charge_control_end_threshold" 2>/dev/null || true
     st=$(cat $B/status 2>/dev/null)
   fi
