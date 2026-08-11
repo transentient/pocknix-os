@@ -6,7 +6,8 @@ Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
 ## CURRENT STATE 2026-08-08 (read this first; sections below are chronological history)
 
-Daily driver = internal UFS install, kernel 7.1.3-7 (rumble stack, suspend wedge FIXED —
+Daily driver = internal UFS install, kernel 7.1.3-12 (SUSPEND WEDGE FIXED — 0519 UCSI
+USB-role clear; plugged-in soak 4/4 clean, was the week-long white whale) (rumble stack, suspend wedge FIXED —
 0508 excised and field-validated), bsp-sm8750 0.2.0-6 (the wiretap-proven ASYMMETRIC
 button map — A/B crossed, X/Y straight; do NOT "fix" it, read knowledge item 6),
 bsp-common 0.1.0-4 (wifi + inputplumber sleep hooks; rsinput guard files REMOVED on
