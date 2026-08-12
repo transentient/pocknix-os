@@ -14,7 +14,7 @@ new file mode 100644
 index 000000000000..6090b5b3c668
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi
-@@ -0,0 +1,1237 @@
+@@ -0,0 +1,1241 @@
 +// SPDX-License-Identifier: BSD-3-Clause
 +/*
 + * Copyright (c) 2026 Teguh Sobirin.
@@ -44,6 +44,10 @@ index 000000000000..6090b5b3c668
 +
 +	wcd939x: audio-codec {
 +		compatible = "qcom,wcd9395-codec", "qcom,wcd9390-codec";
++
++		/* integrated 3.5mm jack is wired through the USBSS analog
++		 * switch; MBHC routes it to audio on insert (patch 0063) */
++		qcom,usbss = <&wcd_usbss>;
 +
 +		pinctrl-0 = <&wcd_default>;
 +		pinctrl-names = "default";
