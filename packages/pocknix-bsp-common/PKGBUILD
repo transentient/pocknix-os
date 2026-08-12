@@ -5,23 +5,21 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=11
+pkgrel=12
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
 license=('GPL2')
 depends=()
-optdepends=('inputplumber: the 001-inputplumber suspend hooks manage its USB/IP deck target')
 source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'wifi-sleep-pre' 'wifi-sleep-post'
-        'inputplumber-sleep-pre' 'inputplumber-sleep-post'
         'pocknix-telemetryd' 'pocknix-telemetry.service'
         'pocknix-power-mode' 'pocknix-power-mode.service'
         'pocknix-wifi-heal'
         'leds-sleep-pre' 'leds-sleep-post'
-        '20-pocknix-powerkey.conf'
+        '20-pocknix-powerkey.conf' 'no-freeze-user-sessions.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -37,12 +35,10 @@ package() {
     "${pkgdir}/usr/lib/pocknix/sleep.d/pre/000-wifi"
   install -Dm755 "${srcdir}/wifi-sleep-post" \
     "${pkgdir}/usr/lib/pocknix/sleep.d/post/000-wifi"
-  # 001-inputplumber: drop the USB/IP virtual controller before sleep so vhci_hcd
-  # doesn't veto suspend (the `deck` target attaches over USB/IP); restore on resume.
-  install -Dm755 "${srcdir}/inputplumber-sleep-pre" \
-    "${pkgdir}/usr/lib/pocknix/sleep.d/pre/001-inputplumber"
-  install -Dm755 "${srcdir}/inputplumber-sleep-post" \
-    "${pkgdir}/usr/lib/pocknix/sleep.d/post/001-inputplumber"
+  # (RETIRED 2026-08-12: the 001-inputplumber stop/start hooks. They existed only
+  # because the usbip `deck` target's vhci_hcd vetoed suspend; the deck-uhid target
+  # has no veto, InputPlumber rides through suspend alive, and THAT unbroken
+  # Steam<->pad connection is what makes suspend-mid-game seamless. Do not revive.)
   # 004-leds: extinguish the stick RGB rings across suspend (save/restore), so 24
   # LEDs don't sip the sleep budget. Runs late (004) — after the input teardown.
   install -Dm755 "${srcdir}/leds-sleep-pre" \
@@ -78,6 +74,10 @@ package() {
   # Handheld policy, not a device quirk — pairs with pocknix-powerd (overlay).
   install -Dm644 "${srcdir}/20-pocknix-powerkey.conf" \
     "${pkgdir}/usr/lib/systemd/logind.conf.d/20-pocknix-powerkey.conf"
+
+  # Suspend: keep user sessions unfrozen (see the .conf for why).
+  install -Dm644 "${srcdir}/no-freeze-user-sessions.conf" \
+    "${pkgdir}/usr/lib/systemd/system/systemd-suspend.service.d/no-freeze-user-sessions.conf"
 
   # udev rule: let the 'video' group (non-root session user) write panel brightness
   # so Steam's brightness slider works as the deck user. Matches any backlight.

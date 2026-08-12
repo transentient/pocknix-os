@@ -37,11 +37,49 @@ daily driver — do LAST), then announce (Discord first). Decisions locked: bake
 SourceForge hosting, Option C security. RP6 8GB ordered as Act Two (mature sm8550, honest
 floor). Art advance paid to ssalmon_px.
 
-TOP LEAD 2026-08-12: suspend-in-game controller continuity — try InputPlumber `persist: true`
-(sibling of auto_manage) in 01-rsinput-controller.yaml. Already in our IP 0.75.2, nobody's
-tried it, directly targets the rsinput-re-enum-on-resume bug. Config-only, zero kernel risk.
-Test = deploy + suspend mid-game. Fallback = IP 0.77.2 + deck-uhid target. Full analysis in
-project memory (2026-08-12 RESEARCH RESULT).
+SUSPEND-MID-GAME 2026-08-12 — LAYER-BY-LAYER ELIMINATION DONE; CULPRIT = GAME-PROCESS-SIDE
+STEAM INPUT RECEIVER (Proton/FEX steamclient plumbing). PROVEN HEALTHY across suspend: MCU
+(streams 111fps clean on uart2 = 89c000.serial; bursts of 2-4 "Checksum mismatch" at
+resume/probe are normal sync noise, NOT a dead link), rsinput driver, InputPlumber (native
+HookSleep/HookWake + persist:true = IP survives suspend, same PID, same event nodes; persist
+re-attaches source to the EXISTING composite through driver rebinds — Steam never sees a
+disconnect), virtual deck pad, and STEAM ITSELF (controller.txt shows "closed after hid_read
+failure" -> clean re-open -> re-reserve XInput slot 0 -> re-activation for the running appid;
+Steam UI + QAM controls work perfectly while the game is deaf). ELIMINATED BY TEST: logind
+vs Steam-menu-initiated suspend (both fail identically; no steamos-manager anywhere — Holo
+repo lacks it), systemd user-session freeze (systemd 258 freezes user.slice on suspend;
+disabled via /etc/systemd/system/systemd-suspend.service.d/no-freeze-user-sessions.conf,
+verified "remain unfrozen", game receiver STILL dies — override kept anyway, it's
+SteamOS-parity), controller re-enumeration (full IP restart under the running game = Steam
+re-opens + re-activates, game still deaf — so the old "games never re-acquire the recreated
+pad" framing was wrong; the game-side receiver is the corpse in every scenario). Dead-state
+autopsy: game threads all in ntsync/futex/poll waits + one thread in skb_wait (socket read
+that never delivers) — receiver waiting on a broken channel, not crashed. One observed
+SPONTANEOUS recovery minutes after resume (single input burst) — periodic Steam re-activation
+may eventually land; unconfirmed. NEXT SESSION LEADS: map the game's steam IPC socket (that
+skb_wait fd) to its Steam-side peer across suspend; pressure-vessel/lsteamclient input path
+under FEX; check whether the pending Steam CLIENT update changes behavior (Frame-era client
+must solve this); ask armada/ROCKNIX if anyone sees in-GAME continuity (believed unsolved
+everywhere). WIRETAP LESSON: IP exclusive-grabs sources and Steam grabs the virtual pad —
+evdev taps on those nodes see NOTHING; tap Steam's x360 pad (ungrabbed) or use functional
+tests (QAM/vol-up); kprobe input_event counts are contaminated by per-report no-change calls.
+STAGED READY TO DEPLOY (decoupled cleanup, kills the vhci-veto/sleep-hook contraption):
+inputplumber 0.77.2 pkg in localrepo + on device at /root/, yaml flipped to deck-uhid target
+in repo (deck-uhid confirmed in 0.77.2 binary; tarball schema json is stale — ignore it).
+Deploy ceremony: quit game -> pacman -U -> install yaml -> disable 001-inputplumber hooks +
+inputplumber-suspend.service (uhid needs neither) -> restart IP -> verify buttons/glyphs in
+Steam UI (asymmetric map must re-verify against the uhid target!) -> suspend soak.
+DEVICE STATE at close: known-good stop/start hooks RESTORED (+x), inputplumber-suspend
+disabled, persist:true live in device yaml (harmless, good), freeze override live, IP still
+0.75.2 (0.77.2 staged not installed). Decky "Loading" = stale frontend injection after the
+11:47 loader crash (FEX loader flakiness, predates today; unrelated to input) — fix by
+loader restart, else session restart. Steam-menu jank in Hades + laggy sleep fade + the
+Cyberpunk overlay jam are plausibly the SAME steamclient-in-game IPC fragility family as
+the controls bug — one investigation may pay twice.
+
+2026-08-12: SourceForge project IS SET UP (Cliff) — next release step is upload
+.zst+.sha256, then the SD dry-run. Fan 'max' mode shipped (ef5d77c): CLI + daemon + QAM
+selector, answers the Discord "force fan at underclock" ask; device-verified.
 
 TOMORROW'S DOCKET (in order):
 0. RUMBLE IN-GAME (Cyberpunk) — the week's unclaimed prize; test FIRST before anything

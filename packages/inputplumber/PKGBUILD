@@ -3,7 +3,7 @@
 # Guide button, rumble, etc. We use the upstream PREBUILT aarch64 release (same as
 # ROCKNIX) — no Rust build in the chroot. RP6 device config ships in pocknix-bsp.
 pkgname=inputplumber
-pkgver=0.75.2
+pkgver=0.77.2
 pkgrel=1
 pkgdesc="Open source input router and remapper daemon (prebuilt aarch64 release)"
 arch=('aarch64')

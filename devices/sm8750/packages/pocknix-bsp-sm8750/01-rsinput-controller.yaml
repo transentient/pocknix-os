@@ -17,8 +17,11 @@
 # because the grab is exclusive, the map re-emits it on the keyboard target
 # so volume up keeps working. (Gyro is still unavailable — no IIO/IMU.)
 #
-# Target = `deck` (Steam Deck controller) so Steam Input gets a first-class
-# Steam-native pad.
+# Target = `deck-uhid` (Steam Deck controller over uhid, IP >= 0.77) so Steam
+# Input gets a first-class Steam-native pad AND InputPlumber survives suspend:
+# uhid has no vhci/USB-IP suspend veto, so no sleep hooks, no HookSleep state
+# machine, no virtual-pad teardown — the 0.75.2 usbip `deck` target forced all
+# of that and its suspend path severed composite->target routing (2026-08-12).
 version: 1
 kind: CompositeDevice
 name: SM8750 family (RSInput) [holodor]
@@ -74,7 +77,11 @@ source_devices:
 
 options:
   auto_manage: true
+  # Suspend-in-game continuity (IP PR #285): keep the composite + virtual pad
+  # alive when the rsinput evdev vanishes on resume (geni serdev re-enum), and
+  # re-attach the source when it reappears — Steam never sees a disconnect.
+  persist: true
 
 target_devices:
-  - deck
+  - deck-uhid
   - keyboard

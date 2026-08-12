@@ -14,6 +14,10 @@ KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input", OPTIONS+="stati
 # Valve — Steam Controller / Steam Deck / InputPlumber 'deck' virtual target
 KERNEL=="hidraw*", ATTRS{idVendor}=="28de", MODE="0660", TAG+="uaccess"
 SUBSYSTEM=="input", ATTRS{idVendor}=="28de", MODE="0660", TAG+="uaccess"
+# InputPlumber `deck-uhid` target: uhid devices have NO USB parent, so idVendor
+# above never matches — match the HID device kernel name (bus 0003 = HID, Valve
+# 28DE). Without this Steam gets "Unable to open local device: /dev/hidrawN".
+KERNEL=="hidraw*", KERNELS=="0003:28DE:*", MODE="0660", TAG+="uaccess"
 
 # Common external controllers, so plugged-in pads work in the deck session too.
 # Sony (DualShock 3/4, DualSense)
