@@ -8,7 +8,7 @@ FAN_MODE_FILE = Path("/var/lib/pocknix/fan-mode")
 LAVD_MODE_FILE = Path("/var/lib/pocknix/lavd-mode")
 POWER_MODE_FILE = Path("/var/lib/pocknix/power-mode")
 
-FAN_MODES = ("quiet", "moderate", "performance")
+FAN_MODES = ("quiet", "moderate", "performance", "max")
 FAN_DEFAULT = "quiet"
 LAVD_MODES = ("autopilot", "performance")
 LAVD_DEFAULT = "autopilot"

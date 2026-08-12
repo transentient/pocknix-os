@@ -397,6 +397,7 @@ const fanOptions = [
     { data: "quiet", label: "Quiet" },
     { data: "moderate", label: "Moderate" },
     { data: "performance", label: "Performance" },
+    { data: "max", label: "Max (always 100%)" },
 ];
 const lavdOptions = [
     { data: "autopilot", label: "Autopilot" },

@@ -34,6 +34,7 @@ done
 SPEEDS="255 204 153 119 102 77 51 0"
 curve_temps() {
   case "$(cat "${MODE_FILE}" 2>/dev/null)" in
+    max)         echo "-1 -1 -1 -1 -1 -1 -1 -1" ;;                      # pinned 100% (any temp > -1)
     performance) echo "80000 75000 70000 65000 60000 55000 50000 0" ;;  # ROCKNIX "aggressive"
     moderate)    echo "85000 80000 75000 70000 65000 60000 55000 0" ;;
     *)           echo "95000 85000 80000 75000 70000 65000 60000 0" ;;  # quiet (default)
