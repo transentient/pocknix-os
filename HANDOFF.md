@@ -81,7 +81,17 @@ the controls bug — one investigation may pay twice.
 .zst+.sha256, then the SD dry-run. Fan 'max' mode shipped (ef5d77c): CLI + daemon + QAM
 selector, answers the Discord "force fan at underclock" ask; device-verified.
 
-HEADPHONE JACK 2026-08-12 (deep session; kernel 7.1.3-13 BUILDING with the fix):
+BUILD-SYSTEM TRAP (cost us the evening's kernel tests, 2026-08-12): `build-packages.sh
+linux-pocknix-*` does NOT rebuild the kernel — the PKGBUILD merely PACKAGES the existing
+`make kernel` output in build/kernel/<soc>/. Adding kernel patches and running only
+build-packages ships the OLD Image with a new pkgrel (kernels "-13" and "-14" were
+kernel-12 in wrappers; every on-device conclusion drawn from them is void). CORRECT
+FLOW: scripts/build-kernel.sh FIRST (fresh extract + full patch stack + compile), then
+build-packages. VERIFY a kernel code change landed by grepping
+build/kernel/<soc>/linux-*/ for the new symbol before deploying. Kernel-15 = the first
+build that really contains the ROCKNIX audio series + 0610.
+
+HEADPHONE JACK 2026-08-12 (deep session; kernel 7.1.3-15 = first REAL build with the fix):
 Diagnosis chain: (1) UCM had a DUPLICATE Headphones SectionDevice shadowing the correct
 PCM (fixed, bsp-sm8750-11; Headphones sink now EXISTS in WirePlumber — first time). (2)
 MBHC mech detect armed (0x3014=0xBD) but ZERO codec interrupts ever — jack lines dead.
