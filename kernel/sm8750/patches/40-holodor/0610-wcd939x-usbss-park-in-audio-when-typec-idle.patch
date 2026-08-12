@@ -1,0 +1,42 @@
+From: Holodor <holodor@transentient.github.io>
+Date: Tue, 12 Aug 2026 18:20:00 +0900
+Subject: [PATCH] usb: typec: mux: wcd939x-usbss: park in audio mode when Type-C idle
+
+The AYN Odin 3 routes its integrated 3.5mm jack through the WCD939x USBSS
+analog switch.  MBHC mechanical detection needs the jack's lines connected
+to the codec, but the switch powers up (and returns to, on every Type-C
+detach) USB routing, where the lines float and insertion can never be
+seen.  ROCKNIX's 0063 routes the switch to audio *after* a mech-detect
+interrupt -- which on this board can never fire first (chicken-and-egg;
+proven on hardware 2026-08-12: MBHC armed 0x3014=0xBD, zero interrupts
+ever, manual switch programming + MBHC re-arm = detection works).
+
+Park the switch in audio-accessory routing whenever the Type-C state is
+SAFE (probe already ends in a SAFE set, so this also covers boot).  Any
+genuine USB/DP mode still overrides while a partner is attached.
+---
+ drivers/usb/typec/mux/wcd939x-usbss.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+--- a/drivers/usb/typec/mux/wcd939x-usbss.c
++++ b/drivers/usb/typec/mux/wcd939x-usbss.c
+@@ -390,8 +390,18 @@
+ 	bool enable_dp = false;
+ 	int ret;
+ 
++	/*
++	 * Idle/safe: park the switch in audio-accessory routing.  On boards
++	 * with an integrated 3.5mm jack wired through this switch (AYN
++	 * Odin 3), the jack's HPHL/HPHR and mech-detect lines float while
++	 * the switch sits in USB routing, so the codec's MBHC can never see
++	 * an insertion.  Parking in audio arms jack detection whenever no
++	 * Type-C partner claims the port; any real mode below overrides.
++	 */
++	if (usbss->mode == TYPEC_STATE_SAFE) {
++		enable_audio = true;
+ 	/* USB Mode */
+-	if (usbss->mode < TYPEC_STATE_MODAL ||
++	} else if (usbss->mode < TYPEC_STATE_MODAL ||
+ 	    (!usbss->svid && (usbss->mode == TYPEC_MODE_USB2 ||
+ 			      usbss->mode == TYPEC_MODE_USB3))) {
+ 		enable_usb = true;
