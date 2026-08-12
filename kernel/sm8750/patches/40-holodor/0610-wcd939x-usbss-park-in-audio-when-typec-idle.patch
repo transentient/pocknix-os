@@ -1,42 +1,131 @@
 From: Holodor <holodor@transentient.github.io>
-Date: Tue, 12 Aug 2026 18:20:00 +0900
-Subject: [PATCH] usb: typec: mux: wcd939x-usbss: park in audio mode when Type-C idle
+Date: Tue, 12 Aug 2026 21:05:00 +0900
+Subject: [PATCH] usb: typec: mux: wcd939x-usbss: park in vendor HSJ routing when Type-C idle
 
-The AYN Odin 3 routes its integrated 3.5mm jack through the WCD939x USBSS
-analog switch.  MBHC mechanical detection needs the jack's lines connected
-to the codec, but the switch powers up (and returns to, on every Type-C
-detach) USB routing, where the lines float and insertion can never be
-seen.  ROCKNIX's 0063 routes the switch to audio *after* a mech-detect
-interrupt -- which on this board can never fire first (chicken-and-egg;
-proven on hardware 2026-08-12: MBHC armed 0x3014=0xBD, zero interrupts
-ever, manual switch programming + MBHC re-arm = detection works).
-
-Park the switch in audio-accessory routing whenever the Type-C state is
-SAFE (probe already ends in a SAFE set, so this also covers boot).  Any
-genuine USB/DP mode still overrides while a partner is attached.
+v2 of the park-when-idle fix.  v1 parked in the standard audio-accessory
+(AATC) routing, which on the AYN Odin 3 does NOT connect the integrated
+3.5mm jack's mech-detect line (hardware-proven: AATC-parked boot = zero
+MBHC interrupts on insert, while the vendor HSJ register sequence =
+detection fires).  Park in the full HSJ routing instead (sequence from
+batocera's 0605, credit suckbluefrog), including the switch-enable bits
+a manual test inherited by accident.  Real Type-C modes still override
+while a partner is attached; SAFE/detach returns to HSJ.
 ---
- drivers/usb/typec/mux/wcd939x-usbss.c | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
 
 --- a/drivers/usb/typec/mux/wcd939x-usbss.c
 +++ b/drivers/usb/typec/mux/wcd939x-usbss.c
-@@ -390,8 +390,18 @@
+@@ -115,6 +115,16 @@
+ #define WCD_USBSS_USB_SS_CNTL_USB_SS_MODE_AATC		2
+ #define WCD_USBSS_USB_SS_CNTL_USB_SS_MODE_USB		5
+ 
++/* Vendor HSJ (physical 3.5mm headset jack) routing — AYN Odin 3 integrated jack */
++#define WCD_USBSS_USB_SS_CNTL_USB_SS_MODE_HSJ		1
++#define WCD_USBSS_PMP_OUT			0x1
++#define WCD_USBSS_PMP_OUT1_HSJ_PWR_EN				BIT(6)
++#define WCD_USBSS_TEST_3D			0x3d
++#define WCD_USBSS_TEST_43			0x43
++#define WCD_USBSS_TEST_50			0x50
++#define WCD_USBSS_TEST_91			0x91
++#define WCD_USBSS_TEST_92			0x92
++
+ #define WCD_USBSS_AUDIO_FSM_START		0x433
+ 
+ #define WCD_USBSS_AUDIO_FSM_START_AUDIO_FSM_AUDIO_TRIG			BIT(0)
+@@ -237,6 +247,82 @@
+ 	{ WCD_USBSS_RATIO_SPKR_REXT_R_MSB, GENMASK(6, 0), 0x04 },
+ };
+ 
++/*
++ * Route the physical 3.5mm headset jack (vendor HSJ sequence).  On the AYN
++ * Odin 3 the jack's L/R, mic and mech-detect lines all run through this
++ * switch; the standard audio-accessory (AATC) routing does NOT connect the
++ * detect line (hardware-proven 2026-08-12: AATC-parked boot = zero MBHC
++ * interrupts on insert; HSJ-programmed switch = detection fires).  Used as
++ * the idle state so the codec's MBHC can see insertions.
++ */
++static int wcd939x_usbss_set_hsj_route(struct wcd939x_usbss *usbss)
++{
++	int ret;
++
++	ret = regmap_update_bits(usbss->regmap, WCD_USBSS_USB_SS_CNTL,
++				 WCD_USBSS_USB_SS_CNTL_USB_SS_MODE,
++				 FIELD_PREP(WCD_USBSS_USB_SS_CNTL_USB_SS_MODE,
++					    WCD_USBSS_USB_SS_CNTL_USB_SS_MODE_HSJ));
++	if (ret)
++		return ret;
++
++	ret = regmap_write(usbss->regmap, WCD_USBSS_PMP_OUT, 0x0f);
++	if (ret)
++		return ret;
++
++	ret = regmap_write(usbss->regmap, WCD_USBSS_TEST_43, 0x00);
++	if (ret)
++		return ret;
++
++	ret = regmap_write(usbss->regmap, WCD_USBSS_TEST_3D, 0xc4);
++	if (ret)
++		return ret;
++
++	ret = regmap_write(usbss->regmap, WCD_USBSS_TEST_50, 0x01);
++	if (ret)
++		return ret;
++
++	ret = regmap_write(usbss->regmap, WCD_USBSS_TEST_91, 0x3c);
++	if (ret)
++		return ret;
++
++	ret = regmap_write(usbss->regmap, WCD_USBSS_TEST_92, 0x0f);
++	if (ret)
++		return ret;
++
++	ret = regmap_set_bits(usbss->regmap, WCD_USBSS_PMP_OUT1,
++			      WCD_USBSS_PMP_OUT1_HSJ_PWR_EN);
++	if (ret)
++		return ret;
++
++	/* DNL/DPR carry the codec's left/right; MIC to MG2 (unswapped). */
++	ret = regmap_update_bits(usbss->regmap, WCD_USBSS_SWITCH_SELECT0,
++				 WCD_USBSS_SWITCH_SELECT0_DNL_SWITCHES |
++				 WCD_USBSS_SWITCH_SELECT0_DPR_SWITCHES |
++				 WCD_USBSS_SWITCH_SELECT0_SENSE_SWITCHES |
++				 WCD_USBSS_SWITCH_SELECT0_MIC_SWITCHES,
++				 WCD_USBSS_SWITCH_SELECT0_MIC_SWITCHES);
++	if (ret)
++		return ret;
++
++	ret = regmap_update_bits(usbss->regmap, WCD_USBSS_SWITCH_SELECT1,
++				 WCD_USBSS_SWITCH_SELECT1_AGND_SWITCHES, 0);
++	if (ret)
++		return ret;
++
++	ret = regmap_clear_bits(usbss->regmap, WCD_USBSS_MG1_BIAS,
++				WCD_USBSS_MG1_BIAS_PCOMP_DYN_BST_EN);
++	if (ret)
++		return ret;
++
++	return regmap_set_bits(usbss->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE,
++			       WCD_USBSS_SWITCH_SETTINGS_ENABLE_DNL_SWITCHES |
++			       WCD_USBSS_SWITCH_SETTINGS_ENABLE_DPR_SWITCHES |
++			       WCD_USBSS_SWITCH_SETTINGS_ENABLE_SENSE_SWITCHES |
++			       WCD_USBSS_SWITCH_SETTINGS_ENABLE_MIC_SWITCHES |
++			       WCD_USBSS_SWITCH_SETTINGS_ENABLE_AGND_SWITCHES);
++}
++
+ static int wcd939x_usbss_set(struct wcd939x_usbss *usbss)
+ {
+ 	bool reverse = (usbss->orientation == TYPEC_ORIENTATION_REVERSE);
+@@ -245,6 +331,14 @@
  	bool enable_dp = false;
  	int ret;
  
 +	/*
-+	 * Idle/safe: park the switch in audio-accessory routing.  On boards
-+	 * with an integrated 3.5mm jack wired through this switch (AYN
-+	 * Odin 3), the jack's HPHL/HPHR and mech-detect lines float while
-+	 * the switch sits in USB routing, so the codec's MBHC can never see
-+	 * an insertion.  Parking in audio arms jack detection whenever no
-+	 * Type-C partner claims the port; any real mode below overrides.
++	 * Idle/safe: park the switch in vendor HSJ routing so the integrated
++	 * 3.5mm jack's mech-detect line reaches the codec and MBHC can see
++	 * insertions.  Any real Type-C mode below overrides while attached.
 +	 */
-+	if (usbss->mode == TYPEC_STATE_SAFE) {
-+		enable_audio = true;
++	if (usbss->mode == TYPEC_STATE_SAFE)
++		return wcd939x_usbss_set_hsj_route(usbss);
++
  	/* USB Mode */
--	if (usbss->mode < TYPEC_STATE_MODAL ||
-+	} else if (usbss->mode < TYPEC_STATE_MODAL ||
+ 	if (usbss->mode < TYPEC_STATE_MODAL ||
  	    (!usbss->svid && (usbss->mode == TYPEC_MODE_USB2 ||
- 			      usbss->mode == TYPEC_MODE_USB3))) {
- 		enable_usb = true;
