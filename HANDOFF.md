@@ -95,7 +95,9 @@ HEADPHONE JACK STATUS AT 2026-08-13 ~02:00 CLOSE — **AUDIO THROUGH THE JACK WO
 (vendor-DTB + vendor-driver archaeology paid off; full story in project memory
 2026-08-13 entry). Short version: AYN's DT = "Sun QRD SKU1" overlays in stock dtbo;
 jack = dedicated 3.5mm, classic MBHC; vendor wcd_usbss C source recovered (NothingOSS/
-OnePlusOSS GitHub, saved in session scratchpad vendor-dtb/); vendor HSJ sequence
+OnePlusOSS GitHub) — source+analysis PRESERVED IN REPO at
+docs/reference/vendor-archaeology/ (method writeup + extraction tools in
+tools/vendor-archaeology/ — reusable for every remaining bring-up gap + RP6); vendor HSJ sequence
 hand-poked on hw -> TONE IN HEADPHONES (right channel only — left-channel bug open,
 kernel-18's full vendor sequence may fix). Kernel-18 BUILT (0610 v4 = hw-validated
 vendor HSJ program; 0611 typec stale-handle crash guard — the oops that faked 0%
