@@ -91,6 +91,15 @@ build-packages. VERIFY a kernel code change landed by grepping
 build/kernel/<soc>/linux-*/ for the new symbol before deploying. Kernel-15 = the first
 build that really contains the ROCKNIX audio series + 0610.
 
+HEADPHONE JACK STATUS AT 2026-08-12 CLOSE: device on kernel-17 (0610 v3: mux parks in
+vendor-HSJ routing whenever no Type-C cable — verified working live; charger attached =
+USB mode = jack parked, CHECK THE CHARGER before interpreting any jack test). MBHC mech
+detect has NEVER verifiably fired in any constructed state; the afternoon "detect
+worked" observation is unproven (see project memory 2026-08-12 night entry). NEXT: the
+three-pronged intel plan in memory — headline move is extracting AYN's vendor DTB from
+the Android partitions on the device itself (dual boot = ground truth for the real
+jack-detect wiring). Session history below:
+
 HEADPHONE JACK 2026-08-12 (deep session; kernel 7.1.3-15 = first REAL build with the fix):
 Diagnosis chain: (1) UCM had a DUPLICATE Headphones SectionDevice shadowing the correct
 PCM (fixed, bsp-sm8750-11; Headphones sink now EXISTS in WirePlumber — first time). (2)
