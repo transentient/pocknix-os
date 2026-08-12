@@ -1,15 +1,15 @@
 From: Holodor <holodor@transentient.github.io>
-Date: Tue, 12 Aug 2026 21:05:00 +0900
+Date: Tue, 12 Aug 2026 21:40:00 +0900
 Subject: [PATCH] usb: typec: mux: wcd939x-usbss: park in vendor HSJ routing when Type-C idle
 
-v2 of the park-when-idle fix.  v1 parked in the standard audio-accessory
-(AATC) routing, which on the AYN Odin 3 does NOT connect the integrated
-3.5mm jack's mech-detect line (hardware-proven: AATC-parked boot = zero
-MBHC interrupts on insert, while the vendor HSJ register sequence =
-detection fires).  Park in the full HSJ routing instead (sequence from
-batocera's 0605, credit suckbluefrog), including the switch-enable bits
-a manual test inherited by accident.  Real Type-C modes still override
-while a partner is attached; SAFE/detach returns to HSJ.
+v3: v2 parked HSJ on TYPEC_STATE_SAFE, but the boot-time pmic-glink
+altmode notification reports mode=USB even with no cable attached and
+re-parked the switch to USB right after probe (hardware-proven: HSJ
+power bit survived from probe, mode/selects overwritten to USB).  An
+unattached port has no orientation -- guard on
+TYPEC_ORIENTATION_NONE and route HSJ whenever no cable is present;
+any real attach (orientation set) restores normal USB/DP behavior.
+HSJ sequence from batocera's 0605 (credit suckbluefrog).
 ---
 
 --- a/drivers/usb/typec/mux/wcd939x-usbss.c
@@ -114,7 +114,7 @@ while a partner is attached; SAFE/detach returns to HSJ.
  static int wcd939x_usbss_set(struct wcd939x_usbss *usbss)
  {
  	bool reverse = (usbss->orientation == TYPEC_ORIENTATION_REVERSE);
-@@ -245,6 +331,14 @@
+@@ -245,6 +331,22 @@
  	bool enable_dp = false;
  	int ret;
  
@@ -124,6 +124,14 @@ while a partner is attached; SAFE/detach returns to HSJ.
 +	 * insertions.  Any real Type-C mode below overrides while attached.
 +	 */
 +	if (usbss->mode == TYPEC_STATE_SAFE)
++		return wcd939x_usbss_set_hsj_route(usbss);
++
++	/*
++	 * No cable at all: the boot-time pmic-glink altmode notification
++	 * reports mode=USB even with nothing attached.  An unattached port
++	 * has no orientation, so trust that instead of the claimed mode.
++	 */
++	if (usbss->orientation == TYPEC_ORIENTATION_NONE)
 +		return wcd939x_usbss_set_hsj_route(usbss);
 +
  	/* USB Mode */
