@@ -91,14 +91,35 @@ build-packages. VERIFY a kernel code change landed by grepping
 build/kernel/<soc>/linux-*/ for the new symbol before deploying. Kernel-15 = the first
 build that really contains the ROCKNIX audio series + 0610.
 
-HEADPHONE JACK STATUS AT 2026-08-12 CLOSE: device on kernel-17 (0610 v3: mux parks in
-vendor-HSJ routing whenever no Type-C cable — verified working live; charger attached =
-USB mode = jack parked, CHECK THE CHARGER before interpreting any jack test). MBHC mech
-detect has NEVER verifiably fired in any constructed state; the afternoon "detect
-worked" observation is unproven (see project memory 2026-08-12 night entry). NEXT: the
-three-pronged intel plan in memory — headline move is extracting AYN's vendor DTB from
-the Android partitions on the device itself (dual boot = ground truth for the real
-jack-detect wiring). Session history below:
+HEADPHONE JACK STATUS AT 2026-08-13 ~02:00 CLOSE — **AUDIO THROUGH THE JACK WORKS**
+(vendor-DTB + vendor-driver archaeology paid off; full story in project memory
+2026-08-13 entry). Short version: AYN's DT = "Sun QRD SKU1" overlays in stock dtbo;
+jack = dedicated 3.5mm, classic MBHC; vendor wcd_usbss C source recovered (NothingOSS/
+OnePlusOSS GitHub, saved in session scratchpad vendor-dtb/); vendor HSJ sequence
+hand-poked on hw -> TONE IN HEADPHONES (right channel only — left-channel bug open,
+kernel-18's full vendor sequence may fix). Kernel-18 BUILT (0610 v4 = hw-validated
+vendor HSJ program; 0611 typec stale-handle crash guard — the oops that faked 0%
+battery + wedged glink/audio + hung shutdown, see memory; DTS qcom,usbss phandle).
+DEPLOY CEREMONY PENDING: build-packages.sh linux-pocknix-sm8750 -> verify v4 symbol in
+Image (System.map: wcd939x_usbss_vendor_hw_init) -> pacman -U -> reboot -> jack test
+protocol (charger OUT first!). MBHC DETECT still zero even in full vendor state with
+audio flowing — sense pin may be unwired; DECISIVE NEXT TEST = boot stock Android
+(dual-boot), plug headphones, does it auto-switch? Never tested. If Android doesn't
+detect either -> manual switching is platform parity, detect hunt ends.
+AUDIO CONFIG LANDMINES found tonight (repo UCM has partial fixes, pkgrel 12
+uncommitted-to-localrepo): (1) Headphones sink priority 200 > Speaker 100 = Headphones
+becomes DEFAULT sink now that the sink exists (bsp-11) — repo UCM sets 90; (2) q6apm
+DSP feeds ONE BE per FE stream — stray 'SECONDARY_MI2S_RX Audio Mixer MultiMedia2'=on
+starves the codec BE ("Headphones" plays from speakers); (3) WirePlumber JackControl
+gating marks Headphones sink unavailable while detect is dead (streams silently move to
+default — watch sink state=suspended); (4) MY repo UCM edits break boot-time MM1
+routing (boot comes up silent — one of 4 diffs vs original is culpable, BISECT before
+shipping bsp-12; original UCM boots fine); (5) something re-defaults the sink to
+Headphones despite wpctl set-default — suspect Steam's own remembered output device;
+(6) Steam UI shows NO output selector on this build — fallback plan: sink switcher in
+Pocknix Control QAM plugin. Device left on kernel-17, ORIGINAL UCM, headphones-default
+quirk live (sound goes to jack if plugged, else speakers after manual set-default).
+Session history below:
 
 HEADPHONE JACK 2026-08-12 (deep session; kernel 7.1.3-15 = first REAL build with the fix):
 Diagnosis chain: (1) UCM had a DUPLICATE Headphones SectionDevice shadowing the correct
