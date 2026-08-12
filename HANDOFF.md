@@ -121,6 +121,19 @@ Headphones despite wpctl set-default — suspect Steam's own remembered output d
 (6) Steam UI shows NO output selector on this build — fallback plan: sink switcher in
 Pocknix Control QAM plugin. Device left on kernel-17, ORIGINAL UCM, headphones-default
 quirk live (sound goes to jack if plugged, else speakers after manual set-default).
+
+NEXT-SESSION DOCKET (2026-08-13, ordered): (1) deploy kernel-18 (package -> verify
+wcd939x_usbss_vendor_hw_init in System.map -> pacman -U -> reboot; test jack left
+channel + crash guard); (2) bisect my 4 UCM diffs (boot-time MM1 silence) -> ship
+bsp-12; (3) Cliff's 5-min Android boot jack-detect test (decides if detect hunt
+continues); (4) PRE-RELEASE: Cyberpunk fps — Discord user gets 48fps on armada, "any
+proton build works" ⇒ suspect FEX tuning (his Armada Control FEX panel screenshot:
+docs/reference/armada-control-fex-panel.webp) — A/B TSO/half-barrier/x87/multiblock;
+our display-path-ceiling theory now in doubt. NEW DATAPOINT: Bluetooth audio WORKS
+(Pixel Buds Pro 2; lag improves with mic off = A2DP; latency tuning post-release).
+POST-RELEASE bucket adds: FEX settings screen in Pocknix Control QAM (parity with
+Armada Control), BT latency. Cliff confirms stick RGB + battery gauge = done topics.
+
 Session history below:
 
 HEADPHONE JACK 2026-08-12 (deep session; kernel 7.1.3-15 = first REAL build with the fix):
