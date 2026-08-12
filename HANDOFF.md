@@ -81,6 +81,26 @@ the controls bug — one investigation may pay twice.
 .zst+.sha256, then the SD dry-run. Fan 'max' mode shipped (ef5d77c): CLI + daemon + QAM
 selector, answers the Discord "force fan at underclock" ask; device-verified.
 
+HEADPHONE JACK 2026-08-12 (deep session; kernel 7.1.3-13 BUILDING with the fix):
+Diagnosis chain: (1) UCM had a DUPLICATE Headphones SectionDevice shadowing the correct
+PCM (fixed, bsp-sm8750-11; Headphones sink now EXISTS in WirePlumber — first time). (2)
+MBHC mech detect armed (0x3014=0xBD) but ZERO codec interrupts ever — jack lines dead.
+(3) The wcd939x USBSS mux (i2c 2-000e, PAGED 8-bit regmap: selector reg 0x00 = page,
+window 0x100 — 16-bit i2ctransfer frames are gibberish, reads return zeros that LOOK
+like a dead chip; reset-gpio low is CORRECT/deasserted, red herring) sits in USB mode
+(0x419 mode=5), disconnecting the jack from the codec. Manual HSJ programming (paged
+pokes, sequence from wcd939x_usbss_set_hsj) routed the lines but detect STILL silent
+and the Headphones PCM OPEN HANGS -> deeper kernel gaps. ROOT CAUSE OF THE GAPS:
+ROCKNIX solved the whole jack UPSTREAM after our founding sync (Pocket Fit Elite
+bring-up): 0059/0060/0063/0064/0072/0073/0074 audio series + 0509 altmode-defer.
+Kernel-13 = that series synced into 20-sm8750; our batocera 0605 REMOVED (superseded
+by their 0063 route-usbss-on-integrated-jack-insert). TEST AFTER DEPLOY: plug ->
+codec irq fires -> Headphone Jack control flips on -> WirePlumber auto-switches ->
+sound; also verify speakers + suspend soak (audio patches are suspend-inert but soak
+anyway). Wiretap lesson: watch /proc/interrupts "WCD939x" parent + amixer CARD
+"Headphone Jack" control. pkill -f self-match bug struck AGAIN (third time) — bare
+pkill -x ONLY over ssh.
+
 TOMORROW'S DOCKET (in order):
 0. RUMBLE IN-GAME (Cyberpunk) — the week's unclaimed prize; test FIRST before anything
    can crash. Hardware rumble is proven (remote FF pulses felt); only Steam->game routing
