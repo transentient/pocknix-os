@@ -16,7 +16,7 @@
       }
     },
     "fast": {
-      "label": "Fast",
+      "label": "Fast (unstable: TSO off \u2014 crashes heavy games)",
       "config": {
         "TSOEnabled": "0",
         "X87ReducedPrecision": "1",
