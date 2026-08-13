@@ -93,12 +93,14 @@ def write_fex_config(settings, game_id, profiles):
     fex_config = resolve_fex_config(settings, profiles, allowed)
     config.setdefault("Config", {}).update({k: v for k, v in fex_config.items() if k in allowed})
 
-    # Frame insertion (lsfg-vk) is a HOST Vulkan implicit layer: the game only
-    # reaches it when guest Vulkan is thunked to the host loader. Enable the
-    # thunk per-launch, only for lsfg games — thunked Vulkan is a different
-    # driver path (host turnip) and stays opt-in.
+    # Frame insertion (lsfg-vk) DEFAULT route is the GUEST x86_64 layer build
+    # (see apply_lsfg) — the game keeps its proven guest Vulkan stack.
+    # The host-thunk route (ThunksDB.Vulkan=1 -> host loader + aarch64 layer)
+    # is kept as an explicit experiment flag only: hw-tested 2026-08-13, the
+    # thunk worked for DXVK (Hades) but vkd3d-proton (Cyberpunk, D3D12)
+    # crashed on it with the layer disabled — the thunk path itself, not lsfg.
     lsfg = settings.get("lsfg")
-    if isinstance(lsfg, dict) and lsfg.get("enabled") is True:
+    if isinstance(lsfg, dict) and lsfg.get("enabled") is True and lsfg.get("thunkExperiment") is True:
         config.setdefault("ThunksDB", {})["Vulkan"] = 1
 
     config_dir = runtime_config_dir()
@@ -150,6 +152,14 @@ def apply_lsfg(settings):
     multiplier = str(lsfg.get("multiplier", "2"))
     flow_scale = str(lsfg.get("flowScale", "0.30"))
     os.environ.pop("DISABLE_LSFGVK", None)
+    # Guest-arch layer (x86_64 build living under the user's home, visible both
+    # through FEX and inside pressure-vessel). VK_ADD_IMPLICIT_LAYER_PATH for
+    # modern loaders; XDG_DATA_DIRS append as the classic fallback.
+    guest_layer = home / "lsfg-x86"
+    if (guest_layer / "vulkan/implicit_layer.d").is_dir():
+        os.environ["VK_ADD_IMPLICIT_LAYER_PATH"] = str(guest_layer / "vulkan/implicit_layer.d")
+        xdg = os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share")
+        os.environ["XDG_DATA_DIRS"] = f"{xdg}:{guest_layer}"
     os.environ["LSFGVK_ENV"] = "1"
     os.environ.setdefault("LSFGVK_DLL_PATH", str(dll))
     os.environ["LSFGVK_MULTIPLIER"] = multiplier if multiplier in ("2", "3", "4") else "2"
