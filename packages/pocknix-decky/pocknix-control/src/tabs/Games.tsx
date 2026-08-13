@@ -15,6 +15,23 @@ const audioLatencyOptions = [
   { data: "120", label: "120 ms" },
 ];
 
+// Per-flag FEX toggles (Armada Control parity). Order and labels match their
+// panel; each overrides the selected preset's value for that flag only.
+const lsfgMultiplierOptions = [
+  { data: "2", label: "2x (recommended)" },
+  { data: "3", label: "3x" },
+  { data: "4", label: "4x" },
+];
+
+const fexFlagDefs: Array<{ key: string; label: string }> = [
+  { key: "TSOEnabled", label: "TSO Enabled" },
+  { key: "X87ReducedPrecision", label: "X87 Reduced Precision" },
+  { key: "Multiblock", label: "Multiblock" },
+  { key: "VectorTSOEnabled", label: "Vector TSO Enabled" },
+  { key: "MemcpySetTSOEnabled", label: "Memcpy Set TSO Enabled" },
+  { key: "HalfBarrierTSOEnabled", label: "Half Barrier TSO Enabled" },
+];
+
 export function Games({ config, setConfig }: { config: Config; setConfig: Dispatch<SetStateAction<Config | null>> }) {
   const runtimeGame = config.game;
   const games = availableGames(config);
@@ -68,6 +85,22 @@ export function Games({ config, setConfig }: { config: Config; setConfig: Dispat
   const fexOptions = Object.entries(presets).map(([id, profile]) => ({ data: id, label: profile.label }));
   const storedLatency = String(values.audioLatency ?? "");
   const audioValue = audioLatencyOptions.some((option) => option.data === storedLatency) ? storedLatency : "";
+  const lsfgSettings = (values.lsfg || {}) as Record<string, any>;
+  const lsfgEnabled = lsfgSettings.enabled === true;
+  const lsfgMultiplier = ["2", "3", "4"].includes(String(lsfgSettings.multiplier)) ? String(lsfgSettings.multiplier) : "2";
+  const presetConfig = presets[fexValue]?.config || {};
+  const flagOverrides = (values.fexFlags || {}) as Record<string, string>;
+  const effectiveFlag = (key: string) => (flagOverrides[key] ?? presetConfig[key] ?? "0") === "1";
+  const setFlag = (key: string, on: boolean) => {
+    const next: Record<string, string> = { ...flagOverrides };
+    const presetValue = presetConfig[key] ?? "0";
+    const wanted = on ? "1" : "0";
+    // Store only real deviations; matching the preset removes the override so
+    // preset switches keep working predictably.
+    if (wanted === presetValue) delete next[key];
+    else next[key] = wanted;
+    patchSettings({ fexFlags: next });
+  };
 
   return (
     <>
@@ -77,8 +110,21 @@ export function Games({ config, setConfig }: { config: Config; setConfig: Dispat
         {!editingDefault ? <ToggleField label="Use Per-Game Settings" checked={perGameEnabled} onChange={setPerGameEnabled} /> : null}
         {editingDefault || perGameEnabled ? (
           <>
-            <SelectEdit label="FEX Preset" value={fexValue} options={fexOptions} onChange={(id) => patchSettings({ fexProfile: id })} />
+            <SelectEdit label="FEX Preset" value={fexValue} options={fexOptions} onChange={(id) => patchSettings({ fexProfile: id, fexFlags: {} })} />
             <SelectEdit label="Audio Buffer" value={audioValue} options={audioLatencyOptions} onChange={(id) => patchSettings({ audioLatency: id })} />
+            <ToggleField
+              label="Frame Insertion (LSFG)"
+              description="Doubles presented fps by interpolation. Needs Lossless Scaling installed from Steam. Adds input latency; routes the game through host Vulkan."
+              checked={lsfgEnabled}
+              onChange={(on) => patchSettings({ lsfg: { ...lsfgSettings, enabled: on } })}
+            />
+            {lsfgEnabled ? (
+              <SelectEdit label="Insertion Multiplier" value={lsfgMultiplier} options={lsfgMultiplierOptions} onChange={(m) => patchSettings({ lsfg: { ...lsfgSettings, enabled: true, multiplier: String(m) } })} />
+            ) : null}
+            <div className="pocknix-note">Advanced FEX flags{Object.keys(flagOverrides).length ? " (modified)" : ""}</div>
+            {fexFlagDefs.map(({ key, label }) => (
+              <ToggleField key={key} label={label} checked={effectiveFlag(key)} onChange={(on) => setFlag(key, on)} />
+            ))}
           </>
         ) : null}
       </PanelSection>

@@ -71,19 +71,35 @@ def runtime_config_dir():
     return pathlib.Path("/tmp") / f"pocknix-fex-{os.getuid()}"
 
 
-def resolve_fex_config(settings, profiles):
+def resolve_fex_config(settings, profiles, allowed):
     profile_id = settings.get("fexProfile")
     if isinstance(profile_id, str) and profile_id in profiles:
-        return profiles[profile_id]["config"]
-    return profiles["default"]["config"]
+        config = dict(profiles[profile_id]["config"])
+    else:
+        config = dict(profiles["default"]["config"])
+    # Per-flag overrides (Armada-Control-style Advanced toggles) sit on top of
+    # the chosen preset. Only flags the profile contract knows, only "0"/"1" —
+    # this wrapper is the trust boundary for the plugin-written tweaks file.
+    flags = settings.get("fexFlags")
+    if isinstance(flags, dict):
+        config.update({k: v for k, v in flags.items() if k in allowed and v in ("0", "1")})
+    return config
 
 
 def write_fex_config(settings, game_id, profiles):
     with BASE_FEX_CONFIG.open(encoding="utf-8") as f:
         config = json.load(f)
     allowed = set().union(*(profile["config"].keys() for profile in profiles.values()))
-    fex_config = resolve_fex_config(settings, profiles)
+    fex_config = resolve_fex_config(settings, profiles, allowed)
     config.setdefault("Config", {}).update({k: v for k, v in fex_config.items() if k in allowed})
+
+    # Frame insertion (lsfg-vk) is a HOST Vulkan implicit layer: the game only
+    # reaches it when guest Vulkan is thunked to the host loader. Enable the
+    # thunk per-launch, only for lsfg games — thunked Vulkan is a different
+    # driver path (host turnip) and stays opt-in.
+    lsfg = settings.get("lsfg")
+    if isinstance(lsfg, dict) and lsfg.get("enabled") is True:
+        config.setdefault("ThunksDB", {})["Vulkan"] = 1
 
     config_dir = runtime_config_dir()
     config_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -120,6 +136,27 @@ def apply_audio_latency(settings):
         os.environ["PULSE_LATENCY_MSEC"] = value
 
 
+def apply_lsfg(settings):
+    # lsfg-vk v2 env contract (LSFGVK_*, not the v1 LSFG_* names). Mobile-tuned
+    # defaults per ROCKNIX: 2x, flow_scale 0.30, performance_mode on. The user
+    # must own+install Lossless Scaling (we only read its Lossless.dll).
+    lsfg = settings.get("lsfg")
+    if not (isinstance(lsfg, dict) and lsfg.get("enabled") is True):
+        # Keep the implicit layer fully inert for non-lsfg games.
+        os.environ.setdefault("DISABLE_LSFGVK", "1")
+        return
+    home = pathlib.Path(os.environ.get("HOME", "/home/deck"))
+    dll = home / ".local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll"
+    multiplier = str(lsfg.get("multiplier", "2"))
+    flow_scale = str(lsfg.get("flowScale", "0.30"))
+    os.environ.pop("DISABLE_LSFGVK", None)
+    os.environ["LSFGVK_ENV"] = "1"
+    os.environ.setdefault("LSFGVK_DLL_PATH", str(dll))
+    os.environ["LSFGVK_MULTIPLIER"] = multiplier if multiplier in ("2", "3", "4") else "2"
+    os.environ["LSFGVK_FLOW_SCALE"] = flow_scale
+    os.environ["LSFGVK_PERFORMANCE_MODE"] = "0" if lsfg.get("performanceMode") is False else "1"
+
+
 def main():
     if len(sys.argv) < 2:
         raise SystemExit("usage: pocknix-proton-wrapper PROTON_ENTRYPOINT [ARGS...]")
@@ -138,6 +175,10 @@ def main():
         apply_audio_latency(settings)
     except Exception as exc:
         print(f"pocknix-proton: failed to apply audio latency: {exc}", file=sys.stderr)
+    try:
+        apply_lsfg(settings)
+    except Exception as exc:
+        print(f"pocknix-proton: failed to apply frame insertion: {exc}", file=sys.stderr)
 
     try:
         os.execv(real_proton, args)
