@@ -4,7 +4,170 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-08 (read this first; sections below are chronological history)
+## CURRENT STATE 2026-08-14 — READ THIS FIRST (everything below is chronological history)
+
+Written at session close 2026-08-14 ~00:45 by Fable 5, after a ~16h session. The
+project memory (odin3-holocore-project.md) carries the same story in more detail —
+its 2026-08-13/14 entries are required reading before touching audio, FEX, or Android.
+
+### Where things are
+
+- **Device**: internal-UFS daily driver, kernel 7.1.3-18, bsp-sm8750 0.2.0-13,
+  pocknix-steam 0.1.0-38, pocknix-decky 0.1.0-13, lsfg-vk 2.0.0dev-1, IP 0.77.2.
+  Steam client = Valve's STABLE arm64 channel (steamdeck_stable, 1785799196) — NEW:
+  this channel now exists; device launchers (/usr/bin/steam, /usr/bin/pocknix-steam)
+  were sed-patched on-device from publicbeta→stable. **REPO STILL PINS publicbeta**
+  (packages/pocknix-steam/{steam,pocknix-steam}) — DECISION PENDING which to ship.
+- **Headphone jack: WORKS** (stereo, both channels, manual output switching = the
+  shipping mode). MBHC auto-detect still dead (zero irqs ever); the decisive
+  Android-comparison test is BLOCKED (see Android below). Right-ear idle hiss at
+  no-signal = polish item (codec noise floor, audible because sinks never suspend).
+- **Boot audio: FIXED for real** (bsp-13, commit 5cf8012) — q6apm quirk: writing 0
+  to any FE route on a backend RESETS that backend's mixer and drops its other FE
+  routes; the verb's MM2-clear must run FIRST. Cold-boot verified.
+- **Cyberpunk: stable.** 720p/Low benchmark: 21.5 native, 25.6 with FSR3.0
+  upscaling, **34.28 with FSR3.1 upscale + the game's OWN FSR3 frame generation**
+  (which works fine now — see WRONG section). Virgin install (85G), Steam Cloud OFF
+  for the app, saves backed up at /root/cyberpunk-saves-backup-20260813.tar.gz.
+- **Frame insertion (lsfg-vk): proven end-to-end** on hardware (layer + host turnip
+  mapped inside a running game; CLI benchmark 656 generated fps at 720p = ~1.5ms/frame
+  on A830). Shipped: packages/lsfg-vk (upstream develop @8b0da266, ROCKNIX's pin),
+  QAM "Frame Insertion" toggle + multiplier, six per-flag FEX toggles (Armada
+  Control parity), wrapper env plumbing. fex-emu ThunksDB now overlays Arch guest
+  paths (f16e268) so the Vulkan host-thunk can actually engage (localrepo pkg rebuilt;
+  device ThunksDB.json hand-patched to match, backup /root/ThunksDB.json.bak).
+- **Android dual-boot: BROKEN** (bootloop: AYN logo → vibrate → black → repeat, dies
+  pre-init). New project item. Possibly broken since the July 26 ABL flash — tonight
+  was plausibly the FIRST Android boot attempt since. See NEXT.
+- Suspend/rumble/buttons/LEDs/power-stack: all still green from prior sessions;
+  kernel-18 additionally passed 3/3 PLUGGED-IN rtcwake soaks + clean shutdowns
+  (the 0611 typec crash guard works; battery gauge stays sane).
+
+### What we did 2026-08-13 → 08-14 (compressed; memory has the play-by-play)
+
+Deployed+validated kernel-18 (0610 v4 vendor HSJ + 0611 guard; NOTE the v4 symbol is
+inlined — verify via strings on wcd939x-usbss.o, NOT System.map). Root-caused and
+shipped the boot-silence fix (bsp-13). Discovered the FEX preset pipeline already
+existed end-to-end; added per-flag toggles + Frame Insertion UI (decky-13, steam-38).
+Built lsfg-vk from source (never ship the decky plugin's provenance-lost ARM blob);
+proved the whole chain live in Hades. Jack listen test: left channel was a PHYSICAL
+plug-seating issue — reseat+twist fixed; kernel-18 routing was correct all along.
+Solved the two-day Cyberpunk crash saga (see WRONG). Cliff's benchmark ladder vs the
+Discord rival's numbers. Android boot rescue attempt: fixed one real installer bug
+(userdata left RAW — formatted f2fs+metadata via ALARM f2fs-tools binary) but the
+loop is earlier in the chain; parked with diagnosis banked.
+
+### WHAT WE WERE WRONG ABOUT — read every line; each cost hours
+
+- **THE BIG ONE: every Cyberpunk crash of 08-12/13 was the global FEX profile set to
+  "fast" (TSOEnabled=0)** in /etc/pocknix/game-tweaks.json. TSO-off on 8-core Oryon
+  corrupts heavily-threaded x86 games: wandering SEGV/SIGBUS/int3 at 15-150s, one
+  repeating address (0x140243742) plus scatter. Light titles (Balatro/VS/Hades)
+  mostly survive → faked "game-specific" evidence. The wrapper injects this into
+  EVERY launch, so it survived: FSR3-settings revert, vkd3d cache purge, engine
+  GamePipelineLibrary.cache purge, mesa_shader_cache purge, full scorched-earth
+  reinstall (Steam uninstall does NOT touch OUR tweaks file), kernel-17 rollback,
+  AND the Steam-client rollback. ALL of those theories were WRONG in sequence. When
+  an FEX game misbehaves: **check game-tweaks.json FIRST.** "Fast" preset is now
+  labeled unstable (300c2be); consider a stronger guard.
+- **Cliff's original "frame insertion" crash (08-12 evening) was the GAME'S OWN FSR3
+  Frame Generation setting** — not lsfg (which didn't exist here yet), and probably
+  not even FSR3's fault (TSO was already poisoning it — FSR3 FG works fine now).
+  Lesson applied twice today: ask what the user LITERALLY did before theorizing.
+- **"vkd3d crashes on the Vulkan host-thunk" — CONVICTION VOIDED.** The Cyberpunk
+  thunk test ran while TSO-off was active. The repo wrapper (b95cb53) switched lsfg
+  to a guest-x86-layer route based on that conviction — the change is REPO-ONLY,
+  UNVALIDATED, and NOT in the deployed steam-38 (device wrapper still uses the
+  thunk route, which is the config that actually worked in Hades). RE-TEST the thunk
+  route with TSO on before accepting b95cb53's guest-mode default; the x86_64 layer
+  build exists at /home/deck/lsfg-x86/ if guest mode is still wanted.
+- **"Hades 120fps = insertion working" — AMBIGUOUS, do not cite.** Hades may run 120
+  native on the 120Hz panel. Overlay/benchmark fps counters read BASE rendered fps;
+  lsfg's doubling is invisible to them (Cyberpunk bench: 25.58 with insertion ≈
+  25.62 without — that is the counter's blindness, not proof of failure). Presented-
+  rate verification (gamescope side) still TODO.
+- **The Discord rival's 48fps was NOT lsfg-style insertion at ~24 base.** He runs an
+  **Odin 3 ULTRA (Cliff has a MAX — different SKU!)**: 41 fps with upscaling off,
+  ~48 with FSR3.1. His native is ~2x ours — SKU-normalize before treating 41 as a
+  reachable target. The display-path-ceiling investigation is reopened with this as
+  a hard reference, but DON'T assume software owes us 2x.
+- Also false accusations along the way, each individually exonerated by test:
+  kernel-18 (innocent — crashes began on -17), the re-downloaded depot content
+  (bit-identical manifests), the lsfg host manifest (quarantined+restored), UFS
+  storage (timestamp-attr spam exists on -17 too; reads clean at 393MB/s — the
+  log spam every ~5s is a known-benign nuisance, DO NOT chase it as a crash cause),
+  mesa shader cache, Steam client (probably — see open questions).
+
+### TRAPS
+
+- **pgrep/pkill -f struck SIX times this session** (killed my own test loop; nearly
+  faked a game-running check; plausibly killed the gamescope session at 16:30 —
+  black screen + dead power button). Bare `pkill`/`pgrep -x` ONLY over ssh. If the
+  screen goes black with ssh alive: `systemctl restart getty@tty1` respawns the
+  whole session cleanly — no power-hold needed.
+- **This Proton names the game's main process comm "GameThread"** — monitors matching
+  "Cyberpunk"/exe names see nothing. Watch GameThread. Games also often SIGSEGV
+  during normal EXIT under FEX (teardown crash, coredump present, user saw nothing
+  wrong) — a coredump alone does not mean the game "crashed" mid-play.
+- **deck's UID is 1001, not 1000** — wpctl/systemctl --user via sudo need
+  XDG_RUNTIME_DIR=/run/user/1001, else "no sinks"/"Failed to connect" lies.
+- ssh'd FEX runs need `nsenter -t $(pgrep -x FEXServer) -m` (session FEXServer
+  mounts the rootfs in a private namespace). vulkaninfo/vkcube without a display are
+  crashy under thunks — judge by real games only. Also lsfg-vk auto-writes
+  ~/.config/lsfg-vk/conf.toml whose EXAMPLE profiles match vkcube by name (4x FG!) —
+  it sabotaged our own vkcube tests.
+- Steam uninstall+reinstall is NOT a clean slate: prefix (compatdata), shadercache,
+  Steam Cloud, AND /etc/pocknix/game-tweaks.json all survive. Scorched-earth list =
+  all four + userdata/<id>/<app> cloud mirror (backups of Cyberpunk's are in /root/).
+- The engine-level GamePipelineLibrary.cache (in the game's CDPR AppData) is a
+  SECOND pipeline cache under vkd3d-proton.cache — purge both or neither.
+- Benchmark/overlay fps ≠ presented fps when frame-gen is active (either kind).
+
+### NEXT (ordered)
+
+1. **Release image rebuild** — everything is in localrepo now (kernel-18, bsp-13,
+   steam-38, decky-13, lsfg-vk, fex-emu w/ ThunksDB fix). Decide the Steam client
+   channel first (repo still pins publicbeta; device runs stable happily — my vote:
+   ship stable, keep beta as a documented opt-in). Then HOLODOR_RELEASE=1 build,
+   spot-check, SourceForge upload (project exists; Cliff has creds).
+2. **lsfg presented-rate verification** — confirm insertion actually doubles
+   presents under gamescope (gamescopectl / heavy-game feel test with a sub-30fps
+   base), then re-test the THUNK route with TSO on (see WRONG) and settle the
+   b95cb53 guest-vs-thunk default. Needs: game at low base fps, eyes on panel.
+3. **Android-boot recovery** (blocks the jack-DETECT question only; shipping mode
+   is manual switching regardless). Loop is pre-init (AYN→vibrate→black). Userdata
+   is now properly f2fs (that bug is fixed). Recon in memory: misc BCB clean,
+   boot LUN = /dev/sde, slot attrs boot_a=0x00F3/boot_b=0x0077 (QC bit layout
+   unverified — research gpt-utils for the sun platform before poking). Experiment:
+   restore STOCK abl to ONE slot from BONESAW backups (⚠ on-device /sdcard copies
+   were destroyed with userdata; offline copies + sha256s per memory 2026-07-26).
+   EDL/QFIL = ABSOLUTE last resort (rawprogram repartitions sda = destroys Holodor).
+4. **fps-ceiling hunt, reopened** — 21.5 native vs Ultra's 41: first SKU-normalize
+   (what SoC/clocks does the Ultra actually have?), then the display-path theory
+   gets its rematch. Cheap first probe: ask the Discord guy for HIS native number
+   at identical settings + what panel refresh Armada runs.
+5. Small: right-ear idle hiss (codec noise floor vs no-suspend tradeoff);
+   UFS timestamp-attr log spam (cosmetic silencing patch?); fex-emu pkgrel not
+   bumped for the ThunksDB change (same-version repackage — bump on next real
+   rebuild); Hades vkd3d cache still has a .poisoned-bak sibling; PROTON_LOG env
+   probably still in Cliff's Cyberpunk launch options — REMOVE before fps runs.
+
+### Open questions
+
+- Does MBHC jack-detect work in AYN's Android? (Blocked on #3. If Android doesn't
+  detect either, the hunt ends as platform parity.)
+- Was the Steam client update (1786491548, publicbeta, 08-12 11:17) contributing
+  instability at all, or 100% innocent? We rolled back mid-saga so it was never
+  cleanly A/B'd against TSO-on. Device runs stable-channel now either way.
+- Ultra vs Max SKU delta (clocks? cooling? RAM?) — determines how much of the
+  41-vs-21.5 gap is silicon.
+- Why did Cliff set global "fast"? (Probably while exploring the new Games tab —
+  consider making the global preset harder to change accidentally, or defaulting
+  per-game-only.)
+
+— written 2026-08-14 by **Claude Fable 5** (session: jack day / TSO saga / lsfg bring-up)
+
+## STATE 2026-08-08 (historical)
 
 Daily driver = internal UFS install, kernel 7.1.3-12. SUSPEND WEDGE FIXED for real:
 0519 (UCSI clears USB role for charger-only Type-C partners) — the wedge only ever
