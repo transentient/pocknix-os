@@ -122,17 +122,33 @@ Headphones despite wpctl set-default — suspect Steam's own remembered output d
 Pocknix Control QAM plugin. Device left on kernel-17, ORIGINAL UCM, headphones-default
 quirk live (sound goes to jack if plugged, else speakers after manual set-default).
 
-NEXT-SESSION DOCKET (2026-08-13, ordered): (1) deploy kernel-18 (package -> verify
-wcd939x_usbss_vendor_hw_init in System.map -> pacman -U -> reboot; test jack left
-channel + crash guard); (2) bisect my 4 UCM diffs (boot-time MM1 silence) -> ship
-bsp-12; (3) Cliff's 5-min Android boot jack-detect test (decides if detect hunt
-continues); (4) PRE-RELEASE: Cyberpunk fps — Discord user gets 48fps on armada, "any
-proton build works" ⇒ suspect FEX tuning (his Armada Control FEX panel screenshot:
-docs/reference/armada-control-fex-panel.webp) — A/B TSO/half-barrier/x87/multiblock;
-our display-path-ceiling theory now in doubt. NEW DATAPOINT: Bluetooth audio WORKS
-(Pixel Buds Pro 2; lag improves with mic off = A2DP; latency tuning post-release).
-POST-RELEASE bucket adds: FEX settings screen in Pocknix Control QAM (parity with
-Armada Control), BT latency. Cliff confirms stick RGB + battery gauge = done topics.
+2026-08-13 DAY SESSION RESULTS (docket items 1-2 + Cyberpunk track DONE):
+(1) ✅ kernel-18 DEPLOYED + VALIDATED: clean boot, shutdown no longer hangs, battery
+gauge sane, tripwire empty, PLUGGED-IN suspend soak 3/3 clean (deep entry/exit,
+charged 81->97% through it). NOTE: wcd939x_usbss_vendor_hw_init is static+inlined —
+NOT in System.map (verify via strings on the .o); commit 63bfae6 documents it.
+(2) ✅ boot-silence ROOT-CAUSED + FIXED (bsp-13, 5cf8012): q6apm quirk — writing 0
+to any FE route on a backend RESETS that BE's mixer and drops its other FE routes;
+the verb's MM2-clear ran after the MM1-set and wiped it every boot. Clear-first
+ordering fixes it; hw-verified through full WirePlumber apply + playback.
+(4) ✅ Cyberpunk 48fps DEMYSTIFIED: our FEX defaults are IDENTICAL to the Armada
+panel (and a per-game FEX preset pipeline already existed: Games tab ->
+game-tweaks.json -> proton-wrapper -> FEX_APP_CONFIG). His 48fps = lsfg-vk frame
+insertion (~24fps base x2). SHIPPED (1e5b5c1+cbf1c59, all deployed to device):
+packages/lsfg-vk (upstream develop @8b0da266 — layer verified in vulkaninfo),
+wrapper LSFGVK_* env + per-launch ThunksDB.Vulkan flip, Frame Insertion toggle +
+multiplier + six Armada-parity per-flag FEX toggles in Pocknix Control.
+⚠ lsfg REMAINING (the hard part): fex-emu PKGBUILD pkgrel-2 comment = thunks don't
+engage on our Arch guest rootfs (@PREFIX_LIB@ mismatch) AND pressure-vessel captured
+thunk STUBS -> FEX segfault = almost certainly Cliff's frame-insertion crash. Bring-up
+order in task list: native-arm64 layer proof -> guest overlay path fix -> stub-capture
+fix inside SLR (ROCKNIX prior art: layer json into pressure-vessel overrides). Needs
+Lossless Scaling OWNED + installed on device (reads Lossless.dll; ask Cliff).
+STILL OPEN: (3) Cliff's 5-min Android boot jack-detect test (decides detect hunt);
+jack LISTEN test on kernel-18 (left channel!, charger OUT first); BT audio latency
+tuning + BT controller test (v2). "Deep sleep" Discord intel: Armada bringing real
+S3 to 8gen2/Odin-2-gen (Odin 3 already has it; we're ahead) — their patches = crib
+source for RP6 Act Two.
 
 Session history below:
 
