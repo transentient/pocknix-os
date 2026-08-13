@@ -158,6 +158,24 @@ package() {
   install -dm0755 "${pkgdir}/usr/share/fex-emu/RootFS"
   install -dm0755 "${pkgdir}/usr/share/fex-emu/overlays"
 
+  # FEX's stock ThunksDB only overlays Debian-multiarch (@PREFIX_LIB@) and Steam
+  # pinned paths — our ARCH guest rootfs keeps libvulkan in plain /usr/lib, so the
+  # Vulkan thunk never engaged even with ThunksDB.Vulkan=1 (the 2026-07-24 "no thunk
+  # ever engages" finding). Add the Arch paths so per-game thunking (frame insertion
+  # / lsfg-vk) can work. Hw-verified 2026-08-13: with these paths the guest sees the
+  # HOST loader+driver (Mesa -pocknix suffix) and host implicit layers enumerate.
+  # (Deployed device has this hand-applied; next fex-emu rebuild ships it.)
+  python3 - "${pkgdir}/usr/share/fex-emu/ThunksDB.json" <<'PYEOF'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+v = d["DB"]["Vulkan"] if "DB" in d else d["Vulkan"]
+for path in ("/usr/lib/libvulkan.so.1", "/usr/lib/libvulkan.so"):
+    if path not in v["Overlay"]:
+        v["Overlay"].append(path)
+json.dump(d, open(p, "w"), indent=1)
+PYEOF
+
   # Base global config (RootFS name + thunk wiring filled in by the pocknix-fex piece;
   # this is a sane default so a bare FEXInterpreter smoke-test works post-install).
   #
