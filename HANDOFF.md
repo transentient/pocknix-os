@@ -144,11 +144,27 @@ thunk STUBS -> FEX segfault = almost certainly Cliff's frame-insertion crash. Br
 order in task list: native-arm64 layer proof -> guest overlay path fix -> stub-capture
 fix inside SLR (ROCKNIX prior art: layer json into pressure-vessel overrides). Needs
 Lossless Scaling OWNED + installed on device (reads Lossless.dll; ask Cliff).
-STILL OPEN: (3) Cliff's 5-min Android boot jack-detect test (decides detect hunt);
-jack LISTEN test on kernel-18 (left channel!, charger OUT first); BT audio latency
-tuning + BT controller test (v2). "Deep sleep" Discord intel: Armada bringing real
-S3 to 8gen2/Odin-2-gen (Odin 3 already has it; we're ahead) — their patches = crib
-source for RP6 Act Two.
+EVENING/NIGHT SESSION (2026-08-13/14) — read project memory for full detail:
+✅ JACK LISTEN TEST PASSED: stereo correct, both channels full (left was PHYSICAL
+plug seating — reseat+twist; right-ear idle hiss = polish item). ✅ THE CYBERPUNK
+CRASH SAGA SOLVED: global fexProfile "fast" (TSO OFF) was corrupting heavy
+multithreaded games — restored default, 20min+15min soaks clean; "Fast" preset
+relabeled unstable (300c2be); every other suspect exonerated along the way (kernel-18,
+game content, client — device now on Valve's STABLE arm64 client 1785799196 which now
+exists; launcher publicbeta pin sed-patched ON DEVICE, repo pin decision pending).
+Cyberpunk benchmark 720p low: 21.5 native, 25.6 w/ FSR3.0 upscale, 34.28 w/ FSR3.1 +
+in-game FSR3 frame gen (WORKS now — TSO was why it crashed). Discord rival = Odin 3
+ULTRA (different SKU!) at 41 native — SKU-normalize before treating as target; native
+gap = reopened fps-ceiling hunt with a hard reference. lsfg benchmark counter reads
+BASE fps (insertion invisible to it) — presented-rate verification pending.
+❌ ANDROID DUAL-BOOT BROKEN (new project: android-boot recovery): bootloop predates
+tonight (possibly since the July ABL flash — never tested). Fixed installer bug
+(userdata left RAW — now f2fs) but loop is EARLIER (AYN→vibrate→black). Plan + GPT
+slot recon in memory. ⚠ on-device abl backups destroyed w/ userdata (offline copies
+on BONESAW intact). Jack-DETECT test still blocked on it (shipping mode = manual
+switching regardless). STILL OPEN: BT latency + controller (v2), release image
+rebuild (now incl. bsp-13, steam-38, decky-13, lsfg-vk, fex-emu ThunksDB, client
+channel decision).
 
 Session history below:
 
