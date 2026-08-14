@@ -4,7 +4,61 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-14 LATE (Fable continuation) — READ THIS FIRST (supersedes all below)
+## CURRENT STATE 2026-08-15 (Fable, super-flash session) — READ THIS FIRST (supersedes all below)
+
+### ANDROID: root cause FOUND + super FIXED, but a deeper kernel/init failure remains
+The two-agent rescue investigation (a85c161e + auditor addbd1bc) cracked the mystery.
+THE ROOT CAUSE: the 08-04 internal install + 08-14 slot-A EDL rebuild reflashed the
+Android BOOT CHAIN to Dec-2025 but NEVER reflashed `super` (sda15) — it still held an
+OLDER build. So the new Dec-2025 dm-verity signatures guarded old filesystems → first-
+stage init couldn't mount /system → PSHOLD reboot loop. Corroborated by our own 08-14
+note ("Phase 2 EDL super — if needed", deferred and never done). The auditor PROVED it:
+recomputed the dm-verity root of every dynamic partition (system/vendor/product/odm/
+system_ext/vendor_dlkm/system_dlkm) from the live super — ALL SEVEN mismatched their
+signed vbmeta_system descriptors; the EDL super matches them. NOT the 08-13 jack
+archaeology (Cliff's hypothesis — a read-only dd can't alter all 7 uniformly; exonerated).
+
+WHAT WE DID THIS SESSION (all Holodor-safe — only Android partitions on sda touched,
+never sda18/19, no relock):
+1. **Flashed super (sda15) = Dec-2025, VERIFIED byte-perfect.** Assembled from the 8 EDL
+   raw chunks (super_1..8.img are RAW not sparse; placed at rawprogram_unsparse0 offsets;
+   super starts at sector 46888) → super.raw (12GB, sha 1840a583…, lpdump-valid). Streamed
+   zstd-compressed to the device, dd'd to /dev/disk/by-partlabel/super, full read-back sha
+   == source. Assembly script + super.raw on fusor job tmp; super.raw.zst (2GB) staged on
+   device /root/.
+2. **Paired-wiped metadata (sda12) + userdata (sda17)** (the skipped `fastboot -w`; metadata
+   had stale VABC snapshot state — qcow2/ota_metadata strings). Both blkdiscard'd blank.
+3. set_active a → Android now ATTEMPTS to boot (progress: silent-loop → post-mount fail →
+   reaches Android's own **AVB "device is corrupt" RED screen**). system_a mount SUCCEEDS
+   now (verity passes on the fixed super); failure moved DOWNSTREAM to kernel/first-stage init.
+4. Tried disabling verity (vbmeta flags→3): this ABL REJECTS a hand-patched vbmeta (broken
+   sig) even unlocked → stayed at corrupt screen. Restored CLEAN factory vbmeta_a/vbmeta_
+   system_a. So verity-disable-the-easy-way is NOT available on this ABL.
+
+RESIDUAL FAILURE (open): Android reaches AVB then fails in the kernel/init hand-off — and
+we're BLIND (vendor_boot cmdline `console=ttynull`; no pstore/ramoops region in Holodor DT;
+cold PSHOLD wipes DRAM ramoops). Cannot fix blind. NEXT (needs Cliff/hardware or AYN):
+- **AYN email** (docs/android-recovery-ayn-email-draft.md) — they wrote this kernel/init/AVF
+  stack; highest leverage. UPDATE the draft: super was the confirmed cause, now fixed; the
+  residual is a post-AVB kernel/init failure we can't see.
+- **UART or armed ramdump** to capture the panic: reflash vendor_boot_a with
+  `console=ttyMSM0,115200 earlycon ignore_loglevel`, OR arm Qualcomm dload so a panic lands
+  in rawdump (sda16)/xbl_ramdump (readable from Holodor), then decode offline.
+- Slot A holds the COMPLETE correct Dec-2025 image — ready to boot the instant the kernel
+  issue is understood. Return-to-Android path = fastboot set_active a (USB). Return-to-
+  Holodor = set_active b.
+- **TRAP:** at the "device is corrupt" AVB screen the device is NOT in fastboot; press-
+  continue loops it. To reach fastboot, catch the stock ABL before it advances (Cliff's
+  trick: set stock-ABL boot mode = UEFI → loops at ABL, stays fastboot-reachable, doesn't
+  advance to the corrupt screen). fastboot needs sudo on fusor.
+
+### Device state RIGHT NOW (safe)
+Boots Holodor by default (slot B, ROCKNIX ABL v1.1.7, boot_b=0x7F successful). Slot A =
+complete factory Dec-2025 Android (super+chain+clean vbmeta, metadata/userdata wiped) but
+won't finish boot. All the 2026-08-14 wins (slot-successful brick fix, power-mode max,
+Cyberpunk bench plan) intact + pushed. Sleep-guard may have expired (wake = power tap).
+
+## CURRENT STATE 2026-08-14 LATE (Fable continuation) — earlier block (slot fix / fps / super-precursor)
 
 ### 🎯 THE ANDROID BOOTLOOP HAD TWO LAYERS. Layer 1 SOLVED + permanently fixed.
 
