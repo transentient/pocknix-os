@@ -74,6 +74,98 @@ NOT in any partition content or A/B state. Device is UNLOCKED (+critical), Secur
 - Questions for @ice drafted in the session (bench scene/settings, his power+fan profile,
   his `cat /sys/class/devfreq/*.gpu/cur_freq` during play, panel refresh).
 
+### WHAT WE WERE WRONG ABOUT TODAY (2026-08-14) — read every line before theorizing
+
+- **"ROCKNIX ABL's Android path is broken" — WRONG as the root cause.** Stock AYN ABL
+  fails identically (START bounces, Recovery bounces). Do NOT spend time on ABL bug
+  reports for the bootloop itself (the 10-entry menu cap IS still a real, separate bug).
+- **"The RAW userdata / metadata format caused the loop" — WRONG.** AYN's own fstab
+  (extracted from vendor_boot ramdisk) says metadata is SUPPOSED to be f2fs, and both
+  metadata and userdata are `formattable` — Android auto-formats them. The 2026-08-13
+  f2fs repairs were correct but irrelevant to the loop.
+- **"Slot retry counters exhausted / slot marked unbootable" — WRONG.** fastboot getvar:
+  slot b retry 6, successful, not unbootable. Do NOT chase slot-attr repair.
+- **"sda18's FAT partition seduces the ABL into EFI boot" — WRONG.** sda18 is
+  Microsoft-basic-data (not ESP), and factory modem_b is ALSO basic-data vfat, so the
+  ABL's FAT scan always had targets. The "No \EFI\BOOT\BOOTAA64.EFI" search is an old
+  fallback that only LOOKS new.
+- **"Upgrade to abl v1.1.7 might fix Android" — DIDN'T.** Its delta is USB-boot/menu
+  work. (The upgrade stayed anyway — better UI, Cliff loves it.)
+- **"bsp-13 boot-silence fix regressed / new audio race is RC-blocking" — MOSTLY WRONG.**
+  All but one of 2026-08-14's silent boots were WirePlumber restoring Speaker at volume
+  0.00 (persisted state, probably zeroed via Steam while audio was dead on 08-13 night).
+  Now persisted at 0.70. Only the SoundWire codec-enum timeout (1 boot of ~6) is a real
+  race. Do NOT tear apart bsp-13.
+- **Cliff's "@ice gets ~25% more fps" — WRONG NUMBER.** It's ~90% more (41 vs 21.5
+  native). And "maybe I should buy an Ultra for the fps" — the Ultra is the SAME
+  SoC/clocks/RAM-speed (capacity-only SKU); silicon explains ~0% of the gap.
+
+### TRAPS (2026-08-14 additions)
+
+- **VOL–+power from a RUNNING system = plain reboot.** The ABL menu combo only works
+  from power-off (or by holding VOL– through a reboot).
+- **abl v1.1.7's model list reads the boot source's KERNEL payload and caps at ~10
+  entries** — with our full-DTB-zoo KERNEL, "AYN Odin 3" is unreachable. The rescue SD's
+  KERNEL is now trimmed to one DTB as the workaround (its KERNEL.md5 sidecar updated;
+  original at odin3-abl-backup/KERNEL-rescue-sd-backup-20260814). If model setup is ever
+  needed again: boot source SD → set model → boot source Internal.
+- **Never corrupt the devinfo header** (ANDROID-BOOT! magic + unlock bytes at the front).
+  If the ABL regenerates devinfo defaults, the device could re-LOCK → fastboot flashing
+  restricted + AVB enforcement on our modified system = much worse hole. Surgical tail
+  edits only, backup first (forensics copy in fusor scratchpad + this session's dumps).
+- **EDL/QFIL remains ABSOLUTE last resort** — rawprogram repartitions sda = destroys
+  Holodor. Everything needed so far has been achievable via fastboot + dd from Linux.
+- The Odin **idle-suspends during long sessions** — ssh dies mid-work; wake = power tap
+  (Cliff). Not a crash.
+- `fastboot` needs sudo on fusor (no udev rule for QC VID). `fastboot oem help` is
+  unsupported on this ABL.
+
+### NEXT (ordered)
+
+1. **Discord recon (free, decisive):** ask the Odin 3 Linux Discord whether ANYONE
+   dual-boots stock Android via rocknix-abl on an Odin 3 (not Odin 2). If yes → get
+   their abl version + whether they did the internal install. If no one → the bootloop
+   may be universal on Odin 3 and upstream/AYN escalation is warranted. Also post the
+   @ice benchmark questions (in HANDOFF Cyberpunk section / session transcript).
+2. **DTB/platform-ID theory:** decompile the dtbo entries' board/msm-ids
+   (tools/vendor-archaeology has the toolchain; dtbo_b image already on fusor at
+   scratchpad slotb/dtbo.img) and compare against what XBL reports ("Platform: HDK",
+   Subtype 1, ChipVer 2.0 per UEFI log). If AYN's entries say QRD and the ABL matches
+   platform-type, that's the bounce. Counter-evidence to explain: it worked before
+   2026-07-26 with the same images — so if this theory holds, something must have
+   changed what smem/socinfo reports (or the theory is wrong).
+3. **ABL verbosity hunt:** find how to raise QC ABL log level (uefivarstore variable?
+   BDS menu? `fastboot oem` variants are unsupported) so the silent pre-"Mission Mode"
+   failure names itself in UefiLog. The logfs read recipe is proven (mount FAT12 loop,
+   UefiLog0-4, 64K space-padded, level-filtered).
+4. **Email AYN (lucia@ayn.hk, Cliff's contact from July):** describe the symptom
+   (unlocked device, verified-intact images, stock ABL bounces to fastboot pre-splash,
+   RAM boot also fails), ask what state the ABL checks before Mission Mode and what
+   "Platform: HDK" should read on retail. They shared the EDL package before; they may
+   just answer.
+5. **Audio polish (pre-RC):** add SoundWire codec probe-retry (or systemd retry of the
+   card bring-up) for the 1-in-N enum race; consider a WirePlumber floor so Speaker
+   never restores at 0.00; watch for more `qcom-apm CMD timeout` lines.
+6. **Cyberpunk squeeze session (Cliff + agent):** GPU min-freq pin test first (5 min),
+   fan=performance, strip PROTON_LOG from launch options, rerun the 720p/Low bench
+   ladder. Then the release-image rebuild + client-channel decision (unchanged from
+   morning block item 1).
+7. Housekeeping: delete /root/edl-stage (~460MB) and /root/*.img abl staging files on
+   the device once Android work concludes; report the v1.1.7 model-menu cap upstream;
+   ship trimmed DTB payload in our KERNEL (saves ~40MB, fixes the menu).
+
+### Open questions
+
+- Why does the ABL abort Android boot pre-"Mission Mode" in every configuration while
+  Linux (via ROCKNIX ABL, no dtbo, own DTB, no pvmfw path) boots fine? Top theories:
+  DTB/DTBO platform matching, pvmfw/vm-bootsys env, something smem/socinfo-side.
+- Did stock Android dual-boot EVER work post-internal-install on ANY Odin 3, or did the
+  2026-08-04 install break an assumption nobody has tested? (Discord question #1.)
+- Which slot does XBL use for uefi/tz/hyp after set_active flips — and did today's slot-A
+  experiment actually run slot-A's uefi_a chain (UEFI logs looked identical)? Probably
+  irrelevant post-restore (active=b), but note it.
+- misc blobs at 0x8080 (01 0c 11 b5 6a) and 0x80c0 (01 'roms') — whose are they? Benign?
+
 ### Untracked repo debris (deliberate, gitignored — do not commit)
 odin3-abl-backup/ (stock ABL backups + SD-KERNEL backup), odin3-firmware-20251206/ (1.9GB
 EDL zip). Both now in .gitignore.
