@@ -4,7 +4,69 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-14 EVENING — READ THIS FIRST (supersedes the morning block below)
+## CURRENT STATE 2026-08-14 LATE (Fable continuation) — READ THIS FIRST (supersedes all below)
+
+### 🎯 THE ANDROID BOOTLOOP HAD TWO LAYERS. Layer 1 SOLVED + permanently fixed.
+
+**Layer 1 — self-inflicted UNBOOTABLE-SLOT brick (SOLVED, durable fix shipped).**
+The ROCKNIX ABL boots Holodor *through Android's A/B slot machinery*
+(FindBootableSlot/LoadImageAndAuth). The A/B retry counter lives in the GPT attribute
+flags of the **boot_<slot>** partition (Qualcomm/msm layout: byte 6 = priority[0-1],
+active[2], retry[3-5], successful[6], unbootable[7]; sgdisk attr **bit 54** == successful).
+`boot_b` was the ONLY slot-b partition never marked "successful" (0x3F while every other
+`*_b` was 0x7F), so its retry ticked down on **every** boot — our own Linux boots AND each
+failed Android attempt — 7→0, then the ABL flipped slot b **UNBOOTABLE** and refused BOTH
+OSes. That's the verbose-log smoking gun: KERNEL loads+verifies fine, then
+`LoadImageAndAuth ... Slot b is unbootable, trying alternate slot → FindBootableSlot() Load
+Error`. This is what broke Linux mid-session (it had booted fine all day; the counter just
+hit zero). **Recovered live: `fastboot set_active b`** (resets retry, clears unbootable).
+**Permanent fix shipped:** `pocknix-slot-successful` boot service marks the active slot's
+boot partition successful each boot, idempotent, on-device tools only (sgdisk). bsp-common
+pkgrel 13, commit **f5fa8b2**, enabled in build-sd-image; validated on-device (no-op when
+already good, re-sets when cleared). boot_b is now 0x7F. **This can never silently
+re-brick.** (Retroactively: the historic "retry 6" note + every "returns to menu / bounce"
+was slot depletion compounding.)
+
+**Layer 2 — the ORIGINAL Android abort (STILL OPEN, blocked on Cliff).** Even with a
+healthy slot, ROCKNIX-ABL "Boot mode Android" (USB **unplugged**) aborts *cleanly back to
+the ABL menu* — NOT a kernel loop (that logo→vibrate→black loop was the USB-attached /
+stock-ABL fastboot path, a red herring). The Rescue eng agent (a85c161e) traced this to the
+ABL's boot-decision/LoadImageAndAuth stage, keyed off ROCKNIX **devinfo TLVs** (BootMode @
+devinfo 0xb4e, BootSourceMode @ 0xa92, ModelSelection="AYN Odin 3"; unlock flags at
+0x0d–0x0f are physically isolated — TLV edits can't relock). Agent's earlier "ABL chose
+EFI-boot" headline was WITHDRAWN (drawn from non-representative stock-fastboot logs).
+**Can't test autonomously — booting Android drops ssh and needs Cliff's hands at the ABL
+menu to recover.** NEXT (Cliff's hands): now that slot b is healthy, **just retry "Boot
+mode Android"** — it may work (the bounce may have been the unbootable slot all along). If
+it STILL bounces: agent's **T3** = flash stock ABL both slots, USB **disconnected**, force
+an Android boot, then dump logfs and grep for **"Booting Into Mission Mode"** (present ⇒
+Android path reached, read the next line for the real abort; absent ⇒ decision-stage skip).
+AYN email drafted at `docs/android-recovery-ayn-email-draft.md`.
+
+### CYBERPUNK fps — max mode shipped, bench plan ready
+- **New `pocknix-power-mode max`** (commit f68b366, deployed): GPU devfreq min=max **pinned
+  at 1100 MHz** + CPU governor `performance`. Measured: `balanced` was capping the GPU at
+  **900 MHz** (of 1100) — and ALL prior AAA numbers were taken in balanced, so they undersell
+  the hardware. Thermals wide open (GPU 39–40 °C idle).
+- **Honest ceiling reminder:** prior investigation found Cyberpunk is **present-path /
+  wait-bound**, not GPU-bound (GPU ~52% at the ceiling). So expect `max` to give an
+  incremental native bump (mid-20s/low-30s realistic), and lean on **lsfg-vk frame-gen**
+  (already proven) for perceived fps. @ice's 41 is likely frame-gen-assisted.
+- **Ready-to-run bench matrix + one-liners: `docs/cyberpunk-bench-plan.md`.** Needs Cliff +
+  display (can't bench headless). Launch options already clean; FEX global = default (TSO on).
+
+### Device state RIGHT NOW (safe)
+- Boots Holodor by default, up at 192.168.1.26, slot b healthy+successful (0x7F), kernel-18,
+  audio up. **Sleep-guard active** (`fable-inhibit.service`, ~4h idle-suspend block — it may
+  expire; if the box is unreachable later it just idle-suspended, wake with a power tap).
+- E-MBR change from earlier is LEFT in place (sda protective MBR now factory-style 0xFFFF..;
+  harmless, didn't fix Android, one fewer variable). devinfo/GPT backups on device at
+  /root/{devinfo-backup-20260815.bin,sde-gpt-backup-20260815.bin,sda-sector0-backup-*.bin}
+  and repo odin3-abl-backup/.
+- Commits this session (LOCAL, not pushed — fusor Bash had no outbound https; push when able):
+  f68b366 (power-mode max), f5fa8b2 (slot-successful keeper). Earlier f7eab2f pushed.
+
+## CURRENT STATE 2026-08-14 EVENING — (superseded by the block above for Android/slot state)
 
 Written at session pause ~16:30 by Fable 5. Project memory (odin3-holocore-project.md,
 2026-08-14 entries) has the play-by-play. The morning block below is still accurate for
