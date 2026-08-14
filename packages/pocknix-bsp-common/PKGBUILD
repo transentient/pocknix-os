@@ -5,21 +5,22 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=12
+pkgrel=13
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
 license=('GPL2')
-depends=()
+depends=('gptfdisk')
 source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'wifi-sleep-pre' 'wifi-sleep-post'
         'pocknix-telemetryd' 'pocknix-telemetry.service'
         'pocknix-power-mode' 'pocknix-power-mode.service'
         'pocknix-wifi-heal'
+        'pocknix-slot-successful' 'pocknix-slot-successful.service'
         'leds-sleep-pre' 'leds-sleep-post'
         '20-pocknix-powerkey.conf' 'no-freeze-user-sessions.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -59,11 +60,20 @@ package() {
   install -Dm644 "${srcdir}/pocknix-telemetry.service" \
     "${pkgdir}/usr/lib/systemd/system/pocknix-telemetry.service"
 
-  # Power profiles: eco/balanced/performance cpu+gpu caps, persisted + boot-applied.
+  # Power profiles: eco/balanced/performance/max cpu+gpu caps, persisted + boot-applied.
   install -Dm755 "${srcdir}/pocknix-power-mode" \
     "${pkgdir}/usr/local/bin/pocknix-power-mode"
   install -Dm644 "${srcdir}/pocknix-power-mode.service" \
     "${pkgdir}/usr/lib/systemd/system/pocknix-power-mode.service"
+
+  # A/B slot keeper: mark the active slot "successful" each boot so the Qualcomm
+  # bootloader stops decrementing its retry counter. Without this, every boot (Linux
+  # or a failed Android attempt) ticks boot_<slot> down; at zero the ABL marks the
+  # slot UNBOOTABLE and refuses BOTH OSes. Android's init does this; Holodor must too.
+  install -Dm755 "${srcdir}/pocknix-slot-successful" \
+    "${pkgdir}/usr/local/bin/pocknix-slot-successful"
+  install -Dm644 "${srcdir}/pocknix-slot-successful.service" \
+    "${pkgdir}/usr/lib/systemd/system/pocknix-slot-successful.service"
 
   # Post-resume Wi-Fi self-heal (called async by the 000-wifi post hook).
   install -Dm755 "${srcdir}/pocknix-wifi-heal" \
