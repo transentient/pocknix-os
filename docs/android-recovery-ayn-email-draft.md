@@ -6,54 +6,55 @@ Keep it short and precise — engineers respond to precise bug reports.
 
 ---
 
-**Subject:** Odin 3 — stock Android won't boot after Linux dual-boot (bootloader-level, need one hint)
+**Subject:** Odin 3 — stock Android won't finish booting after Linux dual-boot (narrowed to post-AVB kernel/init)
 
 Hi Lucia,
 
 Thanks again for the EDL package in July — it's been invaluable. I've been running a
-Linux dual-boot on my Odin 3 and hit a bootloader-level puzzle I'm hoping someone on
-the AYN/Qualcomm side can shortcut for me.
+Linux dual-boot on my Odin 3 and I've narrowed an Android boot failure down to what I
+think is a kernel/first-stage-init issue I'm hoping someone on the AYN/Qualcomm side can
+place quickly.
 
-**Symptom:** Stock Android bootloops — AYN logo → vibrate → black → repeat, never
-reaching init. Linux boots fine on the same device.
+**Background:** I did an internal install that shrank `userdata` and added two Linux
+partitions (leaving all firmware partitions on the other LUNs untouched), and factory-reset
+Android. Android then wouldn't boot. I've now traced and fixed the main cause and gotten a
+lot further, but it still won't complete.
 
-**What I've already ruled out (all tested):**
-- Both slots' full Android chains (boot, init_boot, vendor_boot, dtbo, vbmeta,
-  vbmeta_system, recovery) verify byte-perfect with avbtool against the signed vbmeta.
-- I rebuilt slot A completely from your Dec-2025 EDL package (byte-verified) — still bounces.
-- `fastboot boot boot.img` (RAM boot, bypassing all partition state) ALSO fails —
-  "Booting OKAY" then straight back to the menu, no display.
-- Both the stock AYN ABL and a modified ABL fail identically.
-- Device is UNLOCKED (+critical), Secure Boot OFF, slot healthy (retry 6, not unbootable).
+**What I found and fixed:** the `super` partition still held the older (July) build while I
+had reflashed the boot chain + vbmeta to your Dec-2025 EDL images — so the Dec-2025 dm-verity
+descriptors were guarding an old filesystem and first-stage init couldn't mount `/system`. I
+rebuilt `super` from your Dec-2025 EDL chunks and flashed it (verified byte-perfect by full
+read-back), then did the paired `metadata` + `userdata` wipe.
 
-Because RAM boot fails and two independent full firmware sets fail, this isn't
-partition content — it's something in the boot-time environment the ABL builds for
-Android. The UEFI log never prints "Booting Into Mission Mode"; it goes
-`Fastboot=0, Recovery:0 → SilentBoot Mode:11 → No \EFI\BOOT\BOOTAA64.EFI → fastboot`.
-XBL reports `Platform: HDK, Subtype 1, Chip Ver 2.0`. I've also confirmed the AVB
-persistent-value path (avb.managed_verity_mode in devinfo) reads and writes cleanly,
-so it isn't an AVB I/O abort. That leaves the DTB/DTBO platform selection and the
-pvmfw/AVF path as the prime suspects.
+**Where it's stuck now:** Android gets much further — it reaches the AVB stage (the
+"device is corrupt / press key to continue" screen), then fails and resets (`PM: Reset by
+PSHOLD, Hard Reset`) in a loop. `system_a` verity now passes, so the failure is DOWNSTREAM,
+in the kernel or first-stage init. I can't see it: the vendor_boot cmdline is
+`console=ttynull`, and there's no ramoops/pstore region I can read from the Linux side.
+
+**Device facts:** UNLOCKED (+critical), Secure Boot OFF. XBL reports `Platform: HDK,
+Subtype 1, Chip Ver 2.0`. The live `vbmeta_a`/`vbmeta_system_a`/`boot_a`/`dtbo_a` are
+byte-identical to your Dec-2025 EDL; `super` now matches those signatures too.
 
 **My questions:**
-1. What state does the ABL check between XBL hand-off and "Booting Into Mission Mode"?
-   Is there a pvmfw / vm-bootsys / pKVM (AVF) load or verify step that would silently
-   abort Android pre-init if it fails — a step Linux boot wouldn't hit?
-2. Should "Platform: HDK" appear on a retail Odin 3, or should it read something else
-   (QRD/MTP)? Could a platform/board-ID mismatch cause the ABL to pick the wrong DTB/DTBO
-   overlay (or none) and skip Mission Mode? On boot-header-v4 the boot.img has no DTB,
-   so the ABL's overlay selection is load-bearing — which dtbo entry should a retail
-   Odin 3 land on?
+1. After first-stage init mounts `/system`, what does the Odin 3's Android boot need next
+   that Linux never touches — a pvmfw / pKVM (AVF) bring-up, a vm-bootsys/`vm-persist` step,
+   a specific firmware or DSP image, or a `/metadata`-encryption expectation — that would
+   PSHOLD-reset if it's not right after a `super` reflash + `-w` wipe?
+2. Is there a supported way to get kernel output on a retail Odin 3 (a cmdline/bootconfig
+   change you'd recommend, or an armed-ramdump mode) so I can read the panic reason myself?
+3. Anything special about flashing Dec-2025 firmware onto a device that shipped on a later
+   build — a rollback-index or `/metadata` step I'm missing?
 
-The device is fully backed up and I'm comfortable at the fastboot/dd/EDL level — I just
-need to know which door to look behind. Any pointer saves me days.
+The device is fully backed up and I'm comfortable at the fastboot/dd/EDL level — I just need
+to know which door to look behind. Any pointer saves me days.
 
 Thanks so much,
 [Cliff's sign-off]
 
 ---
 
-## Companion: Odin 3 Linux Discord question (post alongside)
+## Companion: Odin 3 Linux Discord question (SUPERSEDED 2026-08-15 — Discord was a dead end, nobody bit; and the "never hits init" framing below is now outdated: super was the cause + is fixed, residual is post-AVB kernel/init. Kept for reference only.)
 
 > Has anyone actually dual-booted **stock Android** via rocknix-abl on an **Odin 3**
 > (not Odin 2) — specifically *after* doing the internal install? Mine bootloops (AYN

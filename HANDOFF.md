@@ -57,6 +57,68 @@ Boots Holodor by default (slot B, ROCKNIX ABL v1.1.7, boot_b=0x7F successful). S
 complete factory Dec-2025 Android (super+chain+clean vbmeta, metadata/userdata wiped) but
 won't finish boot. All the 2026-08-14 wins (slot-successful brick fix, power-mode max,
 Cyberpunk bench plan) intact + pushed. Sleep-guard may have expired (wake = power tap).
+Cyberpunk fps work UNTOUCHED this session — see the 2026-08-14 block below + docs/
+cyberpunk-bench-plan.md (max mode = the free lever; needs Cliff+display to bench).
+
+### WHAT WE WERE WRONG ABOUT (2026-08-15) — do NOT re-derive these
+- **"Fixing `super` will make Android boot." WRONG (necessary but not sufficient.)** The
+  super mismatch was a REAL confirmed root cause and it IS fixed (system/vendor verity now
+  passes — Android gets to its own AVB screen instead of a silent loop). But Android STILL
+  fails, downstream in the kernel/first-stage-init. Don't assume the super flash completed
+  the job.
+- **First agent's initial theory "failure is at the ABL boot-DECISION stage / devinfo TLVs
+  (BootMode/BootSourceMode/ModelSelection)." WRONG.** The ABL hands off fine; the kernel
+  starts (the vibrate proves it). The failure is POST-AVB, in Android init. Do NOT chase
+  devinfo TLVs or the ABL decision path again — that whole thread was a dead end.
+- **"Disable verity to force it past the corrupt screen." DOESN'T WORK on this ABL.** Both
+  `fastboot --disable-verity` (errored "no AVB_MAGIC" — fastboot 37 quirk) and a hand-patched
+  vbmeta (flags→3) FAILED: this ABL rejects a broken-signature vbmeta even when unlocked →
+  stays at the RED "device is corrupt" screen. A properly avbtool-RE-SIGNED disabled vbmeta
+  would need AYN's signing key (we don't have it). AND verity is not even the real blocker
+  (failure is below AVB). Do NOT retry the hand-patched-vbmeta route.
+- **The old "returns to menu / bounce to fastboot" symptoms were NOT the Android boot
+  decision.** They were the depleted-slot brick (Layer 1, fixed) + USB-induced fastboot
+  entry. Don't conflate them with the real (now downstream) failure.
+- **logfs does NOT capture the Android boot decision on this setup.** ROCKNIX ABL writes
+  nothing to logfs; even the stock ABL's captured logs end at "Start EBS" and NEVER print
+  "Booting Into Mission Mode" (the line the first agent expected). Do NOT burn time re-reading
+  logfs hoping to see the Android failure — it isn't there. The kernel console (`console=
+  ttynull`) and absent pstore region are why we're blind; that's the thing to fix, not logfs.
+- **Jack archaeology (08-13) did NOT corrupt Android** (Cliff's hypothesis) — a read-only dd
+  can't alter all 7 dynamic partitions uniformly; auditor proved the mismatch is a whole-build
+  version skew, not byte damage. Exonerated. (His INSTINCT — content-vs-signature mismatch —
+  was correct; his question is what forced the super-content check that found the cause.)
+
+### NEXT (ordered)
+1. **(Agent-actionable immediately) Prep a kernel-visibility capture** so the residual stops
+   being blind. Two routes, prep both, then hand Cliff the one physical step:
+   (a) Build a debug `vendor_boot_a`: extract the vendor_boot ramdisk/bootconfig (tools in
+   tools/vendor-archaeology + scratchpad rdroot), change the kernel cmdline/bootconfig from
+   `console=ttynull` to `console=ttyMSM0,115200 earlycon ignore_loglevel`, repack, `fastboot
+   flash vendor_boot_a` (Holodor-safe Android write). Then a UART cable capture (Cliff, HW).
+   (b) Investigate arming Qualcomm dload/ramdump so a kernel panic dumps to `rawdump` (sda16)
+   or `xbl_ramdump` — both READABLE from Holodor afterward, no UART needed. Figure out how to
+   arm it (fastboot oem? a sysfs/reboot-mode from Linux?) and how to decode the dump. This is
+   the cheapest path if it works. START HERE.
+2. **(Cliff) Send the AYN email** — docs/android-recovery-ayn-email-draft.md (UPDATED this
+   session to say super was the cause + is fixed, residual is post-AVB kernel/init). They wrote
+   this exact kernel/init/AVF stack; likely names the failure in one reply. Highest leverage.
+3. **(Cliff, physical) Run whichever capture from #1 is ready**, get the panic reason, then the
+   next fix is targeted (a specific kernel/DT/firmware/AVF thing) instead of blind.
+4. **Cyberpunk fps** (independent, whenever): `pocknix-power-mode max` + fan max, bench per
+   docs/cyberpunk-bench-plan.md. Needs Cliff + display. All prior AAA numbers were balanced-
+   capped (GPU 900 not 1100), so re-bench in max first.
+
+### DOCS LESSON for the eventual public release (Cliff asked 2026-08-15)
+The Android corruption was a **partial/version-mismatched firmware flash**: dm-verity signs
+system/vendor content, and we flashed a Dec-2025 boot chain + vbmeta but NOT the matching
+`super` → signatures guarded old filesystems → verity refuses to boot. A mid-level user
+repartitioning for Holodor hits this exact trap when they later try to reflash/reset Android.
+INSTALL.md/README should warn: (1) to make room, shrink ONLY `userdata`; leave every Android
+firmware partition alone (super/vbmeta*/boot/dtbo/metadata/modem). (2) To restore Android,
+flash the COMPLETE, MATCHING factory image (same build, incl. the big `super`) then `fastboot
+-w` — never partial, never mixed versions. (3) NEVER reformat `metadata` alone — it's the
+encryption pair for `userdata`; wipe both or neither. (release-docs-audit.md is the staging doc.)
 
 ## CURRENT STATE 2026-08-14 LATE (Fable continuation) — earlier block (slot fix / fps / super-precursor)
 
