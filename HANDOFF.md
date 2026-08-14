@@ -4,7 +4,81 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-14 — READ THIS FIRST (everything below is chronological history)
+## CURRENT STATE 2026-08-14 EVENING — READ THIS FIRST (supersedes the morning block below)
+
+Written at session pause ~16:30 by Fable 5. Project memory (odin3-holocore-project.md,
+2026-08-14 entries) has the play-by-play. The morning block below is still accurate for
+Cyberpunk/lsfg/jack-audio state; THIS block is the Android-recovery + audio delta.
+
+### Device state RIGHT NOW (safe, verified)
+- Boots Holodor by default: active slot b, abl_b = **rocknix-abl v1.1.7** (NEW — upgraded
+  from v1.1.5), abl_a = **STOCK AYN abl** (from BONESAW backup), root /dev/sda19, kernel-18,
+  audio up. ROCKNIX ABL settings live in devinfo TLVs: BootMode=Linux, Model=AYN Odin 3.
+- **v1.1.7 ABL quirks**: new devinfo key = one-time "DEVICE MODEL NOT SET" re-setup after
+  upgrade; model menu caps at ~10 entries (overflow bug — shows alphabetical TAIL of the DTB
+  catalog, so "AYN Odin 3" is unreachable with our 100+-dtb KERNEL payload). Worked around by
+  trimming the rescue SD's KERNEL to a single DTB (original backed up at
+  odin3-abl-backup/KERNEL-rescue-sd-backup-20260814). UPSTREAM REPORT DUE + we should ship a
+  trimmed DTB payload permanently. VOL–+power only enters the menu from POWER-OFF.
+- **Slot A = complete factory Dec-2025 Android** (EDL package chain incl. stock abl_a) — flashed
+  during today's experiments, verified byte-perfect. Slot switching works via fastboot
+  set_active (fastboot = stock ABL's menu; ROCKNIX abl lacks `oem`/set_active testing so far).
+
+### ANDROID: still broken — but massively narrowed (the day's main work)
+Every cheap theory is now EXONERATED BY TEST: images (all slot-B AND factory Dec-2025 slot-A
+chains verify perfectly with avbtool vs AYN's signed vbmeta), slots (fresh slot A, attrs
+healthy, retry 6), ABL builds (ROCKNIX v1.1.5, v1.1.7, AND stock all fail), recovery mode
+(bounces identically), rollback (indices 0=0), devinfo core (unlocked=1 read fine), misc
+(BCB zeroed, virtual-A/B msg healthy), GPT (parses clean both disks), sda18 FAT (factory
+modem_b is also basic-data vfat → the ABL's "No \EFI\BOOT\BOOTAA64.EFI" search is an
+old fallback, not new behavior). **THE DECISIVE DATAPOINT: `fastboot boot boot.img` (RAM
+boot, bypasses ALL disk/partition state) ALSO fails to start the kernel** — "Booting OKAY"
+then bounce back to menu, no display output. Combined with UEFI logs showing the stock ABL
+never prints "Booting Into Mission Mode": the failure is in the BOOT-TIME ENVIRONMENT the
+ABL builds for Android (DTB/DTBO selection vs smem platform IDs — note UEFI log says
+"Platform: HDK" while AYN's DT is "Sun QRD" — pvmfw/vm-bootsys load, or ddr/memory map),
+NOT in any partition content or A/B state. Device is UNLOCKED (+critical), Secure Boot OFF.
+- Assets ready: EDL pkg extracted+verified (fusor scratchpad edl-pkg/ + repo
+  odin3-firmware-20251206/), all boot-chain images staged on device /root/edl-stage/,
+  stock ABL backups sha-verified (repo odin3-abl-backup/), avbtool.py in scratchpad,
+  android-tools on fusor, fastboot flow proven end-to-end.
+- NEXT IDEAS (untried): compare failing env vs the one config that DOES boot (Linux via
+  ROCKNIX ABL — what does it do differently? no dtbo, own DTB, no pvmfw?); dump smem
+  platform ID vs dtbo board-ids (vendor-archaeology tools can decompile dtbo entries);
+  raise ABL log verbosity (uefivarstore vars?); EDL-load ONLY xbl_config/aop_config?…;
+  ask AYN (lucia@ayn.hk) what "Platform: HDK" should read on retail units; ask Discord
+  whether ANY Odin 3 dual-boots Android via rocknix-abl (if yes → get their UEFI log).
+- **Jack-detect test remains blocked** on Android booting. Shipping mode = manual switching
+  regardless (unchanged).
+
+### AUDIO: pre-RC panic DOWNGRADED (two real-but-small bugs)
+- The day's "no sound" reports were TWO things: (1) morning boot = SoundWire codec enum
+  timeout → card never probes → auto_null only (dmesg: "swrm_wait_for_frame_gen_enabled:
+  link status not disconnected" + "failed to instantiate card -110"; RARE — 1 of ~6 boots
+  today; reboot fixes; consider probe-retry patch). (2) All other silent boots = WirePlumber
+  restoring Speaker sink at **volume 0.00** (persisted state; probably zeroed via Steam
+  while audio was dead during the Android mess). Fixed by setting 0.70 — now persisted, so
+  future boots are audible. bsp-13 routing fix HOLDS; not a routing regression.
+- Watch item: one `qcom-apm CMD timeout [1001021]` during boot (DSP slow to answer) — benign
+  this time, but same disease family as the codec race.
+
+### Cyberpunk / fps (agent review done — full report in 2026-08-14 session transcript)
+- **Odin 3 Ultra = SAME SoC/GPU/clocks/RAM-speed as our Max** (capacity-only SKU). The 41-vs-21.5
+  native gap is ~0% silicon. Cliff's "25% more fps" memory is wrong (~90% more).
+- Ranked squeeze list: (1) pin GPU devfreq min=max in performance mode (Armada does this —
+  our pocknix-power-mode only sets max) + cpu governor performance; (2) fan mode default is
+  QUIET — bench under performance/max fan; (3) REMOVE PROTON_LOG/VKD3D_DEBUG launch options;
+  (4) scx_lavd/schedutil A/B; (5) DDR bandwidth votes (7.1.3 vs 7.1.5 GMU); (6) mesa-next
+  26.3.0-devel A/B (already packaged). Realistic target mid-30s native; turnip A8xx is young
+  (Mesa 26.0 first Gen8) → future mesa likely +10-30% more.
+- Questions for @ice drafted in the session (bench scene/settings, his power+fan profile,
+  his `cat /sys/class/devfreq/*.gpu/cur_freq` during play, panel refresh).
+
+### Untracked repo debris (deliberate, gitignored — do not commit)
+odin3-abl-backup/ (stock ABL backups + SD-KERNEL backup), odin3-firmware-20251206/ (1.9GB
+EDL zip). Both now in .gitignore.
+
+## CURRENT STATE 2026-08-14 MORNING (still valid except where superseded above)
 
 Written at session close 2026-08-14 ~00:45 by Fable 5, after a ~16h session. The
 project memory (odin3-holocore-project.md) carries the same story in more detail —

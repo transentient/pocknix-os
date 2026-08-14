@@ -30,3 +30,7 @@ __pycache__/
 # dev-image secrets (wifi preseed)
 /config/local/*
 !/config/local/README.md
+
+# device-recovery assets (large binaries, never commit)
+odin3-abl-backup/
+odin3-firmware-20251206/
