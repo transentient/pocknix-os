@@ -63,8 +63,9 @@ AYN email drafted at `docs/android-recovery-ayn-email-draft.md`.
   harmless, didn't fix Android, one fewer variable). devinfo/GPT backups on device at
   /root/{devinfo-backup-20260815.bin,sde-gpt-backup-20260815.bin,sda-sector0-backup-*.bin}
   and repo odin3-abl-backup/.
-- Commits this session (LOCAL, not pushed — fusor Bash had no outbound https; push when able):
-  f68b366 (power-mode max), f5fa8b2 (slot-successful keeper). Earlier f7eab2f pushed.
+- Commits this session, all PUSHED to origin/holodor-main (git-over-ssh works even though
+  fusor's Bash had no outbound https): f68b366 (power-mode max), f5fa8b2 (slot-successful
+  keeper), 0566b9f (docs+handoff).
 
 ## CURRENT STATE 2026-08-14 EVENING — (superseded by the block above for Android/slot state)
 
