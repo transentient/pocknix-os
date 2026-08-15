@@ -4,7 +4,56 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-15 (Fable, super-flash session) — READ THIS FIRST (supersedes all below)
+## CURRENT STATE 2026-08-15 EVENING (Fable, bench + pivot session) — READ THIS FIRST
+
+### THE PLAN CHANGED: Cliff called the Android chase off. New sequence (his call, agreed):
+1. ~~Cyberpunk max-fps session~~ DONE tonight — results + ship recommendations in
+   docs/cyberpunk-bench-plan.md "RESULTS" section (headline: `max` power mode adds ~0 fps,
+   wait-bound ceiling confirmed; lsfg presented rate ~49/s measured at the panel ≈ @ice's
+   48 — his edge was overlay accounting, not performance; two control runs still open).
+2. **Rebuild + upload the release image** — the 08-10 RC predates kernel-18, bsp-13,
+   steam-38, decky-13, lsfg-vk, power-mode max, slot-successful keeper. Rebuild from
+   localrepo, HOLODOR_RELEASE=1, spot-check, SourceForge upload (project exists).
+3. **FULL EDL/QFIL factory restore** (Cliff on BONESAW, QPST/QFIL per the CN tutorial in
+   the EDL package). This wipes Holodor — that's accepted; it also flashes EVERY LUN to
+   one matching Dec-2025 build, so it plausibly fixes the residual Android failure too
+   (the LUNs we never rolled back — xbl/tz/aop — are the prime suspect). Kernel-visibility
+   debugging (debug vendor_boot / ramdump) is SUPERSEDED by this — don't resume it.
+4. **Jack test on stock Android** (the original MBHC auto-detect question), then OTA up.
+5. **Cliff dry-runs INSTALL.md as a fresh user** — full docs validation, then release.
+
+Pre-EDL checklist: (a) device /root backups RESCUED to fusor
+`~/odin3-backups/device-root-rescue-20260815/` (9 files + SHA256SUMS: devinfo, GPT/sector0
+dumps, stock_abl_b, signed v1.1.7 ABL, ThunksDB.bak, cyberpunk saves) ✅; (b) release image
+rebuilt+uploaded (OPEN, item 2); (c) ask Cliff about ES-DE/Emulation dirs on device (save
+states?) before wiping (OPEN); (d) everything pushed (branch worktree-ayn-email-rewrite
+holds the 08-15 session commits — Cliff merges to holodor-main).
+
+### AYN email: rewritten TERSE per Cliff (one simple question, plain English) and
+provenance corrected — the EDL package came from a Google Drive link in AYN Discord
+backscroll, NOT a personal share; lucia@ayn.hk is just the Drive account. Never claim
+prior correspondence. docs/android-recovery-ayn-email-draft.md is send-ready; with the
+EDL-restore plan the email is now OPTIONAL (nice-to-have diagnosis, no longer blocking).
+
+### Overnight crash (08-15 morning) DIAGNOSED from journal (boot -1):
+- Overnight suspend (02:16→10:03) was CLEAN; drain with Balatro suspended ≈ invalid
+  (USB to fusor trickle-charged 98→99). Second test (day, unplugged, Cyberpunk running):
+  **99→97 over ~7 h ≈ 0.3%/h suspend drain — good number, and no wedge unplugged.**
+- Balatro SIGSEGV'd 14 s after the morning resume (coredump 10:03:59) — the "battery %
+  missing" was Steam-UI fallout, kernel battery stack logged zero errors.
+- The wedge: re-suspend 40 s after resume, USB-HOST partner (fusor) attached → journal
+  ends at "PM: suspend entry (deep)", never woke, power press = cold boot. The 0519 fix
+  covered charger partners only; USB-host-attached suspend is an UNTESTED path. New data
+  point for the plugged-in-wedge family, NOT a regression. Post-suspend frozen controls
+  in-game + working QAM = the KNOWN open suspend-mid-game bug, also not a regression.
+
+### Device state at session end: idle-suspended mid-evening in max power/fan-max/
+gamescope 60-cap (a fusor-side watcher restores balanced/moderate/120 on next wake —
+log at ~/odin3-backups/restore-watch.log; if it didn't fire, restore by hand). lsfg ON
+for Cyberpunk in game-tweaks.json (turn off or leave per next session's control runs).
+`mangoapp_use_output_timing 1` was set live in gamescope (resets on gamescope restart).
+
+## CURRENT STATE 2026-08-15 (Fable, super-flash session) — earlier block (still-valid Android detail; the PLAN above supersedes its NEXT list)
 
 ### ANDROID: root cause FOUND + super FIXED, but a deeper kernel/init failure remains
 The two-agent rescue investigation (a85c161e + auditor addbd1bc) cracked the mystery.

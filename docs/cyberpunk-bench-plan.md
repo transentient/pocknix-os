@@ -3,6 +3,68 @@
 Goal: find more fps in Cyberpunk. This is the ready-to-run matrix plus what we already
 know, so a bench session produces clean, comparable numbers instead of guesses.
 
+## RESULTS — bench session 2026-08-15 evening (READ FIRST; supersedes expectations below)
+
+All runs: in-game benchmark, 720p, FSR2 upscaling unless noted, Cliff driving, agent
+sampling clocks/thermals/DPU counters over ssh. Each claim labeled PROVEN (measured) or
+INFERRED (consistent but no isolated A/B).
+
+| Run | Power | Compositor | Game FSR3-FG | lsfg 2x | Bench fps |
+|-----|-------|-----------|--------------|---------|-----------|
+| 1 | max | 120 | ON (see note) | off | 34.40 |
+| 2 | max | 120 | off | off | 25.81 |
+| 3 | max | 120 | off | on | 24.57 |
+| 4 | max | 60 cap | ON | on | 32.25 |
+
+Note on run 1: the FG state was mis-called live (the settings file had already been
+rewritten by menu changes between runs). The numbers themselves settle it: 34.40 ≈ the
+old FG-on 34.28, and 25.81 ≈ the old FG-off 25.6, both taken in balanced.
+
+**PROVEN:**
+- **`max` power mode adds ~0 fps in Cyberpunk.** FG-on: 34.28 (balanced) → 34.40 (max).
+  FG-off: 25.6 (balanced) → 25.81 (max). GPU verified pinned at 1100 MHz for the entire
+  run (sampled every 3 s, never dipped). The wait-bound present-path ceiling from the
+  earlier investigation is CONFIRMED — GPU clock is not the bottleneck.
+- **`max` runs the prime cores at 99–103 °C** under bench load (cpu-1-0/1-1 thermal
+  zones; little cluster showed mild capping 3.53→2.92 GHz; GPU unaffected). All heat,
+  no fps: **shipping guidance for Cyberpunk-class titles = `balanced`.** `max` stays
+  useful only for titles that actually GPU-bind.
+- **gamescope composites at ~111 fps regardless of game fps** (DPU `pp_tx_done` irq
+  count, debugfs `core_irq`, 10 s windows) — the portrait rotation shader runs ~4× per
+  game frame. `gamescopectl debug_set_fps_limit 60` dropped panel commits to 49/s with
+  **zero DPU errors** (dmesg clean; live-tunable, no restart).
+- **The bench/overlay fps counter cannot see lsfg frames** (re-confirmed; run 3 reads
+  ~= run 2).
+- lsfg QAM toggle takes effect ONLY at game launch (wrapper env injection) — toggling
+  mid-game does nothing. Relaunch to change it.
+
+**INFERRED (strong, one control run short of proven):**
+- **lsfg doubling verified at the panel:** with the 60-cap making gamescope commit only
+  on new frames, panel commits = 49/s ≈ 2 × the 24.57 base. Missing control: same
+  measurement with lsfg OFF (expect ~25/s). Run it next session.
+- **@ice's 41/48 on Armada is an accounting difference, not a performance gap.** Same
+  silicon (Ultra = capacity SKU); Armada's overlay shows presented (post-frame-gen)
+  fps. Our presented rate with lsfg = ~49/s ≈ his 48. On presented frames we already
+  match. Confirm his overlay semantics if the chance arises.
+- 60-cap effect on BASE fps: NOT isolated (run 4 changed two variables vs run 1:
+  −2.15 fps could be lsfg overhead, cap effect, or noise). Next session: FG all-off,
+  cap 60, compare against 25.81.
+
+**Recommendations to ship (pending the two control runs):**
+1. Default power guidance stays `balanced`; document `max` as a per-title experiment.
+2. Don't stack both frame-gens (interpolation-on-interpolation: artifacts + latency).
+   Per-title: built-in FSR3-FG where the game has it (sees motion vectors); lsfg for
+   everything else.
+3. Consider `mangoapp_use_output_timing 1` as a pocknix default so the overlay shows
+   presented fps (set live 2026-08-15, UNVALIDATED — check whether the overlay changed;
+   resets on gamescope restart).
+4. Consider a gamescope commit-cadence cap (the 111→49 composite cut) IF the control
+   run shows base-fps gain; watch DPU errors over longer soaks before shipping.
+
+**Device state note:** session ended with the device idle-suspending while still in
+max/fan-max/60-cap; restore `balanced`/`moderate`/`debug_set_fps_limit 120` on next
+wake (a watcher on fusor may have already done it — check `~/odin3-backups/restore-watch.log`).
+
 ## What we already know (don't re-derive)
 - **The AAA native ceiling (~20–23 fps) is the display present-path, not GPU horsepower.**
   Prior investigation: GPU sat ~52% / CPU ~21% while the app frametime floored ~48 ms =
