@@ -1,17 +1,19 @@
 # Draft: email to AYN (lucia@ayn.hk) — Android reboot loop
 
-Context for Cliff: Lucia shared the EDL package in July. Rewritten 2026-08-15 per your
-note: short, simple English, one question. The technical detail lives in HANDOFF.md —
-if she replies and wants specifics, we answer with exactly what she asks for, one
-piece at a time.
+Context for Cliff: `lucia@ayn.hk` is the Google Drive account behind the EDL package
+link you found in AYN Discord backscroll (July) — NOT someone you've corresponded
+with, so the email claims no prior contact. Rewritten 2026-08-15 per your note:
+short, simple English, one question. The technical detail lives in HANDOFF.md — if
+they reply and want specifics, we answer with exactly what they ask for, one piece
+at a time.
 
 ---
 
 **Subject:** Odin 3 — Android reboot loop after factory reflash
 
-Hi Lucia,
+Hello,
 
-Thank you again for the EDL package you shared in July.
+I hope you can help with an Odin 3 problem.
 
 My Odin 3 is bootloader-unlocked. Android stopped booting, so I flashed the complete
 December 2025 factory image (boot, dtbo, vbmeta, super) and wiped userdata and
