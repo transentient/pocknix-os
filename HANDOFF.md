@@ -48,10 +48,20 @@ EDL-restore plan the email is now OPTIONAL (nice-to-have diagnosis, no longer bl
   in-game + working QAM = the KNOWN open suspend-mid-game bug, also not a regression.
 
 ### Device state at session end: idle-suspended mid-evening in max power/fan-max/
-gamescope 60-cap (a fusor-side watcher restores balanced/moderate/120 on next wake —
-log at ~/odin3-backups/restore-watch.log; if it didn't fire, restore by hand). lsfg ON
-for Cyberpunk in game-tweaks.json (turn off or leave per next session's control runs).
-`mangoapp_use_output_timing 1` was set live in gamescope (resets on gamescope restart).
+gamescope 60-cap. A DETACHED fusor-side watcher (setsid, survives session exit; launched
+2026-08-16 00:35 JST, gives up ~12:35 JST) restores balanced/moderate/120 on next wake —
+verify at ~/odin3-backups/restore-watch.log; if empty and the device is awake, run
+~/odin3-backups/restore-watch.sh once by hand. lsfg is ON for Cyberpunk in
+game-tweaks.json (leave or clear per next session's control runs).
+`mangoapp_use_output_timing 1` was set live in gamescope (resets on gamescope restart;
+Cliff never confirmed whether it changed the overlay readout — UNVALIDATED).
+
+### GIT: all 2026-08-15 session commits are on branch `worktree-ayn-email-rewrite`,
+PUSHED to origin (932d526 email rewrite, 376958a provenance fix, e7a8460 handoff+bench,
+plus this sleep-now commit). **Cliff: `git merge worktree-ayn-email-rewrite` on
+holodor-main.** The worktree itself is disposable — everything is on origin.
+
+— evening block written 2026-08-16 00:40 JST by **Claude Fable 5** (bench + pivot session)
 
 ## CURRENT STATE 2026-08-15 (Fable, super-flash session) — earlier block (still-valid Android detail; the PLAN above supersedes its NEXT list)
 
