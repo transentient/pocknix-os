@@ -26,7 +26,7 @@ pkgbase=mesa
 pkgname=(mesa-next vulkan-freedreno-next)
 epoch=2
 pkgver=26.3.0_devel
-pkgrel=4
+pkgrel=5
 pkgdesc="Mesa trimmed for the RP6/SM8550: freedreno GL + turnip Vulkan, cortex-x3 tuned (26.1.5)"
 arch=('aarch64')
 url="https://www.mesa3d.org/"
@@ -118,15 +118,15 @@ _pick() {
 }
 
 package_mesa-next() {
-  provides=("mesa=${epoch}:${pkgver}")
-  conflicts=(mesa)
   pkgdesc="Open-source OpenGL drivers, trimmed for the RP6 (freedreno + zink + softpipe)"
   depends=(
     expat glibc libdrm libglvnd libx11 libxcb libxext libxshmfence libxxf86vm
     wayland zlib zstd
   )
-  provides=("mesa-libgl=${epoch}:${pkgver}-${pkgrel}" opengl-driver)
-  conflicts=('mesa-libgl<17.0.1-2')
+  # single assignments — a second provides=()/conflicts=() OVERWRITES the first
+  # (this exact bug shipped -3/-4 without the mesa provide/conflict)
+  provides=("mesa=${epoch}:${pkgver}" "mesa-libgl=${epoch}:${pkgver}-${pkgrel}" opengl-driver)
+  conflicts=(mesa 'mesa-libgl<17.0.1-2')
   replaces=('mesa-libgl<17.0.1-2')
 
   meson install -C build --destdir "${pkgdir}" --no-rebuild
@@ -147,14 +147,14 @@ package_mesa-next() {
 }
 
 package_vulkan-freedreno-next() {
-  provides=("vulkan-freedreno=${epoch}:${pkgver}")
-  conflicts=(vulkan-freedreno)
   pkgdesc="Open-source Vulkan driver for Adreno GPUs (turnip, cortex-x3 tuned)"
   depends=(
     expat glibc libdrm libdisplay-info libx11 libxcb libxshmfence spirv-tools
     systemd-libs vulkan-icd-loader wayland xcb-util-keysyms zlib zstd
   )
-  provides=(vulkan-driver)
+  # single assignment — see package_mesa-next() note
+  provides=("vulkan-freedreno=${epoch}:${pkgver}" vulkan-driver)
+  conflicts=(vulkan-freedreno)
 
   mv "${srcdir}/vkfdreno"/* "${pkgdir}"
 
