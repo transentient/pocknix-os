@@ -226,6 +226,20 @@ install_packages() {
     mapfile -t -O "${#pkgs[@]}" pkgs < <(read_pkglist "${l}")
   done
   log "installing ${#pkgs[@]} packages from: ${lists[*]##*/}"
+  # On a RESUMED rootfs, drop any explicit target that is already satisfied by a DIFFERENT
+  # installed package (pacman -Q resolves provides: asking for `mesa` answers `mesa-next`).
+  # Keeping such a target would install the upstream package its replacement conflicts with.
+  # Fresh builds are unaffected (nothing installed yet, -Q answers nothing).
+  local _kept=() _p _owner
+  for _p in "${pkgs[@]}"; do
+    _owner="$(chroot "${root}" pacman -Q "${_p}" 2>/dev/null | awk '{print $1}')"
+    if [ -n "${_owner}" ] && [ "${_owner}" != "${_p}" ]; then
+      log "  skipping ${_p} (provided by installed ${_owner})"
+    else
+      _kept+=("${_p}")
+    fi
+  done
+  pkgs=("${_kept[@]}")
   # -Syy (force DB refresh): a reused rootfs keeps a stale sync DB, and plain -Sy won't
   # re-download a DB pacman thinks is current -> valid extra pkgs (vulkan-tools, alsa-utils,
   # alsa-ucm-conf) show up as "target not found". Safe here: this is a fresh-image -Su anyway.
