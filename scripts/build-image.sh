@@ -340,7 +340,7 @@ bootstrap_steam_seed() {
       die "steam bake failed (pocknix-steam-install in chroot). Check network + retry (the bake is cached, so a retry resumes)."
     fi
     if ! chroot "${root}" test -f "${steam}/steamrtarm64/steamui.so" \
-       || ! chroot "${root}" test -f "${steam}/package/steam_client_steamdeck_publicbeta_linuxarm64.installed"; then
+       || ! chroot "${root}" test -f "${steam}/package/steam_client_steamdeck_stable_linuxarm64.installed"; then
       umount "${root}/dev/shm" 2>/dev/null || true
       # HOLODOR: the in-chroot Xvfb self-update never writes the .installed
       # manifest on SD-card build hosts (>1h, deterministic). The client tree +

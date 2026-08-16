@@ -3,10 +3,10 @@
 # Modeled on armada's build_files/generate-steam-bootstrap.sh (native ARM64, NO FEX). x86 game
 # content via Proton/FEX is deferred. The stock steam-launcher .deb pulls the x86 client (Exec
 # format error on aarch64); the native client comes from the steamrt3c ARM64 runtime + the
-# steamdeck_publicbeta linuxarm64 client below.
+# steamdeck_stable linuxarm64 client below.
 #
 # KEY armada deltas (vs. our earlier publicbeta attempt):
-#   * channel = steamdeck_publicbeta (NOT plain publicbeta) — ships the Steam Deck Big-Picture UI
+#   * channel = steamdeck_stable (NOT plain publicbeta) — ships the Steam Deck Big-Picture UI
 #     payload (gamepadui fonts + vgui assets) the plain channel lacks (was: CreateGlFont failed).
 #   * .steam/root symlink — Steam execs $HOME/.steam/root/steam_msg.sh (was: execl errno 2).
 set -e
@@ -28,7 +28,7 @@ else
   RUNTIME_TAR_URL="${RUNTIME_BASE}/latest-public-beta/steam-runtime-steamrt-arm64.tar.xz"
 fi
 STEAM_CDN="https://client-update.steamstatic.com"
-STEAM_ARM_CHANNEL="steamdeck_publicbeta"
+STEAM_ARM_CHANNEL="steamdeck_stable"
 STEAM_ARM_MANIFEST_NAME="steam_client_${STEAM_ARM_CHANNEL}_linuxarm64"
 STEAM_MANIFEST_URL="${STEAM_CDN}/${STEAM_ARM_MANIFEST_NAME}"
 
@@ -78,7 +78,7 @@ if [ ! -d "${RUNTIME_DIR}" ]; then
   ln -sfn "../../${target#"${STEAM}/"}" "${STEAM}/lib/aarch64-linux-gnu/libibus-1.0.so.5"
 fi
 
-# 2. native ARM64 Steam client (steamdeck_publicbeta linuxarm64). The manifest is binary VDF;
+# 2. native ARM64 Steam client (steamdeck_stable linuxarm64). The manifest is binary VDF;
 #    split it into printable runs (strings-equivalent via tr, no binutils dep) then grab the zip.
 if [ ! -d "${CLIENT_DIR}" ]; then
   log "Resolving + downloading Steam ARM64 client (${STEAM_ARM_CHANNEL})..."

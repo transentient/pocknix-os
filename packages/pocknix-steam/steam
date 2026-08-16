@@ -45,11 +45,11 @@ if [ -z "${DISPLAY:-}" ]; then
   [ -n "${DISPLAY:-}" ] || echo "steam: WARNING no XWayland socket in /tmp/.X11-unix — is the Plasma session up + kwin's XWayland running?" >&2
 fi
 
-# Keep the native ARM client pinned to steamdeck_publicbeta even in desktop mode — otherwise plain
-# `steam` can flip package/beta to steamdeck_stable, which then breaks the next game-mode launch
-# (steamwebhelper crash-loop / endless "Installing update"). See pocknix-steam.
+# Keep the native ARM client pinned to steamdeck_stable even in desktop mode — otherwise plain
+# `steam` can flip package/beta to a different channel, which then breaks the next game-mode
+# launch (steamwebhelper crash-loop / endless "Installing update"). See pocknix-steam.
 mkdir -p "${STEAM}/package"
-echo steamdeck_publicbeta > "${STEAM}/package/beta"
+echo steamdeck_stable > "${STEAM}/package/beta"
 
 # Forward args (e.g. `steam steam://rungameid/<id>` from game shortcuts, or none to open the window).
 exec "${CLIENT}" "$@"

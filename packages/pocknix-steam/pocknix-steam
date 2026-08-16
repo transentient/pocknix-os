@@ -39,13 +39,13 @@ cd "${CLIENT_DIR}" 2>/dev/null || { echo "missing ${CLIENT_DIR}" >&2; exit 1; }
 # Decky/CEF debugger marker armada touches (harmless if unused).
 touch "${STEAM}/.cef-enable-remote-debugging" 2>/dev/null || true
 
-# Pin the client beta channel EVERY launch. The native ARM64 Big-Picture client only works on
-# steamdeck_publicbeta; if anything flips package/beta to steamdeck_stable (e.g. a desktop-mode
+# Pin the client beta channel EVERY launch. We ship the native ARM64 Big-Picture client on
+# steamdeck_stable; if anything flips package/beta to a different channel (e.g. a desktop-mode
 # `steam` launch, or a server-side channel change), Steam sees "installed version 0" for the new
 # channel and dead-ends forever on "Installing update" with steamwebhelper crash-looping -> the
 # session hangs. Re-asserting it here makes the session self-heal on the next launch.
 mkdir -p "${STEAM}/package"
-echo steamdeck_publicbeta > "${STEAM}/package/beta"
+echo steamdeck_stable > "${STEAM}/package/beta"
 
 # --- Proton 11 ARM compat tool: register + keep usable, decoupled from Steam's own download/updates
 # so the FIRST in-Steam download works with NO reboot. The registration (compatibilitytools.d) is
