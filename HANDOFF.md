@@ -4,7 +4,143 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-15 EVENING (Fable, bench + pivot session) — READ THIS FIRST
+## CURRENT STATE 2026-08-17 (Fable, marathon session 08-16→17) — READ THIS FIRST (supersedes all below)
+
+### THE HEADLINES
+1. **Cyberpunk fps campaign CLOSED** — the "wait-bound" theory was WRONG; device is
+   GPU-work-bound. Recommended config shipped + measured. See fps section below.
+2. **Pre-wipe audit COMPLETE, device CLEARED for the EDL factory restore** — every
+   irreplaceable byte rescued to fusor, repo fully reconciled, no uncommitted anything.
+3. **Release image BUILT + spot-checked**: `build/image/sm8750/holodor-odin3-20260817.img.zst`
+   (8.2 GB) + `.sha256` on fusor. steamdeck_stable seed (finalized), mesa-next 26.3.0-dev,
+   bsp-common-13 anti-brick keeper, kernel-18. NOT uploaded anywhere (see SourceForge).
+4. **SOURCEFORGE IS DEAD (suspended)** — do NOT retry anything against it. Distribution
+   pivoted to archive.org (images) + GitHub Releases (pacman OTA repo). Details below.
+5. **Steam client decision: public release will be SEEDLESS (download-on-install)** —
+   the firstboot bootstrap is the next big build item and the critical path to release.
+
+### CYBERPUNK — final state (docs/cyberpunk-bench-plan.md + docs/present-path-attack-plan.md)
+- Live instrumented benches with Cliff (2026-08-16 PM): run J native+VSync-verifiably-off
+  = 22.98/23.01 (VSync was never the blocker); run K FSR3-Performance-upscale FG-off = 31.91.
+- fdinfo `drm-engine-gpu` (summed over unique drm-client-ids): game ~91% GPU-busy at native,
+  ~87% at quarter-res; gamescope composite ~6%. **Model: frame = game GPU work + ~4 ms
+  present tax.** Gamescope pacing rebuild = bounded ~+15%, DOWNGRADED to backlog. Ride mesa.
+- In-game FSR3 FG costs ~16 ms/real frame (terrible); lsfg ~2 ms. **RECOMMENDED AAA CONFIG
+  (measured in gameplay): FSR3 Performance upscale + in-game FG OFF + lsfg 2x = 56.7
+  presented fps / ~28.4 real base.** Presented rate measured at the panel via DPU crtc
+  `total_framecount` delta (/sys/kernel/debug/dri/0/crtc-0/status) — RELIABLE presented-fps
+  meter; the long-open "are lsfg frames really presented" question is RESOLVED: yes.
+- Cyberpunk UserSettings.json "Off" tokens: ResolutionScaling="Off", FrameGeneration="Off"
+  (file stores name/value objects — flat grep fails). Cliff's 42.33 config backed up:
+  device /root/UserSettings.json.bak-42fps-20260816 AND fusor ~/odin3-backups/device-root-rescue-20260815/.
+
+### AUDIT + RESCUE (2026-08-16) — device is SAFE TO WIPE
+- Full device audit ran (subagent report in 08-16 session transcript; summary): the ONLY
+  functional repo-uncaptured drift was the steamdeck_stable hand-patch (now committed,
+  steam pkgrel 39); everything else in /etc matches repo/packages; qkk residue = noise.
+- Rescued to fusor `~/odin3-backups/device-rescue-20260816/device-rescue-20260816.tar.gz`
+  (3.9 MB, 448 files + SHA256SUMS): **Cyberpunk autosaves from 2026-08-16** (NOT in the
+  08-13 tarball), /root/bench-logs (raw A–I bench evidence), bench/soak scripts, lsfg-vk
+  config, Steam userdata cloud mirrors, ES-DE + Emulation skeletons. Plus the earlier
+  `device-root-rescue-20260815/` (10 files, ABL/devinfo/GPT/saves backups).
+- NOT rescued on purpose (re-creatable from fusor assets): /root/super.raw.zst,
+  /root/edl-stage/, old kernel pkgs, shader-cache backups, /flash KERNEL.bak variants.
+- Repo reconciliation done: `worktree-ayn-email-rewrite` MERGED into holodor-main
+  (3afc3e9) + worktree/branch deleted; git core.editor set to vim globally (the merge
+  had failed for Cliff trying to launch vi).
+
+### RELEASE BUILD (2026-08-16→17) — decisions + build-system fixes
+- **Decisions made with Cliff:** Steam channel = `steamdeck_stable` (pocknix-steam pkgrel
+  39, all three files + bake check in build-image.sh). Ship the DEV graphics driver:
+  mesa-next/vulkan-freedreno-next 2:26.3.0_devel-5 (+4.6% native, fixes the continuous
+  UCHE-fault storm 26.1.5 has on A830). THIS image is still SEEDED (the bake is mandatory
+  — the launcher has NO network-install fallback yet); the PUBLIC release will be seedless
+  after the bootstrap work. bsp-common-13 (slot-successful anti-brick keeper) was
+  PKGBUILD-only until now — rebuilt into localrepo and the image.
+- Spot-check (loop-mount): ALL GREEN — mesa-next-5 in / plain mesa gone, `pacman -Dk`
+  zero dependency errors, stable .installed manifest, slot-successful enabled, sshd off,
+  no wifi preseed, no passwords (Deck model), hostname holodor, TZ UTC, KERNEL+md5 on p1.
+- **THE NAME-CHANGE HYDRA (all fixed, committed, pushed — do not re-derive):** swapping
+  mesa→mesa-next broke the build in three places, same root pattern:
+  1. `pacman --noconfirm` answers NO to conflict-removal → install_local_packages now
+     passes `--ask 4`; the epoch-2 guard also learned the mesa-next name.
+  2. The installed-package resync loop: **this pacman's `-Q` RESOLVES PROVIDES** (asking
+     for `mesa` answers `mesa-next`!) so it re-added plain mesa → now gates on exact name.
+  3. install_packages base-phase explicitly requests mesa/vulkan-freedreno from base.list
+     → now skips targets satisfied by a different installed provider.
+- **mesa-next PKGBUILD had a provides-clobber bug** (provides=/conflicts= assigned TWICE;
+  second assignment overwrites the first) → the -3 and -4 artifacts shipped WITHOUT the
+  mesa/vulkan-freedreno provides and are BROKEN for replacement purposes; -5 is correct
+  (verified in .PKGINFO). Do NOT reuse -3/-4.
+
+### SOURCEFORGE: SUSPENDED — DO NOT TOUCH IT FROM AUTOMATION
+- Timeline: Cliff created project `holodor` (account transentient) → we scripted against
+  it (sftp probes, REST GET/PUT/POST, a POST to the CSRF-protected admin form, an 8 GB
+  rsync, then a 3-min retry loop) → frs ssh auth started refusing, then **Cliff's own web
+  login was refused and the project page 404s from every network path**. Diagnosis: SF
+  anti-abuse suspended the brand-new account as bot-compromised. MY automation burst was
+  the likely trigger. All SF-facing automation is STOPPED — leave it stopped.
+- Recovery is Cliff's, optional: check registered email for a suspension notice / try
+  password reset / support ticket (draft text in 08-16 session transcript). SF is now
+  demoted to optional-mirror status; nothing blocks on it.
+- Facts if it comes back: frs file area was provisioned; landing page was uploaded to
+  web space (htdocs) and WORKED at holodor.sourceforge.io; the page source is preserved
+  in-repo at `website/index.html`. REST API is READ-ONLY for project metadata (bearer
+  token in ~/.sf-bearer-token); metadata edits are browser-only. SF git mount exists:
+  ssh://transentient@git.code.sf.net/p/holodor/code (mirror candidate).
+- **LESSON (memory-filed): on third-party services, especially fresh accounts, pace
+  automated requests like a human — single, spaced, boring. No bursts, no retry loops.**
+
+### DISTRIBUTION (new plan, decided with Cliff)
+- **Images → archive.org.** Zero cost, no card. DONE this session: `ia` CLI installed on
+  fusor (python-internetarchive 5.8.0), configured from Cliff's keys (~/.ia-keys +
+  ~/.config/internetarchive/ia.ini, both 600), auth VERIFIED (ia tasks OK). Identifier
+  `holodor-odin3` is FREE. **Do NOT upload the current SEEDED image publicly** (it
+  contains Valve's client — the exact redistribution exposure we're engineering away);
+  first public upload = the seedless release. Identifiers are PERMANENT — propose item
+  name/metadata to Cliff before creating.
+- **Pacman OTA repo → GitHub Releases** (each pkg ≪ 2 GiB limit; wire publish-repo.sh).
+  OTA design (discussed, agreed in principle): v1 = pacman channel of our packages;
+  never push untested kernels (testing tag first); A/B image updates = far-future.
+- R2 rejected (requires card on file). GitHub Releases rejected for images (2 GiB/file).
+- Steam bootstrap design (for the seedless release), agreed with Cliff: wifi.txt import
+  from the FAT partition (no on-screen keyboard needed), resumable `curl -C -` download
+  with backoff + hash verify + atomic unpack, channel resolved from Valve's manifest at
+  runtime (never hard-coded; the alias-403/latest-public-beta.txt lesson), honest OOBE
+  screen when offline, bootstrap script itself shipped as a package so the OTA channel
+  can fix it. A failed download can NEVER brick: client lives in /home/deck only.
+  Write docs/steam-bootstrap-design.md as the first step of implementation.
+
+### Device state RIGHT NOW
+Boots Holodor (internal, slot B healthy), was at 192.168.1.26, idle-suspends freely (no
+sleep guard — wake = power tap). lsfg is ON for Cyberpunk with FSR3 Performance + game-FG
+off (the recommended config — Cliff played it, "it was fine"). Nothing on the device is
+unrescued. **It is ready for the EDL wipe (plan: 08-15 block below, item 3).**
+
+### NEXT (ordered)
+1. **(Agent, big) Steam firstboot bootstrap** — implement the design above in
+   packages/pocknix-steam (+ a firstboot unit + wifi.txt importer). Start with
+   docs/steam-bootstrap-design.md, then make the bake optional (HOLODOR_SEEDLESS=1).
+   This is the critical path to the public release.
+2. **(Cliff) SD dry-run**: flash build/image/sm8750/holodor-odin3-20260817.img.zst (dd
+   from fusor, byte-verify read-back per convention) and play fresh-user against
+   INSTALL.md — resolve its [VERIFY] markers. This validates the SEEDED image; the
+   seedless flow gets its own dry-run after item 1.
+3. **(Cliff, BONESAW) EDL full factory restore** per the 08-15 plan below — wipes the
+   device to stock Android. THEN: **jack test on stock Android immediately** (does MBHC
+   auto-detect work? decides platform-parity question). Cliff asked us to not let him
+   forget the jack test.
+4. Also from the EDL restore: does stock Android now boot fully? (Full-LUN reflash is
+   the best remaining theory for the residual post-AVB failure.)
+5. **(Agent) OTA v1**: wire publish-repo.sh → GitHub Releases; ship [pocknix] stanza +
+   POCKNIX_REPO_URL in the next image build.
+6. (Cliff, optional) SourceForge reinstatement attempt; if it returns, it's a mirror.
+7. ssalmon_px may deliver Holodor boot-art images ~week of 08-24 (kernel logo +
+   plymouth animation slots are ready in the build).
+
+— written 2026-08-17 ~01:30 JST by **Claude Fable 5** (fps close-out / audit / release build / SF-implosion / distribution-pivot session)
+
+## CURRENT STATE 2026-08-15 EVENING (Fable, bench + pivot session) — earlier block
 
 ### THE PLAN CHANGED: Cliff called the Android chase off. New sequence (his call, agreed):
 1. ~~Cyberpunk max-fps session~~ DONE tonight — results + ship recommendations in
