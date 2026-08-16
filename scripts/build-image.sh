@@ -61,17 +61,21 @@ install_local_packages() {
   # build black-screens the rotated panel; our patched mangohud has the Adreno reader). epoch=1 only
   # affects `-Syu` upgrades, not `-S` selection. Qualifying forces our builds and errors loudly if a
   # local package is genuinely missing from [pocknix] instead of silently grabbing ALARM's.
-  # mesa + vulkan-freedreno: our epoch-2 trimmed/tuned builds (packages/mesa — freedreno/turnip
-  # only, ROCKNIX's 25.1.5 pin, cortex-x3) REPLACE the ALARM copies base.list installed for
-  # bootstrap. Same package names; epoch 2 > ALARM's 1, so pacman treats it as a plain upgrade.
+  # mesa-next + vulkan-freedreno-next: our epoch-2 trimmed/tuned 26.3.0-dev builds REPLACE the
+  # ALARM mesa/vulkan-freedreno that base.list installed for bootstrap. The names now DIFFER
+  # (the -next packages carry provides/conflicts on the plain names), so this is a conflict
+  # replacement, not an upgrade — and plain --noconfirm answers NO to pacman's "remove mesa?"
+  # prompt and aborts. --ask 4 flips the default for exactly that removal question to YES
+  # (no-op when there is no conflict).
   local -a _pkgs=()
   local _p
   while read -r _p; do _pkgs+=("pocknix/${_p}"); done \
     < <(read_pkglist "${CONFIG_DIR}/packages/pocknix-core.list")
-  chroot "${root}" pacman -S --noconfirm --needed "${_pkgs[@]}"
+  chroot "${root}" pacman -S --noconfirm --ask 4 --needed "${_pkgs[@]}"
   # GUARD: these local builds MUST come from [pocknix], not silently fall back / go missing. gamescope
   # especially: ALARM's vanilla lacks --use-rotation-shader and black-screens on the RP6 (bitten 3x).
-  local mesa_ver; mesa_ver="$(chroot "${root}" pacman -Q mesa 2>/dev/null | awk '{print $2}')"
+  local mesa_ver; mesa_ver="$(chroot "${root}" pacman -Q mesa-next 2>/dev/null | awk '{print $2}')"
+  [ -n "${mesa_ver}" ] || mesa_ver="$(chroot "${root}" pacman -Q mesa 2>/dev/null | awk '{print $2}')"
   case "${mesa_ver}" in
     2:*) log "mesa OK: ${mesa_ver} (epoch-2 pocknix trimmed build)" ;;
     *) die "mesa resolved to '${mesa_ver}', NOT our epoch-2 [pocknix] build — the image would ship ALARM's all-driver mesa. Confirm build/localrepo/mesa-2:*.pkg.tar.* exists AND is in pocknix.db ('make packages PKG=mesa'), then re-run." ;;

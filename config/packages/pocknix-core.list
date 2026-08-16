@@ -3,9 +3,11 @@
 # Device-specific packages (BSP, kernel, metapackage) come from devices/<name>/packages.list
 # + the kernel step, NOT this list.
 
-# our epoch-2 trimmed/tuned mesa (freedreno/turnip only, ROCKNIX pin) replaces ALARM's
-mesa
-vulkan-freedreno
+# our epoch-2 trimmed/tuned mesa (freedreno/turnip only) replaces ALARM's. HOLODOR ships the
+# -next 26.3.0-dev build: +4.6% native and fixes the continuous UCHE-fault storm 26.1.5 has
+# on A830 (docs/cyberpunk-bench-plan.md); provides/conflicts=mesa|vulkan-freedreno so pacman swaps cleanly.
+mesa-next
+vulkan-freedreno-next
 
 gamescope              # ROCKNIX-patched (composite rotation); vanilla black-screens rotated panels
 inputplumber           # gamepad -> Steam Input (device config shipped by the device BSP)
