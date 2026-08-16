@@ -60,6 +60,42 @@ Cyberpunk bench plan) intact + pushed. Sleep-guard may have expired (wake = powe
 Cyberpunk fps work UNTOUCHED this session — see the 2026-08-14 block below + docs/
 cyberpunk-bench-plan.md (max mode = the free lever; needs Cliff+display to bench).
 
+### CYBERPUNK BENCH SESSION 2026-08-16 — RESULTS (see docs/cyberpunk-bench-plan.md top table)
+Native ceiling ~20.9 confirmed wait-bound (GPU@1100 100% of samples, all levers dead:
+power mode, fan, scx_lavd). Game FSR3.1+FG = 32.4. mesa 26.3.0-dev INSTALLED AND KEPT:
++4.6% native (21.84) + kills a UCHE TRANSLATION gpu-fault storm 26.1.5 had. The Vulkan
+driver is the separate `vulkan-freedreno(-next)` package — swapping `mesa` alone does
+NOTHING for Vulkan. DDR/GMU lever retired (docs/gmu-ddr-vote-experiment.md). lsfg per-game
+state lives in /etc/pocknix/game-tweaks.json `games.<appid>` and OVERRIDES `global`;
+verify via /proc/<pid>/environ. OPEN: lsfg presented-fps question (benchmark counter is
+blind to layer frames; overlay read ~30 roaming); @ice config questions still unsent.
+
+### CYBERPUNK LIVE BENCH SESSION 2026-08-16 PM — "WAIT-BOUND" OVERTURNED, campaign CLOSED
+Live instrumented session (Cliff at device): the game is **~91% GPU-busy** (drm fdinfo
+engine time) — frame = GPU work + ~4 ms present tax. The "wait-bound / GPU 52%" premise in
+the blocks above/below is WRONG under current driver; do not plan around it. Runs J
+(native, VSync verifiably off: 22.98/23.01 — VSync was never the blocker) and K (FSR3
+Performance upscale, FG off: 31.91). In-game FSR3 FG costs ~16 ms/real frame = bad deal;
+lsfg costs ~2 ms. **RECOMMENDED AAA CONFIG (measured): FSR3 Performance + in-game FG off +
+lsfg 2x = 56.7 presented / ~28.4 real base.** lsfg presented-fps question RESOLVED (DPU
+crtc total_framecount = reliable presented meter; lsfg frames really present). Gamescope
+pacing rebuild downgraded to backlog (~+15% bounded); ride mesa bumps instead. Details:
+docs/present-path-attack-plan.md (instrumentation) + docs/cyberpunk-bench-plan.md (runs).
+Cliff's 42fps game config backed up on device /root/UserSettings.json.bak-42fps-20260816.
+
+### WHAT WE WERE WRONG ABOUT (2026-08-16) — Cyberpunk power-mode claim
+- **"All prior AAA numbers were taken in `balanced` (GPU capped at 900 MHz)." WRONG.**
+  That was inferred from reading the power-mode state at idle, OUTSIDE any bench window —
+  which says nothing about what mode was active during the benches — and it overrode
+  Cliff's direct statement that he had it in `performance` (uncapped to 1100; also the
+  script's fallback default). Prior numbers are NOT clock-capped; the "free +22%" framing
+  was false. Docs corrected (cyberpunk-bench-plan.md + both handoff mentions). Method
+  lesson: a settings check at time T is evidence about time T only — never use it to
+  contradict the user's report of what they did at time T-minus.
+- **Of the 2026-08-14 six-lever squeeze list, only lever 1 was ever acted on** (the max-mode
+  tool was built — but never benched). scx A/B, fan bench, @ice questions, DDR votes,
+  mesa-next A/B: all still untried. The bench-plan doc now lists them explicitly.
+
 ### WHAT WE WERE WRONG ABOUT (2026-08-15) — do NOT re-derive these
 - **"Fixing `super` will make Android boot." WRONG (necessary but not sufficient.)** The
   super mismatch was a REAL confirmed root cause and it IS fixed (system/vendor verity now
@@ -106,8 +142,9 @@ cyberpunk-bench-plan.md (max mode = the free lever; needs Cliff+display to bench
 3. **(Cliff, physical) Run whichever capture from #1 is ready**, get the panic reason, then the
    next fix is targeted (a specific kernel/DT/firmware/AVF thing) instead of blind.
 4. **Cyberpunk fps** (independent, whenever): `pocknix-power-mode max` + fan max, bench per
-   docs/cyberpunk-bench-plan.md. Needs Cliff + display. All prior AAA numbers were balanced-
-   capped (GPU 900 not 1100), so re-bench in max first.
+   docs/cyberpunk-bench-plan.md. Needs Cliff + display. (Earlier "prior numbers were
+   balanced-capped" claim was WRONG — see 2026-08-16 WRONG-about below; prior benches ran
+   in `performance`, uncapped, per Cliff.)
 
 ### DOCS LESSON for the eventual public release (Cliff asked 2026-08-15)
 The Android corruption was a **partial/version-mismatched firmware flash**: dm-verity signs
@@ -161,9 +198,11 @@ AYN email drafted at `docs/android-recovery-ayn-email-draft.md`.
 
 ### CYBERPUNK fps — max mode shipped, bench plan ready
 - **New `pocknix-power-mode max`** (commit f68b366, deployed): GPU devfreq min=max **pinned
-  at 1100 MHz** + CPU governor `performance`. Measured: `balanced` was capping the GPU at
-  **900 MHz** (of 1100) — and ALL prior AAA numbers were taken in balanced, so they undersell
-  the hardware. Thermals wide open (GPU 39–40 °C idle).
+  at 1100 MHz** + CPU governor `performance`. Measured: `balanced` caps the GPU at
+  **900 MHz** (of 1100). [CORRECTED 2026-08-16: the claim that "ALL prior AAA numbers were
+  taken in balanced" was WRONG — see the 2026-08-16 WRONG-about at top. Prior benches ran
+  in `performance` (uncapped) per Cliff; expect `max` to give only the min-pin/governor
+  delta.] Thermals wide open (GPU 39–40 °C idle).
 - **Honest ceiling reminder:** prior investigation found Cyberpunk is **present-path /
   wait-bound**, not GPU-bound (GPU ~52% at the ceiling). So expect `max` to give an
   incremental native bump (mid-20s/low-30s realistic), and lean on **lsfg-vk frame-gen**

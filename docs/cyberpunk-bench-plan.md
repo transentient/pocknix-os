@@ -1,5 +1,59 @@
 # Cyberpunk 2077 fps — bench plan & lever analysis (2026-08-15)
 
+## RESULTS — bench session 2026-08-16 (all 720p/Low, built-in benchmark, on-device sampler verified GPU@1100 for every run)
+| Run | Driver | Config | FSR/FG state (verified how) | fps |
+|-----|--------|--------|------------------------------|-----|
+| A | 26.1.5 | performance, fan moderate | FSR3.1+game-FG **on** (found post-hoc in UserSettings.json) | 32.35 |
+| B | 26.1.5 | max, fan max | same, on | 32.28 |
+| E | 26.1.5 | max + scx_lavd, fan max | same, on | 32.42 |
+| G | 26.1.5 | max, fan max | **native** (file verified pre-run) | **20.87** |
+| H | 26.1.5 | max + lsfg 2x env | native + lsfg injected | 20.80 (benchmark counter is blind to lsfg frames) |
+| I | **26.3.0-dev** | max, fan max | **native** (file + /proc env verified pre-run) | **21.84** |
+| J | 26.3.0-dev | max, fan max | **native + VSync verifiably Off** (file verified post-apply; settings=the 42fps custom set minus FSR/FG, so not identical to G/I's Low ladder) | **22.98** (repeat 23.01) |
+| K | 26.3.0-dev | max, fan max | **FSR3 Performance upscale, FG off** (file verified; ~640×360 internal) | **31.91** |
+
+**Conclusions (measured, not theorized):**
+- Native ceiling ~20.9 on 26.1.5, unchanged from the old 21.5 — present-path wait-bound
+  confirmed: GPU held 1100 MHz for 100% of samples in every run, fan auto-maxes (pwm 255)
+  under load even in moderate mode. Power mode / fan / scx_lavd levers: **all dead** (A≈B≈E).
+- Game's FSR3.1+FG = ~32.4 (~1.55x) and DOES show in the benchmark counter (engine frames).
+- lsfg 2x does NOT show in the benchmark counter (layer frames); overlay read ~30 in open-
+  world roaming — plausibly 2x of a ~15 fps street scene, but UNRESOLVED: needs a paired
+  overlay reading (same spot, lsfg on/off) or a kernel-side present counter.
+- **mesa 26.3.0-dev: +4.6% native (20.87→21.84) AND fixes a continuous UCHE TRANSLATION
+  GPU-fault storm** seen on 26.1.5 (2 faults/run vs a constant stream). KEEP. Rollback:
+  `pacman -U /var/cache/pacman/pkg/mesa-2:26.1.5-3-*.pkg.tar.zst` + same for vulkan-freedreno
+  (note: the Vulkan driver is the separate `vulkan-freedreno` package, NOT `mesa`).
+- DDR/GMU lever (08-14 item 5): **retired, experiment doesn't exist** — see
+  docs/gmu-ddr-vote-experiment.md (kernel already votes DDR like mainline; only one GMU fw exists).
+- **TRAP for future benching:** lsfg is toggled via /etc/pocknix/game-tweaks.json and the
+  per-game block `games.<appid>` (with `enabled: true`) OVERRIDES `global` in the wrapper
+  merge — check BOTH keys, and verify at the process level (`tr "\0" "\n" </proc/<pid>/environ |
+  grep LSFGVK`): enabled = LSFGVK_ENV=1, disabled = DISABLE_LSFGVK=1.
+- @ice's 41/48 remains unexplained by any lever we tested; his config/measuring-stick
+  questions (drafted 08-14) are still the highest-information open item.
+
+**SESSION 2026-08-16 PM — RESOLVED: lsfg presented-fps + recommended config.** The DPU
+crtc framecount (`/sys/kernel/debug/dri/0/crtc-0/status` `total_framecount`, counts real
+panel kickoffs) is a reliable presented-fps meter — the long-open "are lsfg frames
+actually presented" question is ANSWERED: yes. Measured in gameplay (Arasaka tower):
+**FSR3 Performance + game-FG OFF + lsfg 2x = 56.7 presented fps over a ~28.4 real base**
+(game GPU 84%, ~29.6 ms/real frame = run K's 27.3 ms + ~2 ms lsfg — the 1.5 ms/frame layer
+bench figure holds in-game). The game's own FSR3 FG costs ~16 ms/real frame by comparison
+(42.33 presented ⇒ ~21 base vs 31.9 without FG) — **in-game FG is strictly worse than lsfg
+here: fewer presented frames AND worse latency. RECOMMENDED AAA CONFIG: FSR3 Performance
+upscale, in-game FG off, lsfg 2x.** Instrumentation details + revised GPU-bound model:
+docs/present-path-attack-plan.md "INSTRUMENTATION RESULTS".
+
+**Later 2026-08-16 session (different agent, in-game settings only): 42.33** with FSR3
+upscaling at **Performance** quality (~640×360 internal) + FSR3 FG, 720p borderless,
+mostly-Low + Medium textures (config read post-hoc from UserSettings.json; VSync=Off at
+read time — unknown whether it was off during runs G/I above, so the 20.9 native baseline
+may be stale). Two implications: (1) the 32.4 vs 42.33 delta is internal-render-resolution,
+not a present-path change; (2) ~42 presents/s in the counter proves the present chain can
+cycle at ~24 ms — the ~48 ms native floor is not a hard chain cap. Next native re-bench
+must log the VSync value pre-run.
+
 Goal: find more fps in Cyberpunk. This is the ready-to-run matrix plus what we already
 know, so a bench session produces clean, comparable numbers instead of guesses.
 
@@ -11,17 +65,25 @@ know, so a bench session produces clean, comparable numbers instead of guesses.
   runs command-mode DSI — the young part of the mainline sm8750 display path. Two mesa
   generations (26.1.5 and 26.3-dev) changed nothing. So do NOT expect a driver/clock change
   to blow past the ceiling; expect incremental gains and lean on frame-gen for perceived fps.
-- **All prior AAA numbers were taken in `balanced` power mode** (GPU capped at 900 MHz of
-  1100, CPU ~78%) — so they undersell the hardware. That's the cheapest thing to fix.
+- **Power mode during the prior benches: Cliff says `performance` (uncapped — GPU allowed
+  the full 1100 MHz).** An earlier draft of this doc claimed "all prior numbers were taken
+  in `balanced` (900 MHz cap)" — that was WRONG: it was inferred from reading the mode file
+  at idle, *after* the benches, which says nothing about bench-time state, and it
+  contradicted what Cliff had already said. Note `performance` is also the script's fallback
+  default. So do NOT treat the old ~20–23 as clock-capped; `max` mode's only delta over
+  `performance` is the min-freq pin (no mid-frame downclock) + CPU governor — a small
+  expected gain, consistent with the wait-bound ceiling above.
 - **@ice's ~41 fps is very likely frame-gen-assisted** (lsfg-vk doubling a ~20 fps base),
   not a native number. Confirm his exact setup before treating 41 as a native target.
 
 ## Confirmed levers (measured on-device 2026-08-15)
-1. **Power mode (biggest free native lever).** `balanced` caps the GPU at **900 MHz**;
-   the silicon has steps to **1100 MHz** (+22% clock). New **`max`** mode pins GPU
-   min=max=1100 MHz (no mid-frame downclock) **and** sets the CPU governor to `performance`.
-   Thermals are wide open at idle (GPU zones 39–40 °C), so there's headroom to sustain it.
-   - `pocknix-power-mode max` before benching; `pocknix-power-mode balanced` after.
+1. **Power mode.** `balanced` caps the GPU at **900 MHz**; `performance` (Cliff's mode
+   during prior benches) is uncapped to **1100 MHz** with governors deciding. New **`max`**
+   mode pins GPU min=max=1100 MHz (no mid-frame downclock) **and** sets the CPU governor to
+   `performance`. Since prior runs were already uncapped, expect `max` to help only via the
+   min-pin/governor — incremental, not +22%. Thermals are wide open at idle (GPU zones
+   39–40 °C), so there's headroom to sustain it.
+   - `pocknix-power-mode max` before benching; `pocknix-power-mode performance` after.
 2. **Fan.** Default is `moderate`. For a sustained `max` run, set fan high/max so the GPU
    isn't thermally clipped mid-bench (`pocknix-fan-mode max` if present; else the QAM fan tile).
 3. **Frame generation (perceived fps, already working).** lsfg-vk 2x is proven on this device
@@ -38,8 +100,8 @@ MangoHUD fps line and, if possible, `cat /sys/class/devfreq/3d00000.gpu/cur_freq
 
 | # | Power mode | Fan | Frame-gen | Purpose |
 |---|-----------|-----|-----------|---------|
-| A | balanced  | moderate | off | baseline = reproduces the old ~20–23 number |
-| B | max       | max      | off | the free native win — GPU 1100 + CPU perf |
+| A | performance | (Cliff's usual) | off | baseline = reproduces the old ~20–23 number under prior conditions |
+| B | max       | max      | off | tests the min-pin + governor + fan delta |
 | C | max       | max      | on (2x) | perceived-fps ceiling with lsfg |
 | D | (best native of A/B) | max | off, 720p/Low | confirm resolution/quality floor |
 
@@ -47,11 +109,20 @@ Between runs give the scene ~10 s to settle. Log the power mode WITH every fps n
 (old numbers are worthless without it — this bit us before).
 
 ## How to read it
-- If **B ≫ A**: the old numbers were just balanced-capped; `max` is the answer and we ship
-  guidance to use it for AAA. Realistic native target: **mid-to-high 20s, maybe low 30s.**
-- If **B ≈ A**: confirms the present-path ceiling — GPU clock isn't the bottleneck. Then the
-  only real win is **C (frame-gen)** and upstream mesa/display-path maturity over time.
+- If **B ≫ A**: mid-frame downclocking / governor latency was costing real fps; `max` is
+  the answer and we ship guidance to use it for AAA.
+- If **B ≈ A** (the likely outcome, given prior runs were already uncapped and wait-bound):
+  confirms the present-path ceiling — clocks aren't the bottleneck. Then the only real win
+  is **C (frame-gen)** and upstream mesa/display-path maturity over time.
 - **C** is the number that matters for "does it feel good to play."
+
+## Untried levers from the 2026-08-14 agent review (still open — only the max-mode tool was built)
+- **scx_lavd vs schedutil A/B** — never tried.
+- **Send the @ice questions** (his scene/settings, power+fan profile, `cur_freq` during
+  play, panel refresh) — drafted in the 08-14 session, never posted. This decides whether
+  41 fps is a real native target or frame-gen.
+- **Fan-mode bench** — never actually benched under max fan (only noted as a to-do).
+- The bench matrix above itself has **never been run** — no numbers exist for B/C/D.
 
 ## Deeper levers (later, not this session)
 - **mesa-next 26.3.0-dev**: NOT currently on the device (only 26.1.5 installed). Prior A/B
