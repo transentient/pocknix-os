@@ -57,7 +57,7 @@ must log the VSync value pre-run.
 Goal: find more fps in Cyberpunk. This is the ready-to-run matrix plus what we already
 know, so a bench session produces clean, comparable numbers instead of guesses.
 
-## RESULTS — bench session 2026-08-15 evening (READ FIRST; supersedes expectations below)
+## RESULTS — bench session 2026-08-15 evening (historical; its "wait-bound" reading was OVERTURNED by the 08-16 PM instrumentation above — the fps numbers stand, the interpretation doesn't)
 
 All runs: in-game benchmark, 720p, FSR2 upscaling unless noted, Cliff driving, agent
 sampling clocks/thermals/DPU counters over ssh. Each claim labeled PROVEN (measured) or
@@ -77,8 +77,10 @@ old FG-on 34.28, and 25.81 ≈ the old FG-off 25.6, both taken in balanced.
 **PROVEN:**
 - **`max` power mode adds ~0 fps in Cyberpunk.** FG-on: 34.28 (balanced) → 34.40 (max).
   FG-off: 25.6 (balanced) → 25.81 (max). GPU verified pinned at 1100 MHz for the entire
-  run (sampled every 3 s, never dipped). The wait-bound present-path ceiling from the
-  earlier investigation is CONFIRMED — GPU clock is not the bottleneck.
+  run (sampled every 3 s, never dipped). GPU clock is not the bottleneck. [The original
+  "wait-bound present-path ceiling CONFIRMED" reading here was WRONG — 08-16 PM fdinfo
+  instrumentation showed the game ~91% GPU-busy: pinned-clock-with-no-gain means
+  GPU-WORK-bound, not waiting. See INSTRUMENTATION RESULTS in present-path-attack-plan.md.]
 - **`max` runs the prime cores at 99–103 °C** under bench load (cpu-1-0/1-1 thermal
   zones; little cluster showed mild capping 3.53→2.92 GHz; GPU unaffected). All heat,
   no fps: **shipping guidance for Cyberpunk-class titles = `balanced`.** `max` stays
