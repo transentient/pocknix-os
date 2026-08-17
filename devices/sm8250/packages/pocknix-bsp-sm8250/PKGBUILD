@@ -16,7 +16,7 @@
 #     (pocknix-bootloader-sm8250), not in a boot-image rebuild file.
 pkgname=pocknix-bsp-sm8250
 pkgver=0.1.0
-pkgrel=10
+pkgrel=11   # 11: POCKNIX_GPU_DXVK3=no gates the DXVK-2.7 donor swap (upstream a8b8635 + d3b4743)
 pkgdesc="pocknix board support: SM8250 family (RP5, RP Flip 2) — runtime board dispatch, input maps, audio UCM, wake quirks"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
