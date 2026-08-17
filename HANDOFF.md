@@ -26,23 +26,46 @@ The critical-path item from the morning block is DONE. Design: docs/steam-bootst
   wrote the .installed manifest, atomic mv, symlinks, registry stripped, channel pinned.
   Also exercised the failure screen (native x86 run dies at finalize, as expected).
 - INSTALL.md Part C rewritten for the seedless first boot (wifi.txt recipe included).
-- **Seedless release-candidate image build launched** (rootfs seed removed, resync picks
-  up steam-40; log: scratchpad/seedless-build.log). If it finished green: raw image at
-  build/image/sm8750/pocknix-sm8750-sd.img is the SEEDLESS RC — this one is the
-  archive.org candidate after Cliff's dry-run. The seeded holodor-odin3-20260817.img.zst
-  artifact is untouched (do NOT publish that one).
+- **Seedless RC image BUILT + SPOT-CHECKED ALL GREEN + compressed (2026-08-17 PM):**
+  `build/image/sm8750/holodor-odin3-20260817-seedless.img.zst` (6.1 GiB, sha256
+  05c6514d…bedbe6d10 in the .sha256 sidecar; raw = pocknix-sm8750-sd.img, 13.5 GB —
+  3.2 GB smaller than seeded). Loop-mount verify: NO Steam tree anywhere in /home/deck,
+  pocknix-steam 0.1.0-40 installed, both new binaries present, wifi-import.service
+  enabled, both launchers carry the bootstrap hook, sshd off, no wifi preseed,
+  Deck-model passwords (root:: — same as the seeded release, intended), KERNEL md5 OK
+  on p1. **This is the archive.org candidate after Cliff's dry-run.** The seeded
+  holodor-odin3-20260817.img.zst artifact is untouched (do NOT publish that one).
 - NOTE for next dev (seeded) build: build/rootfs no longer carries the extracted seed;
   a seeded build re-extracts from the cached steam-seed.tar.zst automatically.
+- TRAP (cosmetic, do NOT "fix"): unzip of Valve's client zip creates literal
+  backslash-named files (`steamrtarm64\libs\libcurl.so` etc.) — identical to what the
+  proven build-time bake produces with the same unzip call; harmless.
+- Off-device test recipe that worked (reusable): run the WHOLE bootstrap, incl. the
+  Xvfb finalize, inside the aarch64 build/rootfs chroot under qemu on fusor
+  (chroot_mount from scripts/lib.sh, HOME=/root/bootstrap-test, script via /tmp).
+  Finalize wrote .installed in ~2 min on NVMe — the manifest zip IS the current client,
+  so the self-update has little to fetch. Clean up the test HOME from the rootfs after.
+  The wifi importer has POCKNIX_FLASH/POCKNIX_NM_DIR/POCKNIX_IWD_DIR/POCKNIX_IWD_MAIN
+  env overrides for scratch-dir testing (testing only, never set in production).
 
 ### NEXT (delta vs the morning block below)
-1. (Cliff) SD dry-run x2: the seeded 20260817 image per the morning plan, AND the
-   seedless RC (fresh-user run: wifi.txt path, watch the download screen, OOBE).
-2. (Agent) OTA v1: publish-repo.sh → GitHub Releases (morning item 5, unchanged).
-3. (Cliff, BONESAW) EDL factory restore + THE JACK TEST (unchanged, don't forget).
+1. (Cliff) SD dry-run of the SEEDLESS RC (fresh-user run: dd holodor-odin3-20260817-
+   seedless.img.zst from fusor with byte-verify read-back, try the wifi.txt path,
+   watch the download screen, land in Steam OOBE). The seeded 20260817 image's
+   dry-run (morning item 2) is now OPTIONAL — the seedless one is what ships.
+2. (Agent, start immediately) OTA v1: wire publish-repo.sh → GitHub Releases; ship
+   the [pocknix] repo stanza + POCKNIX_REPO_URL in the next image build (morning
+   item 5, unchanged).
+3. (Cliff, BONESAW) EDL factory restore + THE JACK TEST on stock Android immediately
+   after (unchanged — Cliff asked not to be allowed to forget the jack test).
 4. archive.org first upload = the seedless image, after its dry-run (identifier
-   `holodor-odin3` reserved-free; propose metadata to Cliff first).
+   `holodor-odin3` verified free; identifiers are PERMANENT — propose item
+   name/metadata to Cliff before creating).
+5. ssalmon_px boot-art expected ~week of 2026-08-24 (slots ready in the build).
 
-— written 2026-08-17 afternoon by **Claude Fable 5** (seedless bootstrap session)
+— written 2026-08-17 afternoon (~16:45 JST) by **Claude Fable 5** (seedless bootstrap
+session: design doc → implementation → off-device validation → RC image, all pushed
+through a6098bf; localrepo carries pocknix-steam-0.1.0-40)
 
 ## CURRENT STATE 2026-08-17 (Fable, marathon session 08-16→17) — morning block (still valid except NEXT item 1, done above)
 
