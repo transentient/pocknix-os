@@ -85,12 +85,35 @@ mode **Linux** → Start.
 
 1. A brief boot splash. First boot takes a little longer: the system expands itself
    to fill your SD card automatically.
-2. You'll be asked to pick your **Wi-Fi network** and then land in Steam's setup.
-3. **Sign in to Steam.** ⚠️ Around first sign-in, Steam may fetch an update and the
+2. **Holodor downloads Steam on first boot** (about 350 MB — the image doesn't
+   include it). A status screen tells you what's happening. It needs Wi-Fi, and
+   there's no on-screen keyboard yet at this point, so give it your network one of
+   these ways:
+   - **The wifi.txt way (recommended):** before first boot — or whenever the screen
+     asks — put the SD card in your computer and create a file called `wifi.txt` on
+     the small partition (the one your computer can see), containing:
+
+     ```
+     ssid=YourNetworkName
+     password=YourWifiPassword
+     country=US
+     ```
+
+     (`country` is your two-letter country code; optional, but 5 GHz networks won't
+     connect without it.) Put the card back and power on. After it works, the file
+     is renamed `wifi.txt.imported`; if something's wrong with it, the reason is
+     written to `wifi-import-error.txt` on the same partition.
+   - Or plug in a **USB keyboard/dock** and use a wired connection or a terminal.
+
+   The download is safe to interrupt — powering off mid-download just resumes on
+   the next boot.
+3. Once Steam is downloaded you'll be asked to pick your **Wi-Fi network** (already
+   connected if you used wifi.txt) and then land in Steam's setup.
+4. **Sign in to Steam.** ⚠️ Around first sign-in, Steam may fetch an update and the
    device can look stuck for SEVERAL MINUTES (spinner, "connection problem" retry
    once or twice, heavy disk grinding). This is normal on first boot ONLY. Let it
    finish; don't force it off.
-4. You're in Big Picture. Controls, sound, rumble, and the stick RGB should all work
+5. You're in Big Picture. Controls, sound, rumble, and the stick RGB should all work
    out of the box. Enjoy.
 
 **Sleep works**: short-press power to suspend (measured standby drain: well under

@@ -21,14 +21,15 @@ CLIENT="${CLIENT_DIR}/steam"
 # aarch64 shim dir (libibus shim). steamrtarm64/steam re-execs into its runtime from here.
 LDLP="${CLIENT_DIR}:${STEAM}/lib/aarch64-linux-gnu"
 
-# The native client + runtime are PRE-EXTRACTED into this HOME at BUILD time (build-image.sh's
-# bootstrap_steam_seed unpacks the baked tree into the rootfs /home/deck), so first boot needs no
-# network AND no extract wait. If the tree is somehow absent there's nothing to launch — fail clearly.
-# (No network-installer fallback: pocknix-steam-install runs ONLY at build time now, inside the
-# bake; the image always ships the extracted client.)
+# The client tree is either PRE-EXTRACTED at build time (seeded/dev images: build-image.sh's
+# bootstrap_steam_seed) or absent (SEEDLESS public images) — in which case pocknix-steam-bootstrap
+# downloads Valve's client on this first launch, with an honest status screen on tty1 (network
+# wait, wifi.txt instructions, resumable verified downloads; see docs/steam-bootstrap-design.md).
+# Its staging->rename is atomic, so this check only ever sees absent-or-complete. On failure it
+# exits non-zero after >5s -> our exit 1 sends the session supervisor around its loop for a retry
+# (never tripping the 3x-fast-fail shell drop).
 if [ ! -x "${CLIENT}" ]; then
-  echo "[pocknix-steam] native Steam client missing at ${CLIENT} — the build-time bake didn't seed it." >&2
-  exit 1
+  /usr/bin/pocknix-steam-bootstrap || exit 1
 fi
 
 # CRITICAL: Steam resolves its legacy module paths (bin/vgui2_s.dll …) RELATIVE TO getcwd.

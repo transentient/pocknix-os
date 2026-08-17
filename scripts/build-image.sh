@@ -458,8 +458,16 @@ main() {
   install_firmware "${ROOTFS_DIR}"
   install_local_packages "${ROOTFS_DIR}"
 
-  # 5. bake the native ARM Steam client into a re-seedable seed (offline first boot)
-  bootstrap_steam_seed "${ROOTFS_DIR}"
+  # 5. bake the native ARM Steam client into a re-seedable seed (offline first boot).
+  #    HOLODOR_SEEDLESS=1 skips it: the image ships NO Valve client (the public-release
+  #    mode — no redistribution exposure) and pocknix-steam-bootstrap downloads it on the
+  #    device at first boot instead (see docs/steam-bootstrap-design.md). Dev images keep
+  #    the seed by default for fast iteration.
+  if [ "${HOLODOR_SEEDLESS:-0}" = "1" ]; then
+    log "HOLODOR_SEEDLESS=1 — skipping the Steam seed bake (client downloads on first boot)"
+  else
+    bootstrap_steam_seed "${ROOTFS_DIR}"
+  fi
 
   chroot_umount "${ROOTFS_DIR}"; trap - EXIT
 

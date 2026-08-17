@@ -175,13 +175,20 @@ EOF
   # One chown covers everything under /home/deck: the XDG dirs just made, the overlay's .bash_profile/
   # .config, AND the Steam tree pre-extracted into it by build-image.sh (all root-owned until now).
   chroot "${root}" chown -R deck:deck /home/deck
-  # NB: the native Steam client is already pre-extracted into /home/deck by build-image.sh's
-  # bootstrap_steam_seed (done there so `du -sm ROOTFS_DIR` above sizes the partition to fit the
-  # ~1.3 GB tree). The chown above (root -> deck) is what gives deck ownership of it. Guard: the
-  # bake is mandatory (the on-device launcher has no network fallback), so a missing tree means a
-  # broken/stale rootfs — fail rather than ship a Steam session that hard-fails on first launch.
-  [ -x "${root}/home/deck/.local/share/Steam/steamrtarm64/steam" ] \
-    || die "Steam client not pre-extracted in the rootfs (/home/deck/.local/share/Steam) — run 'sudo make build' first."
+  # NB: on SEEDED images the native Steam client is already pre-extracted into /home/deck by
+  # build-image.sh's bootstrap_steam_seed (done there so `du -sm ROOTFS_DIR` above sizes the
+  # partition to fit the ~1.3 GB tree). The chown above (root -> deck) is what gives deck
+  # ownership of it. Guard both modes: a seeded build with a missing tree is a broken/stale
+  # rootfs; a HOLODOR_SEEDLESS=1 build must NOT carry a leftover seed (that's the exact
+  # redistribution exposure seedless exists to remove) — pocknix-steam-bootstrap downloads
+  # the client on-device at first boot instead.
+  if [ "${HOLODOR_SEEDLESS:-0}" = "1" ]; then
+    [ ! -e "${root}/home/deck/.local/share/Steam" ] \
+      || die "HOLODOR_SEEDLESS=1 but a Steam tree exists in the rootfs (/home/deck/.local/share/Steam) — rebuild the rootfs seedless ('sudo HOLODOR_SEEDLESS=1 make build') before assembling the image."
+  else
+    [ -x "${root}/home/deck/.local/share/Steam/steamrtarm64/steam" ] \
+      || die "Steam client not pre-extracted in the rootfs (/home/deck/.local/share/Steam) — run 'sudo make build' first."
+  fi
 
   # PipeWire/WirePlumber for deck's session (global-enable so its --user units start on login).
   chroot "${root}" systemctl --global enable pipewire.socket pipewire-pulse.socket wireplumber.service 2>/dev/null || true
@@ -300,11 +307,15 @@ EOF
   #   so it is running before Steam inits. (Mounted ext4 libraries still show via our automount; this
   #   is only the raw-drive/format list.) The UDisks2 polkit grant is in 50-pocknix-deck.rules.
   [ "${HOLODOR_RELEASE:-0}" = "1" ] || chroot "${root}" systemctl enable sshd
+  #   pocknix-wifi-import: /flash/wifi.txt -> NM+iwd credentials before the network stack
+  #   starts (keyboard-free Wi-Fi for the seedless first boot; ConditionPathExists-gated,
+  #   so boots without the file skip it silently). Enabled on ALL images — it's just as
+  #   useful for rescuing a dev image whose preseed went stale.
   chroot "${root}" systemctl enable iwd NetworkManager systemd-resolved seatd inputplumber \
         bluetooth upower udisks2 \
         pocknix-diag.service pocknix-expand-root.service \
         pocknix-lavd.service pocknix-gamescope-rt.service \
-        pocknix-slot-successful.service \
+        pocknix-slot-successful.service pocknix-wifi-import.service \
         >/dev/null 2>&1 || true
   # audio server (PipeWire) as per-user services — start in the autologin/session user.
   # WirePlumber applies the device UCM (shipped by the device BSP) automatically.

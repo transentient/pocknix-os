@@ -22,9 +22,11 @@ CLIENT="${CLIENT_DIR}/steam"
 # client's own dir FIRST (bundled libvpx.so.6 etc.), then the aarch64 shim dir — as in pocknix-steam.
 export LD_LIBRARY_PATH="${CLIENT_DIR}:${STEAM}/lib/aarch64-linux-gnu"
 
-# Bootstrap the native client on first use if game mode never ran (shared installer).
+# Bootstrap the native client on first use if game mode never ran. Same downloader as game
+# mode (flock-singleton, so the two entry points can't race); pocknix-steam-install is the
+# BUILD-time bake only and must not run on-device.
 if [ ! -x "${CLIENT}" ]; then
-  /usr/bin/pocknix-steam-install
+  /usr/bin/pocknix-steam-bootstrap
 fi
 
 # Steam resolves legacy module paths (bin/vgui2_s.dll …) relative to getcwd — cd in like pocknix-steam.

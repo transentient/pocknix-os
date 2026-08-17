@@ -4,15 +4,15 @@
 # Steam is experimental (Valve publicbeta linuxarm64).
 pkgname=pocknix-steam
 pkgver=0.1.0
-pkgrel=39
+pkgrel=40
 pkgdesc="Native ARM64 Steam Big Picture (gamescope) for the RP6 — installer + launcher"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
 license=('GPL2')
 # gamescope = our ROCKNIX-patched compositor; wget/unzip/curl/tar fetch+unpack the client.
-# NB: wget/unzip/curl/tar + xorg-server-xvfb (below) are BUILD-TIME-ONLY now — pocknix-steam-install
-# runs only inside the bake (build-image.sh), which happens in THIS rootfs, so they must stay in the
-# rootfs even though the on-device launcher no longer network-installs. Don't drop them.
+# NB: wget/unzip/curl/tar + xorg-server-xvfb are GENUINE RUNTIME deps again: pocknix-steam-bootstrap
+# downloads+finalizes the client ON DEVICE on seedless images (curl/tar/unzip/xvfb), and
+# pocknix-steam-install still uses wget inside the build-time bake (which runs in this same rootfs).
 # seatd (gamescope seat) + pipewire (audio) come from the base image.
 # gtk2 (built by us; EOL in Arch) + gdk-pixbuf2 = libs steamui.so dlopens. Two deps the native
 # arm64 client needs that nothing else pulls in on a from-scratch ALARM base (Fedora/armada get
@@ -45,13 +45,20 @@ source=('pocknix-steam-install' 'pocknix-steam' 'steam' 'steam.desktop'
         'proton-toolmanifest.vdf' 'proton-compatibilitytool.vdf'
         'pocknix-proton-prep' 'pocknix-proton-prep.service'
         'pocknix-steam-seed-default-compat'
-        'pocknix-proton' 'pocknix-proton-wrapper' 'fex-profiles.json')
+        'pocknix-proton' 'pocknix-proton-wrapper' 'fex-profiles.json'
+        'pocknix-steam-bootstrap' 'pocknix-wifi-import' 'pocknix-wifi-import.service')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   install -Dm755 "${srcdir}/pocknix-steam-install" "${pkgdir}/usr/bin/pocknix-steam-install"
   install -Dm755 "${srcdir}/pocknix-steam"         "${pkgdir}/usr/bin/pocknix-steam"
+  # Seedless first boot: on-device client downloader (invoked by pocknix-steam/steam when the
+  # client tree is missing) + the /flash/wifi.txt keyboard-free Wi-Fi importer (root oneshot,
+  # enabled in build-sd-image.sh). Design: docs/steam-bootstrap-design.md.
+  install -Dm755 "${srcdir}/pocknix-steam-bootstrap"    "${pkgdir}/usr/bin/pocknix-steam-bootstrap"
+  install -Dm755 "${srcdir}/pocknix-wifi-import"        "${pkgdir}/usr/bin/pocknix-wifi-import"
+  install -Dm644 "${srcdir}/pocknix-wifi-import.service" "${pkgdir}/usr/lib/systemd/system/pocknix-wifi-import.service"
   # Desktop-mode Steam: `/usr/bin/steam` runs the native client as a normal window (Plasma session)
   # and is the `steam` command per-game shortcuts call; steam.desktop puts it in the app grid +
   # registers the steam:// URL handler. (Game mode uses pocknix-steam/gamescope instead.)
