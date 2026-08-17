@@ -4,7 +4,47 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-17 (Fable, marathon session 08-16→17) — READ THIS FIRST (supersedes all below)
+## CURRENT STATE 2026-08-17 PM (Fable, bootstrap session) — READ THIS FIRST
+
+### SEEDLESS BOOTSTRAP: IMPLEMENTED + VALIDATED OFF-DEVICE (commit 999b291, pushed)
+The critical-path item from the morning block is DONE. Design: docs/steam-bootstrap-design.md.
+- **pocknix-steam-bootstrap** (pocknix-steam pkgrel 40, built into localrepo): on-device
+  first-boot download of Valve's client. tty1 status screen, network wait w/ wifi.txt
+  instructions, runtime-resolved URLs, resumable curl, hash-verified (runtime vs
+  SHA256SUMS; client zip vs the sha1 IN ITS OWN FILENAME — verified real 2026-08-17),
+  staged assembly + atomic rename, Xvfb finalize (the bake flow, on-device). Can't brick:
+  all under /home/deck, supervisor loop retries, downloads resume across reboots.
+- **pocknix-wifi-import(.service)**: /flash/wifi.txt → NM keyfile + iwd KnownNetwork
+  (the proven dual-write) + optional country regdom. CRLF/BOM tolerant, hex-encodes
+  non-alnum SSIDs for iwd, renames to .imported, errors → wifi-import-error.txt on the
+  FAT partition. Enabled on ALL images (dev rescue value too).
+- **HOLODOR_SEEDLESS=1**: build-image skips the bake; build-sd-image guard asserts NO
+  leftover seed in seedless mode (redistribution exposure check).
+- **Validation done on fusor**: wifi importer full functional matrix (scratch-dir
+  overrides exist for off-device testing); bootstrap ran END-TO-END inside the aarch64
+  build rootfs under qemu — real Valve downloads, both hash verifies, Xvfb finalize
+  wrote the .installed manifest, atomic mv, symlinks, registry stripped, channel pinned.
+  Also exercised the failure screen (native x86 run dies at finalize, as expected).
+- INSTALL.md Part C rewritten for the seedless first boot (wifi.txt recipe included).
+- **Seedless release-candidate image build launched** (rootfs seed removed, resync picks
+  up steam-40; log: scratchpad/seedless-build.log). If it finished green: raw image at
+  build/image/sm8750/pocknix-sm8750-sd.img is the SEEDLESS RC — this one is the
+  archive.org candidate after Cliff's dry-run. The seeded holodor-odin3-20260817.img.zst
+  artifact is untouched (do NOT publish that one).
+- NOTE for next dev (seeded) build: build/rootfs no longer carries the extracted seed;
+  a seeded build re-extracts from the cached steam-seed.tar.zst automatically.
+
+### NEXT (delta vs the morning block below)
+1. (Cliff) SD dry-run x2: the seeded 20260817 image per the morning plan, AND the
+   seedless RC (fresh-user run: wifi.txt path, watch the download screen, OOBE).
+2. (Agent) OTA v1: publish-repo.sh → GitHub Releases (morning item 5, unchanged).
+3. (Cliff, BONESAW) EDL factory restore + THE JACK TEST (unchanged, don't forget).
+4. archive.org first upload = the seedless image, after its dry-run (identifier
+   `holodor-odin3` reserved-free; propose metadata to Cliff first).
+
+— written 2026-08-17 afternoon by **Claude Fable 5** (seedless bootstrap session)
+
+## CURRENT STATE 2026-08-17 (Fable, marathon session 08-16→17) — morning block (still valid except NEXT item 1, done above)
 
 ### THE HEADLINES
 1. **Cyberpunk fps campaign CLOSED** — the "wait-bound" theory was WRONG; device is
