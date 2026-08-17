@@ -4,7 +4,62 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-17 PM (Fable, bootstrap session) — READ THIS FIRST
+## CURRENT STATE 2026-08-18 (Fable, device health-check session) — READ THIS FIRST
+
+Short overnight session (2026-08-17 ~22:30 → 2026-08-18 JST): NO repo/code changes — this
+was a live diagnostic pass on the device after Cliff's play day, answering his three
+worries (high drain, sleep charging, controls dead entering Vampire Survivors). The
+2026-08-17 PM block below is otherwise still the operative state; its NEXT list stands
+unchanged (seedless-RC dry-run first — Cliff was psyching himself up for it when he slept).
+
+### WHAT WAS FOUND (all verified on-device, banked in project memory too)
+1. **"Brutal drain" root cause: `max` power mode was still persisted from the 08-16
+   bench** (`/var/lib/pocknix/power-mode` survives reboots). Cliff played the whole day
+   GPU-pinned 1100MHz + governors `performance` + fan mode `performance`: 95°C peaks,
+   -20..-34%/h. **RESTORED: `pocknix-power-mode balanced` + `pocknix-fan-mode quiet`**
+   (2026-08-17 ~23:10 JST). POLISH ITEM: benches must restore modes; consider making
+   `max` non-persistent (revert to balanced on boot).
+2. **Sleep charging: continues in deep suspend at ~HALF the awake rate — it does NOT
+   stop.** Coulomb-counter A/B (method below): awake 250mAh/3min (~5A, ~60%/h); asleep
+   494mAh/12.4min (~2.3A, ~29%/h); below ~20% SoC slower still (~13%/h, precharge
+   region). Unplugged sleep drain overnight: ~1% in 13.4h (0.07%/h — excellent, idle,
+   no game running; the older 0.3%/h figure was with Cyberpunk resident).
+3. **Cliff's "battery icon says not charging when I wake it" = COSMETIC.** First
+   possible post-resume sample (4s after `PM: suspend exit`) already showed
+   status=Charging at the full 9V/3A PD contract. The icon is a stale UI read at wake.
+   Do NOT go hunting a charger bug here.
+4. **Vampire Survivors controls-dead-at-launch (hit ~2× on 2026-08-17) = Steam Input
+   ACTIVATION RACE, game-side.** Smoking gun in `/home/deck/.local/share/Steam/logs/
+   controller.txt` (file contains binary bytes — grep needs `-a`): "Queueing activation
+   for controller: 0 app: …" FLAPS between 1794680 (VS) / 769 / 588460 several times a
+   second at each launch. When it settles wrong, the game never gets the in-process
+   Steam Input feed; Steam UI/QAM still work (different input path). Same
+   steamclient-IPC fragility family as the overlay jam (roadmap item). Rescue =
+   quit + relaunch (Cliff-verified). No fix attempted; log signature documented.
+5. **Charge-limit thresholds are NOT enforced**: sysfs reads start=70/end=80 but the
+   device charged 82→100% overnight while suspended. Matches why the charge-limit
+   feature was deferred — never tell users the 80% cap works.
+6. `pocknix-flathub.service` fails when boot wins the race against DNS (oneshot, no
+   retry; "Could not resolve hostname"). Cleared with a restart. POLISH: proper
+   network-online ordering or Restart=on-failure.
+
+### REUSABLE METHOD — remote sleep-charge measurement from fusor
+`ssh root@holodor 'nohup sh -c "sleep 2; rtcwake -m no -s <N> >/dev/null 2>&1;
+systemctl suspend" >/dev/null 2>&1 &'` then poll ssh reconnect from fusor; read
+`/sys/class/power_supply/battery/charge_counter` (µAh, absolute) before/after for
+exact charge deltas. Wi-Fi returns a few seconds after resume — first ssh lands ~4-15s
+post-wake, too late to catch PD renegotiation (it's already done by then).
+
+### DEVICE STATE AT SESSION END
+Internal-boot Holodor, kernel-18, at 192.168.1.26, left charging (~37% and climbing,
+full by morning), power=balanced, fan=quiet, no failed units, disk 72% (114G free).
+Side note: Cliff asked about a Holodor port to Retroid Pocket 5 (SM8250/A650) —
+answered as easy-port/indie-tier-only; RP6 (sm8550) remains the real Act Two. No action.
+
+— written 2026-08-18 (~00:30 JST) by **Claude Fable 5** (health-check session; memory
+file odin3-holocore-project.md updated with the same findings dated 2026-08-17 night)
+
+## CURRENT STATE 2026-08-17 PM (Fable, bootstrap session) — still operative for build/release state; its NEXT list stands
 
 ### SEEDLESS BOOTSTRAP: IMPLEMENTED + VALIDATED OFF-DEVICE (commit 999b291, pushed)
 The critical-path item from the morning block is DONE. Design: docs/steam-bootstrap-design.md.
