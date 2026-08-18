@@ -4,7 +4,70 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-18 (Fable, device health-check session) — READ THIS FIRST
+## CURRENT STATE 2026-08-18 PM (Fable, OTA v1 session) — READ THIS FIRST
+
+### OTA v1 SHIPPED + VALIDATED (commit 47e7b4c, pushed) — the pacman channel is live
+- **Hosting**: `github.com/transentient/holodor-releases` (SEPARATE repo from source;
+  created 2026-08-18, **PRIVATE until release day** — anonymous downloads 404 until the
+  flip). One release **tag per SoC**: tag `sm8750` holds the whole repo tree as assets.
+  `POCKNIX_REPO_URL=https://github.com/transentient/holodor-releases/releases/download`
+  + the harness's `<base>/<soc>` join = the tag URL; build-image.sh unchanged.
+- **Signing key**: `Holodor Packaging <11418311+transentient@users.noreply.github.com>`
+  ed25519 fpr `BD9D2DF80FD130CFAD441805EF4203C9C3FECC13`, expires 2028-08-17. Secret
+  half ONLY in fusor's `~cliff/.gnupg` (no passphrase — unattended publish). **BACK IT
+  UP off-machine before release** (lose it = re-key every shipped image). Public half
+  committed at config/pocknix-repo.gpg (REPLACED upstream's shuuri key there).
+- **THE COLON TRAP (why build/publish/ exists)**: GitHub asset names can't contain `:`;
+  epoch pkgs (gamescope-1:…, mesa-2:…) are staged to `build/publish/<soc>/` as `:`→`_`
+  hardlinks and repo-add runs THERE, so db FILENAME == asset name. The `_` names are
+  load-bearing — do not "fix". Localrepo keeps canonical names (file:///localrepo).
+- **First publish DONE**: 93 assets on tag sm8750 (44 pkgs + 44 sigs + db/files/sigs +
+  pubkey). Validated end-to-end with a scratch pacman root against the staging tree
+  (LAN http): signed db sync ✓, epoch resolution ✓, package fetch under sanitized name
+  ✓, keyring + integrity check ✓, byte-identical to localrepo ✓. GH round-trip of
+  pocknix.db sha-verified via authed gh download.
+- **Publish discipline** (docs/pacman-repo.md, READ IT before publishing): never same
+  filename different bytes (bump pkgrel; existing GH pkg assets are SKIPPED not
+  clobbered); packages first db last; sigs only regenerated when stale (gpg sigs are
+  timestamped/nondeterministic); serial uploads, no retry loops (SF lesson).
+  Release-day public-flip checklist is in that doc — **includes the GPL source-offer
+  obligation: flipping the channel public requires source publication too.**
+
+### LATENT SHIP-BLOCKER FOUND + FIXED: images trusted UPSTREAM's repo
+Every image built to date (incl. the 2026-08-17 seedless RC and **Cliff's internal
+install**) shipped `[pocknix] Server = https://pocknix.shuuri.net/repo/sm8750` with
+**shuuri-labs' signing key trusted** — inherited fork defaults. If upstream ever
+publishes sm8750 packages, those devices would accept them as updates over ours.
+Fixed in config (47e7b4c) + hand-fixed in build/rootfs (stanza repointed; Holodor key
+added+lsigned; shuuri key DELETED from the rootfs keyring).
+- **RC RESPUN 2026-08-18**: build-sd-image.sh re-run ONLY (rootfs already fixed; no
+  pacman phase touched) with HOLODOR_SEEDLESS=1 HOLODOR_RELEASE=1 →
+  `holodor-odin3-20260818-seedless.img.zst` (+.sha256) — loop-mount spot-check ALL
+  GREEN (GH stanza, Holodor-only keyring, no seed, steam-40, wifi-import on, no
+  preseed, KERNEL md5). **This supersedes the 20260817-seedless artifact for the
+  dry-run + archive.org upload** (0817 files kept on disk but do not publish).
+- **DEVICE STILL PENDING the same swap** (asleep tonight, only Cliff can wake it):
+  on the Odin 3, repoint/comment the [pocknix] stanza, `pacman-key --add
+  /usr/share/pocknix/pocknix-repo.gpg` (copy ours over first) + `--lsign-key BD9D2DF8…`
+  + `--delete 89960996E1042EFAA13E39E9EF858B5654916A98` (shuuri). Note: with the repo
+  still private, a GH-pointing stanza makes device `pacman -Sy` error (404) — comment
+  it out until the public flip, or test via `publish-repo.sh --serve` LAN stanza
+  (recipe in docs/pacman-repo.md).
+
+### NEXT (updated)
+1. (Cliff) SD dry-run — now of **holodor-odin3-20260818-seedless.img.zst** (respun).
+2. (Cliff, BONESAW) EDL factory restore + jack test on stock Android (unchanged).
+3. archive.org upload = the 20260818 seedless image after dry-run (identifier
+   `holodor-odin3`; propose metadata to Cliff first — identifiers are permanent).
+4. (Either) Device stanza/key swap next time the Odin is awake (block above).
+5. (Cliff decision at release) flip holodor-releases public per docs/pacman-repo.md
+   checklist — coupled to the source-publication/GPL question (pocknix-os#21).
+6. ssalmon boot art ~week of 2026-08-24 (Cliff peeked 2026-08-18: looking good).
+
+— written 2026-08-18 by **Claude Fable 5** (OTA v1: GH Releases backend built,
+published, validated; shuuri-trust ship-blocker found + fixed; seedless RC respun)
+
+## CURRENT STATE 2026-08-18 (Fable, device health-check session)
 
 Short overnight session (2026-08-17 ~22:30 → 2026-08-18 JST): NO repo/code changes — this
 was a live diagnostic pass on the device after Cliff's play day, answering his three
