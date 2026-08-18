@@ -59,7 +59,19 @@ added+lsigned; shuuri key DELETED from the rootfs keyring).
 2. (Cliff, BONESAW) EDL factory restore + jack test on stock Android (unchanged).
 3. archive.org upload = the 20260818 seedless image after dry-run (identifier
    `holodor-odin3`; propose metadata to Cliff first — identifiers are permanent).
-4. (Either) Device stanza/key swap next time the Odin is awake (block above).
+4. ~~Device stanza/key swap~~ **DONE 2026-08-18 evening (Cliff woke the device):** keys
+   swapped (Holodor in+lsigned, shuuri deleted), stanza = commented GH block with
+   LAN-test instructions inline (backup /etc/pacman.conf.bak-20260818). Then the FIRST
+   REAL OTA ran via LAN serve: device pacman verified the signed db and upgraded
+   mesa-next/-5, vulkan-freedreno-next/-5, bsp-common-13, steam-40. Gotcha hit:
+   bsp-common-13 conflicted with the 08-14 HAND-DEPLOYED pocknix-slot-successful
+   files (unowned) — moved aside, packaged copies byte-identical, service stayed
+   enabled. steam-40's bootstrap verified DORMANT on installed systems (launcher +
+   bootstrap both guard on steamrtarm64/steam existing — the .installed marker is
+   only the bootstrap's internal download-completion gate, NOT the launcher guard).
+   mesa/steam changes take effect on next session restart/reboot (nothing restarted;
+   Cliff was using the device). Momentary "holodor" DNS non-resolution seen once
+   (IP fine, came back) — watch, don't chase.
 5. (Cliff decision at release) flip holodor-releases public per docs/pacman-repo.md
    checklist — coupled to the source-publication/GPL question (pocknix-os#21).
 6. ssalmon boot art ~week of 2026-08-24 (Cliff peeked 2026-08-18: looking good).
