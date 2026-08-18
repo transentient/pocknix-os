@@ -4,7 +4,69 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-18 PM (Fable, OTA v1 session) — READ THIS FIRST
+## CURRENT STATE 2026-08-19 (Fable, sleep-test attempt) — READ THIS FIRST
+
+### ⚠ FIRST ACTION NEXT SESSION — REMOVE THE DUD WIFI HOOK FROM THE DEVICE
+`ssh root@holodor 'rm -f /usr/lib/systemd/system-sleep/60-wifi-rescue /usr/local/bin/pocknix-wifi-rescue'`
+Deployed 2026-08-19, PROVEN HARMFUL the same hour, device was powered off before it
+could be removed. What it does: after any resume where Wi-Fi isn't connected within
+35s, it PCI remove/rescans the WCN7860 — and **PCI remove/rescan does NOT re-enumerate
+the radio on this platform: Wi-Fi stays dead until reboot** (proven by a controlled
+drill on a HEALTHY radio; cost Cliff a reboot). Do NOT re-deploy or "fix" it inline;
+recovery design needs rethink (batocera's soft toggle is the candidate, see below).
+If Cliff reports "Wi-Fi dead after waking the device, reboot fixed it" before this is
+removed — it was probably this hook firing on a slow reconnect.
+
+### 🎯 ROOT CAUSE FOUND: "won't stay asleep" + "Wi-Fi won't reconnect" = ONE BUG
+With Cyberpunk resident, Cliff's sleep attempts cycled ~6s each. Journal (boot of
+2026-08-19 ~08:00 JST): **ath12k/WCN7860 firmware died during a resume** ("failed to
+start mhi: POWER_ON -110" at 08:01:52) → driver zombie (every wmi cmd -108) → (a)
+Wi-Fi unrecoverable from UI = the sulk's SECOND, harder mode (distinct from the known
+NM autoconnect-retries exhaustion), and (b) **every subsequent suspend ABORTS**:
+"failed to flush transmit queue, data pkts pending 5" → "failed to wait tx complete:
+-110" → "failed to suspend core: -110" → "PM: Some devices failed to suspend" →
+systemd-sleep "Failed to put system to sleep. System resumed again: Connection timed
+out". The ~6s cadence = the ath12k tx-flush timeout, NOT a wake timer. Recognition
+signature: systemd-sleep "Connection timed out" + PM entry/exit pairs ~6s apart.
+- Batocera ships 99resume_wifi + S09sm8750-wifi-resilience for this class (our copies
+  in docs/reference/batocera-pocket/) — their recovery = SOFT toggle (disable/enable),
+  worth testing as the rescue; their helper binary's exact mechanism unverified.
+- REAL fix = kernel-side: why does WCN7860 fw die on resume (suspend with active tx?
+  Cyberpunk was streaming). Leads: newer ath12k suspend patches upstream/ROCKNIX 7.1.5+,
+  armada 0504-ipcc-IRQF-NO-SUSPEND (staged-not-applied), and the drill post-mortem
+  BELOW. Frequency unknown — first observed occurrence in ~3 weeks of suspends.
+- Drill post-mortem UNREAD: journal (now boot -2 or older) 2026-08-19 ~08:1x-08:2x has
+  the remove/rescan attempt on the healthy radio — read WHY rescan failed to
+  re-enumerate (link train? port power?) before designing any hard recovery.
+
+### KEEP: sleep-drain bookend logger (validated, candidate for bsp-common)
+`/usr/lib/systemd/system-sleep/50-battery-log` → `/var/lib/pocknix/sleep-battery.log`:
+one line (ISO time, capacity %, charge_counter µAh, status, usb_online) at every
+suspend entry + resume. Validated on a 60s nap (resolves ~1.6mAh). Survives reboots;
+telemetry.csv covers awake gaps. This is the instrument for the queued test.
+
+### 📌 QUEUED (Cliff, explicit ask 2026-08-19): INSTRUMENTED SLEEP-DRAIN TEST
+Discord claims Android sleeps much better than Linux on Odin 3 (vendor low-level
+drivers). We want current numbers to answer. Protocol (rig already in place):
+launch Cyberpunk → sleep via power button → UNPLUGGED → several hours → wake →
+read sleep-battery.log bookends (%/h + mAh/h). Prior data: 0.07%/h idle asleep,
+~0.3%/h with Cyberpunk resident (08-15, 7h). Android deep-doze ballpark 0.2-0.5%/h.
+Aborted 2026-08-19 by the ath12k zombie (above); bookend log preserved the evidence.
+Note: if fw death recurs mid-test the log shows honest 6s-cycle bookends, not a fake
+drain number. Benign anomalies answered for Cliff (don't re-investigate): battery %
+missing in UI at wake until unplug = stale Steam-UI read (journal clean, gauge fine);
+99% not 100% after plugged night = top-off stop + no re-charge until well below
+100 + ~0.07%/h drift — normal.
+
+### Device state at close
+POWERED OFF by Cliff (battery ~97%). Dud hook still present (item 1). Bookend logger
+present (keep). Fresh-boot Wi-Fi always connects — the hook is dormant until a resume.
+
+— written 2026-08-19 by **Claude Fable 5** (sleep-test attempt: root-caused the
+insomnia/sulk pair to ath12k resume fw-death; bookend rig shipped; rescue drill
+failed informatively; test tabled to near-future)
+
+## CURRENT STATE 2026-08-18 PM (Fable, OTA v1 session)
 
 ### OTA v1 SHIPPED + VALIDATED (commit 47e7b4c, pushed) — the pacman channel is live
 - **Hosting**: `github.com/transentient/holodor-releases` (SEPARATE repo from source;
