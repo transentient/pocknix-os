@@ -69,7 +69,17 @@ chroot_mount() {
   # /dev, /proc and /sys. Create the mount points before binding (no-op on ALARM).
   mkdir -p "${root}/dev" "${root}/proc" "${root}/sys" "${root}/run" "${root}/tmp"
   mount --bind /dev      "${root}/dev"
+  # HOLODOR: the host's /dev and /dev/pts are SHARED mounts (systemd makes / and
+  # everything under it rshared), so a plain --bind puts the chroot's copies in
+  # the HOST's peer group. chroot_umount's `umount -lf` then propagates back OUT
+  # of the chroot and tears down the host's /dev/pts — leaving the build machine
+  # with no devpts at all, so every later `ssh` dies with "PTY allocation request
+  # failed on channel 0" until someone remounts it by hand. --make-rslave keeps
+  # host->chroot propagation (so the chroot still sees host /dev changes) while
+  # blocking chroot->host, which is what arch-chroot does for the same reason.
+  mount --make-rslave    "${root}/dev"
   mount --bind /dev/pts  "${root}/dev/pts"
+  mount --make-rslave    "${root}/dev/pts"
   mount -t proc  proc    "${root}/proc"
   mount -t sysfs sys     "${root}/sys"
   mount -t tmpfs tmpfs   "${root}/run"
