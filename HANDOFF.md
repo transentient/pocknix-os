@@ -6,16 +6,23 @@ Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
 ## CURRENT STATE 2026-08-19 (Fable, sleep-test attempt) — READ THIS FIRST
 
-### ⚠ FIRST ACTION NEXT SESSION — REMOVE THE DUD WIFI HOOK FROM THE DEVICE
-`ssh root@holodor 'rm -f /usr/lib/systemd/system-sleep/60-wifi-rescue /usr/local/bin/pocknix-wifi-rescue'`
-Deployed 2026-08-19, PROVEN HARMFUL the same hour, device was powered off before it
-could be removed. What it does: after any resume where Wi-Fi isn't connected within
-35s, it PCI remove/rescans the WCN7860 — and **PCI remove/rescan does NOT re-enumerate
-the radio on this platform: Wi-Fi stays dead until reboot** (proven by a controlled
-drill on a HEALTHY radio; cost Cliff a reboot). Do NOT re-deploy or "fix" it inline;
-recovery design needs rethink (batocera's soft toggle is the candidate, see below).
-If Cliff reports "Wi-Fi dead after waking the device, reboot fixed it" before this is
-removed — it was probably this hook firing on a slow reconnect.
+### ✅ RESOLVED at session close: dud hook REMOVED + drill verdict CORRECTED
+The device came back online as the session ended; the cleanup watcher **removed
+60-wifi-rescue + pocknix-wifi-rescue from the device** (verified: system-sleep dir
+now = 50-battery-log + pocknix-sleep only). No trap remains.
+**DRILL VERDICT CORRECTED by the post-mortem** (initially misread): PCI remove/rescan
+**DOES fully re-enumerate the WCN7860** — journal shows BARs assigned, "wcn7860 hw2.0"
+probe, "mhi0: Power on setup success", fw_version loaded, MAC set, NM registering the
+new rfkill (phy index INCREMENTS, e.g. phy1). What the drill actually exposed: after
+re-probe, **NM/iwd do NOT re-associate on their own** (NM sat "disconnected"; ssh
+never returned; Cliff saw "network still down" and rebooted). So a WORKING rescue =
+remove/rescan **+ explicit re-activation** (restart iwd + NetworkManager, or
+`nmcli device connect wlan0` — new phy may also need profile not bound to stale
+interface). My removed script's `nmcli radio wifi on` was the insufficient step.
+Next iteration: rescan + `systemctl restart iwd NetworkManager` + connection up,
+drill it the same way (while Cliff present). Batocera's soft toggle remains the
+gentler first attempt for the SULK; the rescan+reactivate ladder is for the fw-death
+zombie (which soft toggle likely can't fix — fw needs a fresh MHI power-on).
 
 ### 🎯 ROOT CAUSE FOUND: "won't stay asleep" + "Wi-Fi won't reconnect" = ONE BUG
 With Cyberpunk resident, Cliff's sleep attempts cycled ~6s each. Journal (boot of
