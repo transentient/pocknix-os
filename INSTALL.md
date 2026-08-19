@@ -161,9 +161,10 @@ Your Android bootloader backup from A.2 remains your deep-recovery option.
 
 ## Known limitations (honesty section)
 
-- Heavy AAA titles currently run around **~20 fps** regardless of settings — a
-  display-pipeline limitation of the young mainline kernel for this chip, improving
-  upstream. Indie/2D/light-3D titles run flawlessly at high framerates.
+- Heavy AAA titles currently run around **20–30 fps** — the GPU driver for this
+  chip is young and improving month to month. Upscaling (FSR) and frame
+  generation can make games feel noticeably smoother than the raw number
+  suggests. Indie/2D/light-3D titles run flawlessly at high framerates.
 - Games with kernel anti-cheat (e.g. Elden Ring's EAC) do not run yet.
 - Suspending while a game is running may disconnect the controller in-game (exit to
   Steam first for reliable in-game suspend).
