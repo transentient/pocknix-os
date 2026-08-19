@@ -1,13 +1,12 @@
 # Installing Holodor on the AYN Odin 3
 
-Holodor turns your AYN Odin 3 into a SteamOS-style handheld — Valve's own Holo Core
+Holodor turns your AYN Odin 3 into a SteamOS-style handheld - Valve's own Holo Core
 system, the ROCKNIX kernel, and a Steam Big Picture session that boots in seconds.
 Android stays on the device; you choose what boots.
 
 **Fair warning**: this involves flashing a bootloader payload to your device. The
 procedure preserves Android and is reversible, but read every step BEFORE starting,
-and DO NOT SKIP THE BACKUP STEP. If words like "partition" frighten you, bring a
-friend they don't.
+and DO NOT SKIP THE BACKUP STEP.
 
 ---
 
@@ -25,20 +24,20 @@ friend they don't.
 
 ---
 
-## Part A — One-time bootloader setup (ROCKNIX ABL)
+## Part A - One-time bootloader setup (ROCKNIX ABL)
 
 The Odin 3 ships with a bootloader that only boots Android. ROCKNIX publishes a
 replacement bootloader payload ("ABL") that adds a boot menu: Android or Linux-from-SD.
 Flashing it does NOT unlock, wipe, or modify Android — it replaces only the small
 `abl` bootloader partitions, and you will back those up first.
 
-**A.1 — Get the files onto the device.** Download the ROCKNIX ABL release for the
+**A.1 - Get the files onto the device.** Download the ROCKNIX ABL release for the
 Odin 3 (SM8750) and copy its folder to your device's internal storage so the files
 sit at: `/sdcard/rocknix_abl/SM8750/` — it must contain `backup_abl.sh`,
 `flash_abl.sh`, `restore_backup_abl.sh`, and the signed ABL image. [VERIFY: exact
 release URL + file list on dry run]
 
-**A.2 — BACK UP YOUR BOOTLOADER.** In Android: **Settings → Handheld Settings →
+**A.2 - BACK UP YOUR BOOTLOADER.** In Android: **Settings → Handheld Settings →
 Run Script as Root** [VERIFY: exact menu names], select `backup_abl.sh`, run it.
 - ⚠️ The script runner ALWAYS reports success, even when it did nothing. VERIFY the
   backup exists: check that `/sdcard/rocknix_abl/SM8750/` now contains `abl_a.img`
