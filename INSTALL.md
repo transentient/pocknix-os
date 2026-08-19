@@ -117,8 +117,9 @@ mode **Linux** → Start.
    out of the box. Enjoy.
 
 **Sleep works**: short-press power to suspend (measured standby drain: well under
-1%/hour). Fan curves, power profiles (Eco/Balanced/Performance), and battery charge
-limits live in **Quick Access → Decky → Pocknix Control → Power**.
+1%/hour). Fan curves and power profiles (Eco/Balanced/Performance) live in
+**Quick Access → Decky → Pocknix Control → Power**. The battery charge limit
+setting there is **experimental** — the device may charge past the limit.
 
 ---
 
@@ -166,6 +167,8 @@ Your Android bootloader backup from A.2 remains your deep-recovery option.
 - Games with kernel anti-cheat (e.g. Elden Ring's EAC) do not run yet.
 - Suspending while a game is running may disconnect the controller in-game (exit to
   Steam first for reliable in-game suspend).
+- The battery **charge limit** setting is experimental: the hardware doesn't always
+  honor it, and the device may charge to 100% anyway.
 
 ---
 

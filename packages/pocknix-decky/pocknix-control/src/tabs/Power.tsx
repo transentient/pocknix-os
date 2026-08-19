@@ -82,7 +82,7 @@ export function Power({ config, setConfig, reload }: {
   return (
     <PanelSection title="PERFORMANCE">
       <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
-      <SelectEdit label="Charge Limit" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
+      <SelectEdit label="Charge Limit (experimental)" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
       <SelectEdit label="Stick LED Effect" value={config.ledMode} options={ledEffectOptions} onChange={(mode) => applyLedMode(mode as string)} />
       <SelectEdit label="Stick LED Color" value={config.ledColor} options={ledOptions} onChange={(hex) => applyLed(hex as string)} />
       <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions} onChange={(mode) => applyMode(setFanMode, mode)} />
