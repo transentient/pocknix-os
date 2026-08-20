@@ -4,7 +4,74 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-19 (Fable, sleep-test attempt) — READ THIS FIRST
+## CURRENT STATE 2026-08-20 (Fable, dry-run prep session) — READ THIS FIRST
+
+### 🎯 SD DRY-RUN: 32GB card is FLASHED + VERIFIED, first boot PENDING (Cliff back later)
+- **The 20260818 seedless RC is on the old 32GB card** (was a 2020-era dashcam card,
+  Cliff wiped it by running the flash himself): full write + byte-exact readback
+  verified (sha 7c8fa017… over all 13,482,590,208 bytes). Card writes at ~4 MB/s —
+  fine for OOBE validation, NEVER judge Steam install speeds on it.
+- **NEXT STEP (Cliff's hands): first boot WITHOUT wifi.txt** — expect the bootstrap
+  no-network screen with wifi.txt instructions. WATCH THE ROOT RACE: device has TWO
+  HOLODOR_ROOT partlabels (SD + internal); if it lands in Cliff's configured Steam
+  session on ozma, the internal root won and the dry-run isn't testing the RC
+  (that's the INSTALL.md [VERIFY: boot order] answer either way). After the screen:
+  card back to fusor, write wifi.txt (ozma + country JP) on the FAT partition,
+  boot round 2. `~cliff/flash-rc.sh` on fusor is the flash+verify script (size
+  guard currently set for the 32GB card).
+
+### ⚠️ 64GB CARD vs ABL v1.1.7: the ABL's SD-compat window MOVED
+The 64GB ex-daily-driver card (RC flashed, verified byte-exact TWICE) is
+**"SD card not inserted" to ABL v1.1.7** — yet the Odin's own kernel inits it
+instantly at UHS-I SDR104 in the same slot, and fusor reads it clean. Meanwhile
+**the sp128 (ABL-invisible since July) now IS detected by v1.1.7**, as are the
+32GB and the dying SanDisk 128. Conclusion: the v1.1.7 upgrade (installed during
+the 08-14 slot-A work, after the 64GB was retired from SD duty) changed the SD
+init — compatibility moved in BOTH directions. 64GB card is retired from ABL-boot
+duty (healthy for storage). Docs note: B.1 "test your card first" advice should
+mention ABL upgrades can change which cards work. Also: INSTALL.md B.3 doesn't
+mention the ABL's boot source menu (Cliff's has one; fresh users may need it).
+Hardware note: the Odin's push-push SD latch jammed (no click); recovered with
+slow full-depth insertions — the cam follower had skipped its track.
+
+### ✅ VS SAVE SPLIT-BRAIN: found + FIXED (2026-08-20 14:02 JST)
+Cliff's Vampire Survivors progress wasn't reaching other devices: **Steam Cloud
+was DISABLED in the device's Steam settings** (hence cloud_log "but not attempting
+now") AND SaveData sat in a sync conflict — GameNative on the Nova (3rd-party
+Steam client, no conflict handling) kept pushing its stale 42-achievement save to
+the cloud. Fix: enabled cloud, launched VS, conflict dialog appeared, chose local
+(bUseLocal=true) → 92-achievement save uploaded OK (ChangeNumber 17, clean exit
+re-upload confirmed). Backup of the good save: fusor
+`~/odin3-backups/vs-savedata-20260820/SaveData-odin3-92ach` (sha1 c779ec5a…).
+**PENDING (Cliff/PC agent): delete GameNative's local VS save on the Nova BEFORE
+launching there**, or it may clobber the cloud again. Save path on device =
+`userdata/439083816/1794680/remote/SaveData`; cloud log = Steam/logs/cloud_log.txt
+(grep -a).
+
+### Repo commits today (pushed)
+- 31e5daf: charge limit marked **experimental** everywhere (INSTALL.md + honesty
+  section + Decky label; pocknix-decky pkgrel 14 — REBUILD before next OTA publish).
+- ef0c740: honesty-section fps line reworded conservatively (20–30 native,
+  no presented-fps claims — Cliff's call).
+
+### archive.org (decided with Cliff, upload after dry-run passes)
+Identifier **`holodor`** (verified free; generalizes for the RP5 port next month).
+Title: "Holodor — SteamOS-style Linux for ARM handhelds (AYN Odin 3, and soon
+more)". Description drafted from Cliff's talking points (mini-Steam-Deck demand,
+ARM handhelds + AI chip crunch, ArmadaOS credit, "actual SteamOS Holo Core, not
+radically different — just different under the hood") — in the 08-20 session
+transcript; Cliff rewrites before upload.
+
+### Housekeeping
+fusor's card reader is USB2 (~17-21 MB/s ceiling — don't profile cards through
+it). Stale loop mounts from the 08-18 session (deleted raw img + vendor_dlkm)
+were detached. Sleep-drain test remains QUEUED (Cliff deferred it 08-19 to do
+dry-run prep instead).
+
+— written 2026-08-20 by **Claude Fable 5** (dry-run prep: 32GB card flashed+verified;
+64GB/ABL-1.1.7 compat regression diagnosed; VS cloud split-brain fixed; docs polish)
+
+## CURRENT STATE 2026-08-19 (Fable, sleep-test attempt)
 
 ### ✅ RESOLVED at session close: dud hook REMOVED + drill verdict CORRECTED
 The device came back online as the session ended; the cleanup watcher **removed
