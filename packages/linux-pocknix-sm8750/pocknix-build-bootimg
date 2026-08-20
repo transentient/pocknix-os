@@ -18,6 +18,15 @@ CMDLINE_FILE=/usr/lib/pocknix/kernel-cmdline
 mountpoint -q "$FLASH" || { echo "pocknix-build-bootimg: $FLASH not mounted — skipping (build chroot?)"; exit 0; }
 
 cmdline="$(cat "$CMDLINE_FILE")"
+# Pin root= to the partition we are RUNNING from: the static file carries the SD
+# image's PARTUUID, which is wrong on an internal install — and with SD + internal
+# both present, two partitions share the root partlabel (the dry-run race). This
+# makes every on-device rebuild self-healing, whichever medium it runs on.
+rootsrc="$(findmnt -nvo SOURCE / 2>/dev/null || true)"
+rootuuid="$(blkid -s PARTUUID -o value "$rootsrc" 2>/dev/null || true)"
+if [ -n "$rootuuid" ]; then
+  cmdline="$(printf '%s' "$cmdline" | sed -E "s@root=PART(LABEL|UUID)=[^ ]*@root=PARTUUID=${rootuuid}@")"
+fi
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
 gzip -c /boot/Image > "$tmp/kernel.gz"

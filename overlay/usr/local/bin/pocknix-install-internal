@@ -48,7 +48,7 @@ ANDROID_MIN_GIB=1                 # smallest Android userdata we'll leave
 #   * ROCKNIX names the internal boot partition ROCKNIX (the removable SD uses "system").
 BOOT_GPT_NAME="${POCKNIX_BOOT_GPT_NAME:-ROCKNIX}"     # GPT partition name (ROCKNIX's internal convention)
 BOOT_FAT_LABEL="${POCKNIX_BOOT_FAT_LABEL:-ROCKNIX}"   # FAT label the ABL looks for
-ROOT_GPT_NAME="${POCKNIX_ROOT_LABEL:-POCKNIX_ROOT}"   # matches the kernel cmdline root=PARTLABEL=...
+ROOT_GPT_NAME="${POCKNIX_ROOT_LABEL:-POCKNIX_ROOT}"   # same GPT name as the SD root (root= itself is PARTUUID-pinned)
 DRY_RUN=0; ASSUME_YES=0; UD_GIB=""; DETECT=0
 
 while [ "$#" -gt 0 ]; do
@@ -69,7 +69,7 @@ warn() { echo -e "\033[1;33m[install] WARN\033[0m $*" >&2; }
 die()  { echo -e "\033[1;31m[install] ERROR\033[0m $*" >&2; exit 1; }
 
 [ "$(id -u)" = 0 ] || die "must run as root"
-for c in parted partprobe blkid blockdev mkfs.vfat mkfs.ext4 rsync findmnt awk; do
+for c in parted partprobe blkid blockdev mkfs.vfat mkfs.ext4 rsync findmnt awk python3; do
   command -v "$c" >/dev/null 2>&1 || die "missing required tool: $c"
 done
 [ -b "$DEVICE" ] || die "internal device $DEVICE not found (override with --device)"
@@ -271,6 +271,36 @@ if [ "$BOOT_STYLE" = "arm-efi" ]; then
   say "Pinned internal grub.cfg to root=PARTUUID=${ROOT_PARTUUID}"
 fi
 
+# qcom-abl: pin the INTERNAL KERNEL's baked cmdline to the internal root's
+# PARTUUID (same reason as the grub.cfg pin above: SD + internal both carry the
+# ROOT_GPT_NAME partlabel, and the kernel mounts whichever probes first). The
+# cmdline is a fixed 512-byte field at offset 64 of the boot-image header, so
+# patch it in place, then refresh KERNEL.md5 (the ABL verifies it) and the
+# rollback copy.
+if [ "$BOOT_STYLE" != "arm-efi" ]; then
+  ROOT_PARTUUID="$(blkid -s PARTUUID -o value "$ROOT_PART")"
+  [ -n "$ROOT_PARTUUID" ] || die "could not read PARTUUID of $ROOT_PART"
+  python3 - "$BMNT/KERNEL" "$ROOT_PARTUUID" <<'PYEOF' || die "failed to pin the internal KERNEL cmdline"
+import re, sys
+path, uuid = sys.argv[1], sys.argv[2]
+with open(path, "r+b") as f:
+    data = f.read(1632)
+    if data[:8] != b"ANDROID!":
+        sys.exit("KERNEL is not an Android boot image")
+    cmd = data[64:576].rstrip(b"\x00").decode()
+    new = re.sub(r"root=PART(LABEL|UUID)=\S+", "root=PARTUUID=" + uuid, cmd)
+    if "root=PARTUUID=" + uuid not in new:
+        sys.exit("no root= token found in KERNEL cmdline")
+    if len(new) >= 512:
+        sys.exit("patched cmdline too long")
+    f.seek(64)
+    f.write(new.encode().ljust(512, b"\x00"))
+PYEOF
+  (cd "$BMNT" && md5sum KERNEL > KERNEL.md5)
+  cp "$BMNT/KERNEL" "$BMNT/KERNEL.bak"
+  say "Pinned internal KERNEL cmdline to root=PARTUUID=${ROOT_PARTUUID}"
+fi
+
 # Clone the running rootfs onto the internal ext4 (stay on the root fs; skip virtual + mountpoints).
 say "Cloning rootfs to $ROOT_PART — can take a long time. Be patient - nothing's broken :)"
 rsync -aHAXx --numeric-ids \
@@ -290,10 +320,11 @@ PARTUUID=${ROOT_PARTUUID}  /       ext4  rw,relatime         0 1
 PARTUUID=${BOOT_PARTUUID}  /flash  vfat  rw,noatime,nofail   0 2
 EOF
 else
+  BOOT_PARTUUID="$(blkid -s PARTUUID -o value "$BOOT_PART")"
   cat > "$RMNT/etc/fstab" <<EOF
-# pocknix-os — internal install
-PARTLABEL=${ROOT_GPT_NAME}  /       ext4  rw,relatime         0 1
-PARTLABEL=${BOOT_GPT_NAME}  /flash  vfat  rw,noatime,nofail   0 2
+# pocknix-os — internal install (PARTUUID = unambiguous vs an inserted SD)
+PARTUUID=${ROOT_PARTUUID}  /       ext4  rw,relatime         0 1
+PARTUUID=${BOOT_PARTUUID}  /flash  vfat  rw,noatime,nofail   0 2
 EOF
 fi
 
