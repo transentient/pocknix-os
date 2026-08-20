@@ -118,10 +118,13 @@ mode **Linux** → Start.
    says what it's doing - if it says it's working, it is.
 3. Once Steam is downloaded you'll be asked to pick your **Wi-Fi network** (already
    connected if you used wifi.txt) and then land in Steam's setup.
-4. **Sign in to Steam.** ⚠️ Around first sign-in, Steam may fetch an update and the
-   device can look stuck for SEVERAL MINUTES (spinner, "connection problem" retry
-   once or twice, heavy disk grinding). This is normal on first boot ONLY. Let it
-   finish; don't force it off.
+4. **Sign in to Steam.** ⚠️ Right after sign-in, Steam downloads and applies an
+   update to itself in the background, and until that finishes the interface is
+   genuinely unpleasant: menus lag, button presses respond late, you may see a
+   spinner or a "connection problem" message once or twice, and the storage
+   grinds constantly. On a slow SD card this can last 10-20 minutes. Nothing is
+   broken, and it only happens around the first sign-in - let it finish, and
+   once the grinding stops the interface snaps back to normal.
 5. You're in Big Picture. Controls, sound, rumble, and the stick RGB should all work
    out of the box. Enjoy.
 
