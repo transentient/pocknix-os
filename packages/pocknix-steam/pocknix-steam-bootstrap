@@ -50,6 +50,9 @@ fi
 TTY="/dev/tty1"
 [ -w "${TTY}" ] || TTY="/proc/self/fd/1"
 exec 3>"${TTY}"
+# Double the console font: the 16px default is unreadable on a 6" 1080p panel.
+# Best-effort — a missing font or the stdout fallback just keeps the default.
+[ "${TTY}" = "/dev/tty1" ] && setfont -C "${TTY}" latarcyrheb-sun32 2>/dev/null || true
 exec >>"${LOG}" 2>&1
 echo "=== pocknix-steam-bootstrap $(date -u +%FT%TZ) channel=${STEAM_ARM_CHANNEL} ==="
 
@@ -82,16 +85,18 @@ wait_for_network() {
     i=$((i + 1))
     if [ "${i}" -eq 30 ]; then
       ui "No network connection." "" \
-         "Holodor needs the internet once, to download Steam (~350 MB)." "" \
+         "Holodor needs the internet once," \
+         "to download Steam (~350 MB)." "" \
          "To set up Wi-Fi without a keyboard:" \
-         "  1. power off, put the SD card (or USB drive) in a computer" \
-         "  2. on the small HOLODOR/ROCKNIX partition, create a file named:  wifi.txt" \
-         "     containing:" \
+         "  1. power off, put the SD card in a computer" \
+         "  2. on the small ROCKNIX partition, create" \
+         "     a file named  wifi.txt  containing:" \
          "         ssid=YourNetworkName" \
          "         password=YourWifiPassword" \
-         "         country=US        (optional, needed for 5 GHz)" \
+         "         country=US   (optional, for 5 GHz)" \
          "  3. put the card back and power on" "" \
-         "A USB keyboard + 'nmtui' from a shell also works.  Still waiting..."
+         "A USB keyboard + 'nmtui' also works." \
+         "Still waiting..."
     fi
     sleep 2
   done
