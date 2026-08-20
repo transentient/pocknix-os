@@ -96,7 +96,7 @@ LED_COLOR_FILE = Path("/var/lib/pocknix/led-color")
 LED_MODE_FILE = Path("/var/lib/pocknix/led-mode")
 LED_DEFAULT = "ff6600"
 LED_MODES = ("off", "static", "rainbow", "breathe")
-LED_MODE_DEFAULT = "static"
+LED_MODE_DEFAULT = "off"
 
 
 def led_color():

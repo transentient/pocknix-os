@@ -125,8 +125,9 @@ mode **Linux** → Start.
    grinds constantly. On a slow SD card this can last 10-20 minutes. Nothing is
    broken, and it only happens around the first sign-in - let it finish, and
    once the grinding stops the interface snaps back to normal.
-5. You're in Big Picture. Controls, sound, rumble, and the stick RGB should all work
-   out of the box. Enjoy.
+5. You're in Big Picture. Controls, sound, and rumble work out of the box. The
+   thumbstick RGB rings are off by default - turn them on in **Quick Access →
+   Decky → Pocknix Control** if you want them. Enjoy.
 
 **Sleep works**: short-press power to suspend (measured standby drain: well under
 1%/hour). Fan curves and power profiles (Eco/Balanced/Performance) live in

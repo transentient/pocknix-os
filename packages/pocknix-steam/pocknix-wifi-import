@@ -86,6 +86,7 @@ id=${SSID}
 type=wifi
 interface-name=wlan0
 autoconnect=true
+autoconnect-retries=0
 
 [wifi]
 mode=infrastructure

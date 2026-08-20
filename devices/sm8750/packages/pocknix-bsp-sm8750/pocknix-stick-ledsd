@@ -42,14 +42,17 @@ def hex_rgb(h):
 last = None
 t = 0.0
 while True:
-    mode = readf(MODE_F, "static")
+    mode = readf(MODE_F, "off")   # fresh devices: rings off until the user opts in
     if mode == "off":
         if last != ("off",): write_all(0, 0, 0); last = ("off",)
         time.sleep(1.5); continue
     if mode == "static":
-        col = readf(COLOR_F, "off")
+        # static always shows a color: no-color-yet falls back to the default
+        # orange, so "static but dark" (looks broken) can't happen. Off is a mode.
+        col = readf(COLOR_F, "ff6600")
+        if col == "off": col = "ff6600"
         key = ("static", col)
-        if last != key: write_all(*(hex_rgb(col) if col != "off" else (0, 0, 0))); last = key
+        if last != key: write_all(*hex_rgb(col)); last = key
         time.sleep(1.0); continue
     if mode == "rainbow":
         t += 1.0 / FPS
