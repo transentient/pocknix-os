@@ -220,9 +220,24 @@ steam_symlinks "../.local/share/Steam.staging"
 #    root-owned files, impossible here (everything is ours). This downloads the update
 #    packages, so it needs the network we already have. Minutes on internal UFS.
 ui "Downloading Steam (4/4): installing (this can take several minutes)..." "" \
-   "(the screen will stay like this while Steam sets itself up)"
+   "(this screen updates every 30 seconds)"
+# Heartbeat: repaint with elapsed time + staging size so a slow finalize (SD cards)
+# never looks frozen. Killed by PID the moment the updater returns.
+(
+  hb_start=$(date +%s)
+  while sleep 30; do
+    hb_min=$(( ($(date +%s) - hb_start) / 60 ))
+    hb_mb=$(du -sm "${STAGING}" 2>/dev/null | cut -f1)
+    ui "Downloading Steam (4/4): installing (this can take several minutes)..." "" \
+       "  still working: ${hb_min} min elapsed, ${hb_mb:-?} MB on disk" "" \
+       "(this screen updates every 30 seconds)"
+  done
+) &
+HEARTBEAT_PID=$!
 env LD_LIBRARY_PATH="${CLIENT_DIR}:${STAGING}/lib/aarch64-linux-gnu" \
   timeout "${POCKNIX_STEAM_BOOTSTRAP_TIMEOUT:-3600}" xvfb-run -a "${CLIENT_DIR}/steam" -steamdeck -exitsteam || true
+kill "${HEARTBEAT_PID}" 2>/dev/null || true
+wait "${HEARTBEAT_PID}" 2>/dev/null || true
 
 [ -f "${STAGING}/package/${STEAM_ARM_MANIFEST_NAME}.installed" ] && [ -f "${CLIENT_DIR}/steamui.so" ] \
   || fail "Steam's installer did not complete" "(no .installed manifest — network drop mid-update?)"
