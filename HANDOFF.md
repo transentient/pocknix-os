@@ -4,7 +4,73 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-20 (Fable, dry-run prep session) — READ THIS FIRST
+## CURRENT STATE 2026-08-21 (Fable, DRY-RUN + respin session) — READ THIS FIRST
+
+### 🎉 SEEDLESS DRY-RUN PASSED END-TO-END ON HARDWARE (2026-08-20→21, Cliff driving)
+Full fresh-user flow on the 32GB card: ABL boot → auto-expand → offline screen →
+wifi.txt import (ozma connected, Steam OOBE never asked for the password) →
+350MB download → ~40min finalize on the ~4MB/s card → Steam OOBE → sign-in →
+Big Picture. Controls (letters correct), sound, OOBE flow all pass. Rumble
+untested (HYPER DEMON has none; use Settings→Controller→Test Device Inputs next
+time). THE DRY-RUN FOUND 4 REAL BUGS — ALL FIXED SAME SESSION (below).
+
+### The 4 findings + fixes (all committed through e181b81, all IN the respun image)
+1. **ROOT RACE (ship-blocker):** SD boot mounted the INTERNAL root — two
+   HOLODOR_ROOT partlabels, UFS probes first. Kernel cmdline root=PARTLABEL was
+   the gap (fstab was already PARTUUID-pinned by design; the kernel's own root
+   mount wasn't). FIX = PARTUUID everywhere (e181b81): image cmdline uses
+   SD_ROOT_PARTUUID (706f636b-6e69-7830-726f-6f7400000002); bootimg hook
+   (kernel-19) pins root= to the RUNNING root's partuuid at every rebuild
+   (self-heals internal installs at next kernel update); installer patches the
+   copied KERNEL header (offset-64 cmdline field) + md5 + .bak + PARTUUID fstab.
+   Dry-run round 2 verified a hand-patched PARTUUID KERNEL boots the SD root.
+2. **Sulk on a VIRGIN image, 3 drops in one evening** (each after suspend; last
+   one refused UI reconnect = possibly the hard mode — watch). FIX for soft
+   mode: NM autoconnect-retries=0 via overlay conf.d drop-in + importer keyfile.
+3. **tty status screen unreadable** (16px font on 6" 1080p) + static screen
+   during finalize invites power-pulls. FIX: setfont latarcyrheb-sun32,
+   rewrapped text, 30s heartbeat (elapsed min + MB on disk) + the zombie-chase
+   marquee (Cliff-requested; runner patrols L→R→L). steam pkgrel 41.
+4. **Stick LEDs: UI said static, rings dark** (defaults disagreed: UI static /
+   daemon color "off") + an unidentified control turned them off (OPEN — needs
+   dev-image repro; Cliff didn't note which control). FIX + Cliff's call: LEDs
+   OFF by default (daemon+UI agree), static always falls back ff6600. bsp-14.
+
+### RESPUN RELEASE CANDIDATE (2026-08-21 ~02:30 JST, on fusor)
+`build/image/sm8750/holodor-odin3-20260821-seedless.img.zst` (+.sha256;
+compression was running at session close — verify it finished). Raw img
+loop-mount spot-check ALL GREEN: PARTUUID cmdline in KERNEL + md5 OK,
+kernel-19/bsp-14/decky-14/steam-41 installed, font/heartbeat/zombie bootstrap,
+NM drop-in, dynamic hook pin, NO Steam tree, no preseed, sshd off, Holodor-only
+keyring, hostname holodor, TZ UTC, PARTUUID fstab. **This supersedes the
+20260818 artifact** (which still has the label-root race + 4-retry NM).
+Build-chain gotchas hit (don't rediscover): build-kernel.sh needs sudo (tree is
+root-owned); build-image ALSO needs HOLODOR_SEEDLESS=1 or it extracts the seed
+into the rootfs and the sd-image guard refuses (guard works; clean =
+rm -rf build/rootfs/home/deck/{.local/share/Steam*,.steam}).
+
+### NEXT
+1. (Cliff) Flash 20260821 RC to the 32GB card (~cliff/flash-rc.sh, guard is set
+   for the 32GB), quick boot to the offline screen = validates PARTUUID root +
+   new font/screens on hardware. Full re-run optional (flow already proven).
+2. archive.org upload after that boot: identifier **holodor** (verified free;
+   generalizes for RP5), title "Holodor — SteamOS-style Linux for ARM handhelds
+   (AYN Odin 3, and soon more)", description drafted in 08-20 transcript
+   (mini-Deck demand, AI chip crunch, ArmadaOS credit, "actual Holo Core, not
+   radically different - just different under the hood"); Cliff rewrites first.
+3. OTA publish of the new pkgs (kernel-19 bsp-14 decky-14 steam-41) per
+   docs/pacman-repo.md — Cliff's internal install then self-heals its root pin
+   at the kernel-19 update (hook is dynamic now).
+4. LED finding 2 repro (dev image w/ ssh); sulk hard-mode watch; rumble check
+   via Steam controller test; EDL restore + jack test (BONESAW) still queued.
+5. Cliff's Nova (GameNative): pull fresh cloud save AFTER deleting its local VS
+   save (see 08-20 block) — not done yet as of session close.
+
+— written 2026-08-21 ~02:40 JST by **Claude Fable 5** (dry-run marathon: full
+seedless flow validated on hardware; 4 findings fixed same-day; RC respun with
+everything; Cliff played HYPER DEMON through the wifi sulk)
+
+## CURRENT STATE 2026-08-20 (Fable, dry-run prep session)
 
 ### 🎯 SD DRY-RUN: 32GB card is FLASHED + VERIFIED, first boot PENDING (Cliff back later)
 - **The 20260818 seedless RC is on the old 32GB card** (was a 2020-era dashcam card,
