@@ -221,16 +221,49 @@ steam_symlinks "../.local/share/Steam.staging"
 #    packages, so it needs the network we already have. Minutes on internal UFS.
 ui "Downloading Steam (4/4): installing (this can take several minutes)..." "" \
    "(this screen updates every 30 seconds)"
-# Heartbeat: repaint with elapsed time + staging size so a slow finalize (SD cards)
-# never looks frozen. Killed by PID the moment the updater returns.
+# Heartbeat: repaint status every 30s (elapsed + staging size) so a slow finalize
+# (SD cards) never looks frozen — plus a big guy being chased by zombies patrolling
+# the bottom of the screen, because a watched install needs entertainment.
+# Killed by PID the moment the updater returns.
 (
-  hb_start=$(date +%s)
-  while sleep 30; do
-    hb_min=$(( ($(date +%s) - hb_start) / 60 ))
-    hb_mb=$(du -sm "${STAGING}" 2>/dev/null | cut -f1)
-    ui "Downloading Steam (4/4): installing (this can take several minutes)..." "" \
-       "  still working: ${hb_min} min elapsed, ${hb_mb:-?} MB on disk" "" \
-       "(this screen updates every 30 seconds)"
+  trap 'printf "\033[?25h" >&3 2>/dev/null' EXIT
+  printf '\033[?25l' >&3
+  hb_start=$(date +%s); x=0; dx=1; tick=0
+  while :; do
+    if [ $(( tick % 60 )) -eq 0 ]; then
+      hb_min=$(( ($(date +%s) - hb_start) / 60 ))
+      hb_mb=$(du -sm "${STAGING}" 2>/dev/null | cut -f1)
+      ui "Downloading Steam (4/4): installing (this can take several minutes)..." "" \
+         "  still working: ${hb_min} min elapsed, ${hb_mb:-?} MB on disk" "" \
+         "(this screen updates every 30 seconds)"
+    fi
+    if [ "${dx}" -gt 0 ]; then   # runner leads right, zombies chase from the left
+      if [ $(( tick % 2 )) -eq 0 ]; then
+        s1='                      O  '; s2='  x_x    x_x         /|\ '
+        s3=' ~/|    ~/|           |  '; s4='  / \    / \         / > '
+      else
+        s1='                      O  '; s2='  x_x    x_x         \|/ '
+        s3='  /|~    /|~          |  '; s4='  | |    | |         < \ '
+      fi
+    else                          # runner leads left, zombies chase from the right
+      if [ $(( tick % 2 )) -eq 0 ]; then
+        s1='  O                      '; s2=' /|\         x_x    x_x  '
+        s3='  |           |\~    |\~ '; s4=' < \         / \    / \  '
+      else
+        s1='  O                      '; s2=' \|/         x_x    x_x  '
+        s3='  |          ~|\    ~|\  '; s4=' / >         | |    | |  '
+      fi
+    fi
+    hb_row=12
+    for s in "$s1" "$s2" "$s3" "$s4"; do
+      printf '\033[%d;1H%-58.58s' "${hb_row}" "$(printf '%*s%s' "${x}" '' "${s}")" >&3
+      hb_row=$(( hb_row + 1 ))
+    done
+    x=$(( x + dx ))
+    [ "${x}" -ge 33 ] && dx=-1
+    [ "${x}" -le 0 ] && dx=1
+    tick=$(( tick + 1 ))
+    sleep 0.5
   done
 ) &
 HEARTBEAT_PID=$!
