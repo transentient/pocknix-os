@@ -37,8 +37,8 @@ time). THE DRY-RUN FOUND 4 REAL BUGS — ALL FIXED SAME SESSION (below).
    OFF by default (daemon+UI agree), static always falls back ff6600. bsp-14.
 
 ### RESPUN RELEASE CANDIDATE (2026-08-21 ~02:30 JST, on fusor)
-`build/image/sm8750/holodor-odin3-20260821-seedless.img.zst` (+.sha256;
-compression was running at session close — verify it finished). Raw img
+`build/image/sm8750/holodor-odin3-20260821-seedless.img.zst` (6.0 GiB +.sha256,
+compression COMPLETE 02:24; shadow verified root::/deck:: Deck model). Raw img
 loop-mount spot-check ALL GREEN: PARTUUID cmdline in KERNEL + md5 OK,
 kernel-19/bsp-14/decky-14/steam-41 installed, font/heartbeat/zombie bootstrap,
 NM drop-in, dynamic hook pin, NO Steam tree, no preseed, sshd off, Holodor-only
