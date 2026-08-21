@@ -4,6 +4,110 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
+## CURRENT STATE 2026-08-22 (Fable, boot-art session 08-21 11:30 → 08-22 00:35 JST) — READ THIS FIRST
+
+### THE ONE-PARAGRAPH VERSION
+ssalmon_px's boot art arrived EARLY (2026-08-21, was expected ~08-24) and is now
+FULLY SHIPPED in the build: plymouth cutscene (34 frames, 10fps, holds logo) +
+kernel fbcon badge (384x384, centered, replaces Tux, VISIBLE on silent boot via
+our own fbcon patch). **The operative RC is
+`build/image/sm8750/holodor-odin3-20260821c-seedless.img.zst`** (+.sha256, sha
+21a61aa8…) — kernel-21, bsp-15, steam-41, decky-14, plymouth 26.134.222-3,
+pocknix-boot-art 1.0.0-1. It is flashed BYTE-EXACT to the 32GB card with
+wifi.txt (ozma/JP) on p1 for the full connected validation run.
+**VALIDATION VERDICT OF c IS UNKNOWN AT SESSION CLOSE** — Cliff took the card
+~19:30 JST 08-21; he invoked sleep-now without reporting the result. A 32GB
+card reads present in fusor's reader at 00:34 08-22 (unknown if it's back or
+never left). FIRST QUESTION FOR CLIFF: did the c boot run, and what happened?
+
+### What the b validation boot ALREADY PROVED on hardware (2026-08-21 evening)
+- fbcon badge renders UPRIGHT and CENTERED on the portrait panel (rotation OK)
+- plymouth cutscene renders + rotates correctly on real DRM ("the animation is
+  great" — Cliff). The Xvfb smoke test translated to hardware 1:1.
+- badge at 192px was too small → 384px in kernel-21/c (2x; still 6x-nearest of
+  the 64x64 source, 13 colors)
+
+### Wrong turns THIS session (do not re-derive)
+- **I first declared the kernel-logo slot DEAD** (fbcon gates the logo when
+  console_loglevel <= QUIET, fbcon.c; we boot loglevel=3) and told Cliff the
+  badge was homeless. WRONG FRAMING — it's our kernel: patch 0800 removes the
+  gate + pins fb_logo_count=1 (mainline draws one per CPU, no cmdline knob
+  exists), patch 0801 swaps the P3-ASCII CLUT224 ppm for the badge. Also added
+  `fbcon=logo-pos:center` to BOTH cmdline homes (profile.conf + bsp
+  kernel-cmdline, kept in sync).
+- **"Zombies missing" was a FALSE ALARM.** The marquee + 30s heartbeat exist
+  ONLY on the bootstrap's 4/4 "installing" (Xvfb finalize) screen — every
+  screen says "HOLODOR — first boot setup" in the header, so Cliff read an
+  early phase as "the" setup screen. Phases 1-3 have curl progress bars, no
+  zombies, BY DESIGN. Confirmed with Cliff; not a bug. (Still never SEEN on
+  hardware though — steam-41's 4/4 screen shows only during a real ~40min
+  finalize; the c run should have hit it.)
+- **build-sd-image prints "root password: pocknix" even for RELEASE builds** —
+  dev-mode boilerplate in its closing banner. Shadow verified locked
+  (root:: / deck::) in both b and c. Don't chase it; fixing the banner is a
+  one-line polish item at most.
+- **plymouthd's PLYMOUTH_PLUGIN_PATH / PLYMOUTH_THEME_PATH env vars DO NOTHING
+  on release builds** — it hardcodes /usr/lib/plymouth + /usr/share/plymouth/
+  themes and silently falls back to its built-in text splash. Off-device theme
+  testing that WORKS: `sudo unshare -m` + bind-mount those two dirs (+ /etc/
+  plymouth) from scratch, x86 Arch plymouth pkg extracted to scratch, Xvfb :99
+  -ac, plymouthd --no-daemon --kernel-command-line='splash ...', client
+  show-splash, ffmpeg x11grab to screenshot. Proven end-to-end this session.
+- **makepkg local sources can NOT live in subdirectories** ("frame-01.png was
+  not found") — pocknix-boot-art's 34 frame PNGs sit FLAT next to the PKGBUILD
+  on purpose. Don't tidy them into a frames/ dir; it breaks the build.
+- **scripts default DEVICE=sm8550** — always `DEVICE=sm8750` for Odin 3 work.
+  A stray plymouth-26.134.222-3 pkg landed in localrepo/sm8550 from this
+  mistake (harmless, left there).
+
+### Traps / status notes
+- **Publishable artifact = 20260821c ONLY.** 20260821 (morning) and 20260821b
+  (afternoon) are superseded — kept on disk, do NOT publish. (0817/0818 rule
+  unchanged. Seeded images never publish.)
+- The .zst artifact itself is CLEAN (spot-checked: no preseed, no seed, locked
+  accounts) — the wifi.txt with the real ozma PSK exists ONLY on the physical
+  card's p1, written post-flash. Never dd the CARD back into an artifact.
+- The flash classifier lesson evolved: agent-run `sudo bash ~cliff/flash-rc.sh`
+  is ALLOWED (ran twice this session, b and c) — it was raw dd that was
+  blocked. Script is retargeted to the c image; guard = 27-34GB removable.
+- plymouth quits at multi-user (plymouth-quit-wait), getty@tty1 orders after
+  it, bootstrap runs from the session launcher — so bootstrap tty screens and
+  plymouth can't fight. Verified by ordering analysis, and implicitly by b's
+  clean boot.
+- pocknix-boot-art frames are DERIVED from assets/boot-cutscene/ (the
+  committed source of truth, aseprite originals included); regen one-liner is
+  in the PKGBUILD header. The fade tail (frames 35-40) is dropped ON PURPOSE.
+- The delivery zip in the repo root is untracked and must stay untracked
+  (Cliff's real name in the filename; /*.zip is gitignored without naming it).
+- xorg-server-xvfb is now installed on fusor (used for the theme smoke test;
+  kept, it's useful).
+
+### NEXT (ordered)
+1. **Get the c-boot verdict from Cliff.** Expected sequence on that card:
+   384px badge → cutscene → wifi import (ozma) → 350MB download → zombies +
+   heartbeat on 4/4 (~40min) → Steam OOBE. If all green → item 2. Known polish
+   items to ask about while he's looking: splash→gamescope handoff gap, and
+   whether the cutscene replaying after the expand-root first-boot reboot
+   feels fine (I suspect it's charming; Cliff may disagree).
+2. **archive.org upload of 20260821c** — identifier **holodor** (verified
+   free), title/description draft in the 08-21 sleep-now block below (Cliff
+   rewrites wording). `ia` CLI authed on fusor. Propose final metadata to
+   Cliff BEFORE creating — identifiers are permanent.
+3. **OTA publish** per docs/pacman-repo.md: kernel-21, bsp-15, steam-41,
+   decky-14, **plymouth, pocknix-boot-art** (two NEW packages — remember
+   packages-first-db-last, pkgrel discipline, `_`-for-`:` names are
+   load-bearing). Cliff's internal install then gets the whole boot-art
+   experience + self-heals its root pin at the kernel-21 hook run.
+4. Backlog unchanged from 08-21: LED finding-2 repro (dev image), wifi sulk
+   hard-mode watch, rumble check via Steam controller test, EDL restore + jack
+   test (BONESAW), instrumented sleep-drain test, Cliff's Nova VS-save
+   cleanup.
+
+— written 2026-08-22 00:35 JST by **Claude Fable 5** (boot-art marathon: art
+delivered → plymouth + kernel-badge wired, validated off-device, three RC
+respins b→c, two byte-exact flashes; c's connected validation in Cliff's hands
+at close)
+
 ## CURRENT STATE 2026-08-21 (Fable, DRY-RUN + respin session) — READ THIS FIRST
 
 ### 🎉 SEEDLESS DRY-RUN PASSED END-TO-END ON HARDWARE (2026-08-20→21, Cliff driving)
