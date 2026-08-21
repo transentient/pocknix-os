@@ -49,6 +49,32 @@ root-owned); build-image ALSO needs HOLODOR_SEEDLESS=1 or it extracts the seed
 into the rootfs and the sd-image guard refuses (guard works; clean =
 rm -rf build/rootfs/home/deck/{.local/share/Steam*,.steam}).
 
+### 🔁 RC RESPUN WITH BOOT ART: 20260821b (2026-08-21 afternoon) — THIS is the RC now
+Cliff's call: the RC must contain the committed art. Full chain rebuilt:
+**kernel-20** (two new 40-holodor patches: 0800 drops fbcon's quiet-loglevel
+logo suppression + pins fb_logo_count=1; 0801 replaces logo_linux_clut224.ppm
+with ssalmon_px's badge at 192x192/13 colors) + **bsp-15** (kernel-cmdline +=
+fbcon=logo-pos:center — profile.conf image cmdline updated IN SYNC) + plymouth
++ pocknix-boot-art. Result: centered Holodor badge from display-init, cutscene
+at sysinit, logo hold, session. Build path used: build-kernel → build-packages
+PKG mode → build-image HOLODOR_RESUME=1 HOLODOR_SKIP_PKGPHASE=1
+HOLODOR_SEEDLESS=1 (reuses the verified rootfs; overlay lands at sd-image
+time, NOT in rootfs — don't panic at a missing /etc/plymouth there) →
+build-sd-image HOLODOR_RELEASE=1.
+`build/image/sm8750/holodor-odin3-20260821b-seedless.img.zst` (6.3 GiB +
+.sha256). Loop-mount spot-check ALL GREEN: KERNEL cmdline = PARTUUID root +
+fbcon=logo-pos:center, md5 OK, kernel-20/bsp-15/plymouth/boot-art/steam-41/
+decky-14, Theme=holodor conf, shadow root::/deck::, sshd off, no seed, no
+preseed, Holodor keyring, GH stanza, dynamic bootimg hook verified (reads bsp
+kernel-cmdline, re-pins PARTUUID from running root). **Supersedes 20260821 —
+do not publish 20260821.** The "root password: pocknix" line in build-sd-image
+output is DEV-MODE BOILERPLATE — shadow verified locked. Flash to the 32GB
+card via ~cliff/flash-rc.sh (retargeted to 20260821b) ran from this session.
+STILL PENDING: Cliff's validation boot = first hardware look at badge (fbcon
+rotation on the portrait panel?) + cutscene (plymouth DRM rotation) + the
+known handoff-gap/first-boot-double-play questions. OTA publish set grows to:
+kernel-20 bsp-15 steam-41 decky-14 + plymouth + pocknix-boot-art.
+
 ### 🎨 BOOT CUTSCENE WIRED (2026-08-21 midday — ssalmon_px delivered EARLY)
 Art arrived (assets/boot-cutscene/: 40-frame 240x135 intro, 156x32 logo, 64x64
 badge, aseprite sources — committed; the delivery ZIP stays untracked, it has
