@@ -10,7 +10,9 @@ dbus-broker
 mkinitcpio
 
 # --- boot splash ---
-# HOLODOR: not in Holo Core preview — no splash in v0; rebuild in localrepo later
+# HOLODOR: not in Holo Core preview. Installs from [pocknix] via pocknix-core.list
+# (ALARM repackage, packages/plymouth) — base.list resolves BEFORE the localrepo
+# stanza exists, so it can't live here. Kept commented for the design notes:
 #plymouth             # spinner splash over the silent boot (cmdline: quiet loglevel=3 ... splash).
                      #   We boot with NO initramfs, so this is plymouth's late mode: its systemd
                      #   units start plymouthd from the rootfs at sysinit; DRM_MSM=y means the

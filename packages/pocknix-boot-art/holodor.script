@@ -1,0 +1,74 @@
+# holodor.script — the Holodor boot cutscene (pocknix-boot-art).
+#
+# 34 frames, 10fps, played ONCE, then holds the final logo frame until
+# plymouth quits (plymouth-quit-wait hands tty1 to the session). Frames are
+# pre-scaled 8x nearest-neighbor to 1920x1080 (native art is 240x135) so
+# nothing scales on the boot path; plymouth's DRM renderer handles the Odin 3
+# panel's 90-degree orientation on its own (DTS rotation property).
+#
+# Frames are LAZY-loaded, one per animation step: a decoded 1080p frame is
+# ~8 MB, so loading all 34 up front would hold ~280 MB during boot. Lazy keeps
+# it at the current frame only, one PNG decode per 100 ms — cheap.
+#
+# Non-boot modes (shutdown/reboot) show the static logo frame, no animation.
+
+frame_count = 34;      # frames 35-40 (the fade-to-black tail) are dropped on
+                       # purpose — plymouth's quit transition does the fade
+ticks_per_frame = 5;   # script refresh runs at 50/s; 50/5 = the art's 10 fps
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+fun frame_name(i) {
+  if (i < 10)
+    return "frame-0" + i + ".png";
+  return "frame-" + i + ".png";
+}
+
+sprite = Sprite();
+current = 0;
+tick = 0;
+
+fun show_frame(i) {
+  image = Image(frame_name(i));
+  w = image.GetWidth();
+  h = image.GetHeight();
+  sw = Window.GetWidth();
+  sh = Window.GetHeight();
+  # Expected: 1920x1080 mode, art drawn 1:1. If the mode is ever smaller
+  # (unexpected panel/scale), shrink to fit rather than crop.
+  f = sw / w;
+  g = sh / h;
+  if (g < f)
+    f = g;
+  if (f < 1) {
+    w = Math.Int(w * f);
+    h = Math.Int(h * f);
+    image = image.Scale(w, h);
+  }
+  sprite.SetImage(image);
+  sprite.SetPosition((sw - w) / 2, (sh - h) / 2, 0);
+}
+
+fun refresh_callback() {
+  if (current < frame_count) {
+    global.tick = tick + 1;
+    n = Math.Int(tick / ticks_per_frame) + 1;
+    if (n > frame_count)
+      n = frame_count;
+    if (n != current) {
+      global.current = n;
+      show_frame(n);
+    }
+  }
+}
+
+if (Plymouth.GetMode() == "boot") {
+  current = 1;
+  show_frame(1);
+  Plymouth.SetRefreshFunction(refresh_callback);
+} else {
+  # shutdown/reboot: just the logo, held
+  current = frame_count;
+  show_frame(frame_count);
+}

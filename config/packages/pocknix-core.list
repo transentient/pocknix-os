@@ -26,3 +26,8 @@ cloud-guest-utils      # growpart — pocknix-expand-root grows the root partiti
                        #   NOT in Holo Core; ALARM aarch64 binary carried in the localrepo.
 scx-scheds             # sched_ext schedulers incl. scx_lavd (pocknix-lavd.service, autopilot).
                        #   NOT in Holo Core; ALARM aarch64 binary carried in the localrepo.
+plymouth               # boot splash daemon. NOT in Holo Core; ALARM aarch64 binary repackaged
+                       #   in the localrepo (packages/plymouth). LATE mode — no initramfs, its
+                       #   units self-start at sysinit; cmdline already carries `splash`.
+pocknix-boot-art       # the Holodor boot cutscene as the plymouth theme (ssalmon_px art);
+                       #   selected by overlay /etc/plymouth/plymouthd.conf (Theme=holodor).
