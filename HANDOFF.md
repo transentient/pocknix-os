@@ -49,15 +49,45 @@ root-owned); build-image ALSO needs HOLODOR_SEEDLESS=1 or it extracts the seed
 into the rootfs and the sd-image guard refuses (guard works; clean =
 rm -rf build/rootfs/home/deck/{.local/share/Steam*,.steam}).
 
+### TRAPS for the next agent (learned 2026-08-20/21)
+- **Agent-run raw `dd` to /dev/sdX is BLOCKED by the permission classifier.**
+  Do not fight it: the working pattern is `~cliff/flash-rc.sh` (guarded
+  write+byte-verify script), which CLIFF runs via `! sudo bash ~/flash-rc.sh`.
+  Script is already updated to target the 20260821 image, 32GB size guard
+  (27-34GB), work dir ~/odin3-backups/flash-work. Reads (verification hashes,
+  loop-mounts) are fine to run directly.
+- **After flashing, the card has NO wifi.txt** (dd overwrites everything). The
+  offline-screen validation boot doesn't need one. For a full connected run:
+  p1 gets `wifi.txt` = `ssid=ozma` / `password=<PSK in gitignored
+  config/local/ozma.nmconnection on fusor>` / `country=JP`.
+- **The 20260817/0818 seedless artifacts on fusor are SUPERSEDED — never
+  publish them** (label-root race + 4-retry NM). The seeded images must never
+  be published at all (Valve redistribution).
+- **Don't "fix" the `_`-for-`:` names in build/publish/** (GH colon trap, see
+  08-18 block) and don't touch SourceForge from automation (suspended us once).
+
 ### NEXT
 1. (Cliff) Flash 20260821 RC to the 32GB card (~cliff/flash-rc.sh, guard is set
    for the 32GB), quick boot to the offline screen = validates PARTUUID root +
    new font/screens on hardware. Full re-run optional (flow already proven).
 2. archive.org upload after that boot: identifier **holodor** (verified free;
    generalizes for RP5), title "Holodor — SteamOS-style Linux for ARM handhelds
-   (AYN Odin 3, and soon more)", description drafted in 08-20 transcript
-   (mini-Deck demand, AI chip crunch, ArmadaOS credit, "actual Holo Core, not
-   radically different - just different under the hood"); Cliff rewrites first.
+   (AYN Odin 3, and soon more)". Description draft (Cliff-approved direction,
+   he rewrites final wording — use hyphens, no jokes, per his voice):
+   > Everybody seems to want a mini Steam Deck these days. The Steam Deck is
+   > great, but it's kind of big - and Steam has so many games that feel like a
+   > waste to play on a full gaming PC. Meanwhile ARM handhelds are getting
+   > really good, just in time for the AI chip crunch, and Valve is starting to
+   > support ARM. There are already excellent open-source takes on Linux for
+   > these devices, especially ArmadaOS. Holodor is an attempt to get the
+   > actual SteamOS working - Valve's Holo Core - on the AYN Odin 3. It's not
+   > radically different from ArmadaOS, just different under the hood.
+   >
+   > Currently supported: AYN Odin 3. More devices planned, starting with the
+   > Retroid Pocket 5.
+   Upload = the 20260821 .zst + .sha256 via the `ia` CLI (authed on fusor,
+   ~/.config/internetarchive/ia.ini). Propose final metadata to Cliff before
+   creating — identifiers are PERMANENT.
 3. OTA publish of the new pkgs (kernel-19 bsp-14 decky-14 steam-41) per
    docs/pacman-repo.md — Cliff's internal install then self-heals its root pin
    at the kernel-19 update (hook is dynamic now).
