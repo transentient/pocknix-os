@@ -4,7 +4,98 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-22 (Fable, boot-art session 08-21 11:30 → 08-22 00:35 JST) — READ THIS FIRST
+## CURRENT STATE 2026-08-22 PM (Fable, c-validation session) — READ THIS FIRST
+
+### ✅ 20260821c VALIDATION: PASSED (2026-08-22, Cliff driving, virgin card)
+Answer to the block below's first question: the c boot had NOT run overnight —
+Cliff ran it this session. Full fresh-card sequence observed on hardware:
+384px badge → cutscene → wifi import (ozma; OOBE never asked) → download
+phases 1-3 → **4/4 zombies + heartbeat, FIRST HARDWARE SIGHTING** (marquee
+runs, elapsed + MB tick; "7 min" reading is correct — hb_start stamps at
+phase-4 entry, not boot) → **Steam OOBE welcome screen**. Cliff paused there
+(weekend; back next week) — sign-in beyond OOBE not re-run, but the 08-20
+dry-run already proved sign-in → Big Picture. BONUS: the shutdown splash
+shows the Holodor name (plymouth shutdown path works, never tested before).
+**The c image is validated and publishable.**
+
+### Polish list from the boot (none blocking; Cliff decides publish-vs-respin)
+1. **Badge → 448px** (7x of the 64px source; integer multiples only for
+   crisp nearest-neighbor). Cliff: "maybe a bit bigger, just a bit." RP5
+   worry is moot — RP5 panel is also 1920x1080 (5.5" vs 6"), same pixel size
+   renders the same screen fraction.
+2. **Cutscene irregularly janky on SD** — frames lazy-load from disk MID-
+   playback; ~4MB/s card can't keep up, animation hangs on late frames.
+   Fix: preload all 34 frames before starting playback (slightly longer
+   badge hold, smooth everywhere). Likely already smooth on internal UFS.
+3. **getty autologin flash** ("holodor login: deck (automatic login)")
+   between plymouth quit and the bootstrap screen — agetty's own autologin
+   notice (getty@tty1.service.d/autologin.conf). Cliff thought removal was
+   already agreed; not on any prior list — it is NOW. Cheap fix: silence
+   agetty (--noissue --nohostname …). Right fix: hold the splash until the
+   next screen is ready (SteamOS-style) — also closes the splash→gamescope
+   handoff gap. Same wart, one fix.
+
+### DECISION FOR CLIFF (next session, blocks items 2-3 of NEXT)
+Publish 20260821c as-is, or respin **d** with the polish above first?
+RC-must-match-repo rule applies: committing polish ⇒ respin before publish.
+
+### 🔬 RESEARCH BANKED (two agent reports, full text in 08-22 session transcript)
+Prompted by Discord chatter Cliff relayed mid-soak:
+- **Expedition 33 black screen ROOT-CAUSED (high confidence):** turnip
+  advertises shaderImageInt64Atomics on a830 — freedreno_devices.py a830
+  inherits has_64b_image_atomics=True from a7xx_gen3 (VERIFIED in our
+  mesa-next 26.3.0-devel tree on fusor); the a8xx implementation is broken.
+  UE5/Nanite requires those atomics → game takes the broken path → black
+  screen with audio. The Android turnip community ships a patch that HIDES
+  the feature so UE5 falls back (WinNative disable_64b_image_atomics.py).
+  The "33fps on Android" reports = Qualcomm proprietary KGSL driver, not
+  turnip; nobody runs this game on unpatched turnip a8xx. Fixes ranked:
+  (a) `-dx11` launch option — zero-rebuild 5-min test on the internal
+  install; (b) one-line mesa-next patch: has_64b_image_atomics=False for
+  a830 → fixes UE5 class-wide, ride next OTA; (c) TU_DEBUG=sysmem in pocket
+  (separate documented a830 GMEM write-fault bug); (d) longer term: cherry-
+  pick whitebelyash turnip/gen8 hack set — it IS the Android-vs-us delta.
+  Confirm first: dmesg GPU faults during black screen + Proton log shows
+  D3D12 RHI chosen.
+- **Elden Ring / EAC: the Discord claim is WRONG — ArmadaOS does NOT have
+  EAC working.** Their repos: zero EAC patches (stock FEX e869aa6 + 2 build
+  fixes). Their own tracker (armada-os/armada#8, 2026-06-13, AYN Thor):
+  EAC "can't be loaded", Elden Ring + VF5 don't run, client offers streaming
+  instead of installing the EAC runtime — OUR EXACT SYMPTOM. Nobody has EAC
+  under FEX/arm64 (FEX#4348 open since 2025-02; Epic lists Linux-arm64
+  unsupported; Valve still "working with vendors" for Steam Frame — when it
+  ships, Holo Core inherits FIRST, we're on the best-positioned stack).
+  The Discord person is almost certainly playing OFFLINE with the standard
+  bypass (launch option sed's start_protected_game.exe → eldenring.exe —
+  the FEX wiki's own prescription). Parity move: same bypass works for us
+  (offline only; FEX has a known occasional ud2/JIT crash in this game —
+  needs a real test). Also worth one check: will our client install
+  "Proton EasyAntiCheat Runtime" 1826330 (steam console `app_install
+  1826330`)? Expected to still fail at EAC init, but right to have staged.
+  DO NOT burn time on FEX version archaeology or Proton forks for EAC.
+
+### NEXT (ordered)
+1. **Cliff's publish-vs-respin call** (see DECISION above). If respin d:
+   badge 448 (kernel patch 0801 regen), theme preload, agetty silence — all
+   small, one rebuild chain.
+2. **archive.org upload** of the blessed image — identifier **holodor**,
+   metadata draft in the 08-21 block below, propose to Cliff BEFORE creating.
+3. **OTA publish** per docs/pacman-repo.md: kernel-21 bsp-15 steam-41
+   decky-14 + plymouth + pocknix-boot-art (packages-first-db-last, pkgrel
+   discipline, `_`-for-`:` names load-bearing).
+4. Expedition 33: `-dx11` test on the internal install, then the mesa
+   atomics patch into the next mesa-next rebuild.
+5. Elden Ring: bypass launch-option test; Cliff corrects the Discord thread
+   (his words; facts above).
+6. Backlog unchanged: LED finding-2 repro, wifi sulk hard-mode watch, rumble
+   check, EDL restore + jack test (BONESAW), instrumented sleep-drain test,
+   Cliff's Nova VS-save cleanup.
+
+— written 2026-08-22 by **Claude Fable 5** (c-validation session: full virgin
+boot green through OOBE, zombies' hardware debut, shutdown splash freebie;
+Expedition 33 root-caused + Elden Ring Discord claim debunked during the soak)
+
+## CURRENT STATE 2026-08-22 (Fable, boot-art session 08-21 11:30 → 08-22 00:35 JST) — superseded by the PM block above
 
 ### THE ONE-PARAGRAPH VERSION
 ssalmon_px's boot art arrived EARLY (2026-08-21, was expected ~08-24) and is now
