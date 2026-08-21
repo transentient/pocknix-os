@@ -49,6 +49,26 @@ root-owned); build-image ALSO needs HOLODOR_SEEDLESS=1 or it extracts the seed
 into the rootfs and the sd-image guard refuses (guard works; clean =
 rm -rf build/rootfs/home/deck/{.local/share/Steam*,.steam}).
 
+### 🎨 BOOT CUTSCENE WIRED (2026-08-21 midday — ssalmon_px delivered EARLY)
+Art arrived (assets/boot-cutscene/: 40-frame 240x135 intro, 156x32 logo, 64x64
+badge, aseprite sources — committed; the delivery ZIP stays untracked, it has
+Cliff's real name in the filename, /*.zip now gitignored). Wired as plymouth:
+**packages/plymouth** (ALARM 26.134.222 repackage, sonames verified vs Holo
+rootfs, no alpm hooks, late mode/no initramfs) + **packages/pocknix-boot-art**
+(script theme: 34 frames 8x nearest to 1920x1080, lazy-loaded, 10fps once,
+holds logo; fade tail dropped). Both BUILT into localrepo/sm8750 (NOTE:
+build-packages defaults DEVICE=sm8550 — a stray plymouth also landed in
+localrepo/sm8550, harmless). core.list + overlay plymouthd.conf
+(Theme=holodor, DeviceScale=1) updated. **Validated on fusor**: rendered
+end-to-end under x86 plymouthd in Xvfb (bind-mount namespace trick; xvfb pkg
+now installed on fusor) — parses, paces right, holds logo. **NOT in the
+20260821 RC** (do not respin for this) — lands in the NEXT image + OTA publish.
+STILL NEEDS ON-DEVICE: DRM renderer vs the DTS rotation=90 panel (plymouth
+should auto-rotate), splash→gamescope handoff gap, first-boot double-play
+across the expand-root reboot. Kernel CLUT224 logo slot = DEAD under
+quiet loglevel=3 (fbcon.c:1107) — don't burn time; 64x64 badge unused for now
+(ABL splash partition is a possible future home, needs Cliff).
+
 ### TRAPS for the next agent (learned 2026-08-20/21)
 - **Agent-run raw `dd` to /dev/sdX is BLOCKED by the permission classifier.**
   Do not fight it: the working pattern is `~cliff/flash-rc.sh` (guarded
