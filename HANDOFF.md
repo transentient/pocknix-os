@@ -49,7 +49,19 @@ root-owned); build-image ALSO needs HOLODOR_SEEDLESS=1 or it extracts the seed
 into the rootfs and the sd-image guard refuses (guard works; clean =
 rm -rf build/rootfs/home/deck/{.local/share/Steam*,.steam}).
 
-### 🔁 RC RESPUN WITH BOOT ART: 20260821b (2026-08-21 afternoon) — THIS is the RC now
+### 🔁 RC 20260821c (2026-08-21 evening) — THIS is the RC; b + 20260821 both superseded
+Same as the b block below except kernel-21: badge upsized 192->384px after
+Cliff's on-hardware verdict from the b validation boot (badge centered + tiny,
+animation great; zombies were a false alarm — they only run on the 4/4
+finalize screen, Cliff hadn't reached it). b's boot also proved: fbcon badge
+upright + centered on the portrait panel, plymouth cutscene renders + rotates
+correctly on real DRM. `holodor-odin3-20260821c-seedless.img.zst` (+.sha256),
+spot-check green (kernel-21, PARTUUID+fbcon cmdline, md5, hygiene). Flashed to
+the 32GB card BYTE-EXACT (sha 21a61aa8...) + wifi.txt (ozma/JP) written to p1
+— card is running the FULL connected validation as of ~19:30 JST. OTA set:
+kernel-21 bsp-15 steam-41 decky-14 plymouth pocknix-boot-art.
+
+### 🔁 RC RESPUN WITH BOOT ART: 20260821b (2026-08-21 afternoon) — superseded by c above
 Cliff's call: the RC must contain the committed art. Full chain rebuilt:
 **kernel-20** (two new 40-holodor patches: 0800 drops fbcon's quiet-loglevel
 logo suppression + pins fb_logo_count=1; 0801 replaces logo_linux_clut224.ppm
