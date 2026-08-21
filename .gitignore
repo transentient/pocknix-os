@@ -34,3 +34,6 @@ __pycache__/
 # device-recovery assets (large binaries, never commit)
 odin3-abl-backup/
 odin3-firmware-20251206/
+
+# commissioned-art delivery archives (filenames may contain personal info)
+/*.zip
