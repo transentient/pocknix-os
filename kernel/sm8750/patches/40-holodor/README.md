@@ -21,6 +21,26 @@ Other Holodor-original:
 - 0605 wcd939x headsets-via-USBSS; 0700 Odin3 haptics/rumble DTS; 1000-1004 qcom-hv-
   haptics + rsinput FF bridge; 1300 rsinput deadzone.
 
+Ported from ArmadaOS 2026-08-20..23 kernel push (kernel-22 bundle, 2026-08-24):
+- **1005 rsinput-quiesce-the-mcu-across-system-sleep** — drops the MCU enable/reset
+  GPIOs in rsinput_suspend() so it stops streaming before the GENI UART suspends;
+  resume re-powers it via rsinput_init_commands(). Belt to 0513's suspenders — Armada
+  carries both (their 1005+1006) and their GENI commit notes quiesce alone is not
+  sufficient on devices whose MCU keeps TX alive. Verbatim from armada-packages d48faa9.
+- **1006 rsinput-reassemble-uart-frames** — rsinput_rx() assumed one serdev callback ==
+  one whole frame and threw away anything else; after resume, reception can start
+  mid-frame and the pad stays dead until a callback happens to align ("intermittently
+  dead controller after wake", "Checksum mismatch" bursts at resume — OUR symptom).
+  Now buffers, resyncs on the frame header, delivers complete frames, keeps the tail.
+  Verbatim from armada-packages d48faa9 (their 0515; renumbered after 1002 because its
+  struct hunk needs the FF-bridge context). Candidate fix for controls-dead-after-resume.
+- **0701 volup-no-wakeup-source** — only the power button wakes the device; volume-up
+  no longer wakes from a bag/case. From armada-packages 6acedce.
+  NOT taken from that push: their 1006 GENI mask (we already carry the equivalent 0513,
+  more defensive: wakeup-capable check + error-path rebalance); 0513/0520 PCIe s2idle
+  OPP floor (s2idle + SM8550 AOP specific — we do real S3 on SM8750); Linux 7.2 bump
+  (separate, bigger decision).
+
 NOTE: 0508 was spuriously "convicted" as the suspend wedge on 2026-08-08 (a module
 bisection confounded by whether the charger was plugged in). It is a legitimate
 controls-after-resume improvement and stays active via the ROCKNIX 20-sm8750 copy.
