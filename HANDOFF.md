@@ -4,7 +4,50 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-24 (Fable, upstream-watch session) — kernel-22 built, deploy pending
+## CURRENT STATE 2026-08-24→25 (Fable, upstream-watch session, closed by /sleep-now) — kernel-22 built, deploy pending — READ THIS FIRST
+
+Short focused session: Cliff flagged "new stuff hit upstream"; swept all four
+upstreams, ported the relevant ArmadaOS kernel fixes, built + packaged kernel-22.
+Repo CLEAN at e827252, everything pushed. Device was asleep the whole session —
+NOTHING was touched on-device; the deploy ceremony below is 100% pending.
+
+### Session verification detail (so you don't redo it)
+- All 3 new patches dry-run-verified with patch(1) against the fully-patched
+  build tree BEFORE the build, then the real rebuild applied all 18x 40-holodor
+  patches clean (build log: `build/kernel22-build.log`, packaging:
+  `build/kernel22-pkg.log`).
+- rsinput.c in the fresh tree grep-verified (rx_len field + quiesce comment).
+- Built DTB decompiled (`dtc -I dtb` on out/dtbs/cq8725s-ayn-odin3.dtb):
+  key-volume-up has NO wakeup-source; no other gpio-keys wake source existed.
+  Power-button wake is PMIC PON, not gpio-keys — unaffected by 0701.
+- `rsinput_resume()` → `rsinput_init_commands()` confirmed to do the full GPIO
+  power-on (reset low → 100ms → enable+reset high → re-init cmds), so 1005's
+  quiesce (drop enable/reset at suspend) is balanced. Same pattern as
+  rsinput_remove().
+- localrepo DB confirmed to carry `linux-pocknix-sm8750-7.1.3-22`.
+
+### WRONG TURNS this session (small, but don't repeat)
+- **fusor's holodor clone has NO `upstream` remote** (that was the old BONESAW/WSL
+  clone). `git fetch upstream` fails here. Sweep upstreams via the GitHub API
+  (`api.github.com/repos/<org>/<repo>/commits`) — worked fine unauthenticated.
+- Armada's 0515 (frame reassembly) canNOT keep its number in our stack: its
+  struct hunk's trailing context includes `rumble_work`, which only exists after
+  our 1002 FF bridge. patch(1) fuzz would probably survive it but the git-apply
+  fallback would not. Hence renumbered 1006. Verified the reverse direction too:
+  1300 (deadzone, probe-area) has no overlap with the rx rewrite.
+
+### TRAPS
+- **Our 0513 GENI mask == Armada's NEW 1006** (same fix, independently converged;
+  ours is the more defensive impl — wakeup-capable check + error-path rebalance).
+  Do NOT port their 1006 on top; it would double-disable the IRQ.
+- `build/kernel/sm8750/linux-7.1.3` is ROOT-owned (sudo build) and is REBUILT
+  FROM SCRATCH every build-kernel.sh run (rm -rf + fresh extract + patch apply).
+  Don't hand-edit it expecting persistence; patches in kernel/sm8750/patches/
+  are the only durable home.
+- ArmadaOS moved to **Linux 7.2** (BASE.env VERSION=7.2). Their FUTURE patches
+  will be against 7.2 contexts — this port still applied clean to 7.1.3, but
+  expect drift to grow. Weigh the 7.2 bump at the next kernel cycle, not as a
+  side effect of a patch port.
 
 Cliff flagged upstream movement. Swept all four upstreams:
 - **ArmadaOS armada-packages d48faa9 + 6acedce + 5552bb9 (08-20..23)**: suspend/controller
