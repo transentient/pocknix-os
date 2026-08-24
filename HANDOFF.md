@@ -4,6 +4,37 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
+## CURRENT STATE 2026-08-24 (Fable, upstream-watch session) — kernel-22 built, deploy pending
+
+Cliff flagged upstream movement. Swept all four upstreams:
+- **ArmadaOS armada-packages d48faa9 + 6acedce + 5552bb9 (08-20..23)**: suspend/controller
+  fix cluster. PORTED to 40-holodor as **kernel-22** (commit 4cea35a, pkgrel 22 in
+  localrepo, built clean on fusor, vol-up wake verified gone in DTB):
+  - 1005 rsinput MCU quiesce across sleep (belt to our 0513 GENI mask)
+  - 1006 rsinput UART frame reassembly (their 0515) — **their commit text describes our
+    controls-dead-after-resume bug verbatim** ("intermittently dead controller after
+    wake", mid-frame reception after port reopen). Best candidate fix we've had.
+  - 0701 vol-up loses wakeup-source (no bag-wakes; power button unaffected — PON path)
+  - NOT taken: their 1006 GENI mask (our 0513 = same fix, more defensive), PCIe s2idle
+    OPP floor (SM8550/s2idle-only; we do real S3), **Linux 7.2 bump** (they moved off
+    7.1.x; separate decision, revisit at next kernel cycle)
+- **pocknix-os upstream (08-17..20)**: big restructure (packages split shared/soc, new
+  [pocknix-shared] pacman layer + metapackages) → next upstream merge is non-trivial,
+  park deliberately. Goodies worth cherry-picking later: dxvk-2.7 donor in Valve ARM
+  protons, turnip 26.3-devel refresh, FEX compat profiles + decky presets, per-game big
+  core pinning, **iwd-races-wlan0 bsp fix (696119c — our wifi-sulk family, look at it
+  when sulk work resumes)**.
+- Holo Core preview: unchanged (mash-20251118.3). extra-firmware: no SM8750 changes.
+
+**DEPLOY CEREMONY (Cliff at device):** wake device → `scp` + `pacman -U
+linux-pocknix-sm8750-7.1.3-22` (hook rebuilds /flash/KERNEL, KERNEL.bak = rollback) →
+reboot → test: several suspend/resume cycles incl. suspend-mid-game, controls must
+survive EVERY wake; vol-up while suspended must NOT wake; rumble still works
+(Cyberpunk). Device was asleep/unreachable this session — package NOT staged on device.
+RC-parity: kernel-22 is repo+localrepo only; the pending publish-vs-respin decision
+(block below) now has kernel-22 as respin cargo alongside the badge/preload/getty
+polish. If publishing c as-is, kernel-22 rides the first OTA instead.
+
 ## CURRENT STATE 2026-08-22 PM (Fable, c-validation session) — READ THIS FIRST
 
 ### ✅ 20260821c VALIDATION: PASSED (2026-08-22, Cliff driving, virgin card)
