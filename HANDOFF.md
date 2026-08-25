@@ -18,20 +18,37 @@ Two small things this session; kernel-22 deploy is STILL pending (block below).
    SD lazy-load jank, polish item 2) → **screen went dark and it sat doing
    nothing; no response to input until he plugged in USB-C power**, after
    which it came back and he continued into OOBE.
-   - Cliff's working theory (his words: "thinking it might have somehow
-     drained the battery down over the weekend"): off-state battery drain
-     to near-critical. PROVISIONAL — nobody has seen the logs or a battery %.
-   - Alternate explanations to keep alive until logs say otherwise: the known
-     splash→gamescope handoff gap + slow first-boot-ish Steam work making the
-     dark period look like a hang (USB-C timing then coincidence); or the
-     Friday power-off from inside OOBE never completed cleanly and the
-     weekend was spent in some on-but-dark state that ate the battery.
-   - NEXT DEVICE SESSION, while journals still exist: `journalctl
-     --list-boots`, read the incident boot AND the tail of the Friday
-     shutdown boot (did it reach systemd-poweroff cleanly?); battery charge
-     at incident boot start (upower/power_supply uevent in the journal);
-     then decide if there's a real off-state drain to chase (measure: note
-     %, full S5 overnight, re-check %).
+   - ~~Cliff's initial theory: off-state battery drain to near-critical.~~
+     RULED OUT by Cliff same day: once recovered, the battery bar was
+     "pretty full". So USB-C did NOT rescue a dead battery — more likely the
+     PLUG EVENT itself woke/unblanked the device.
+   - Leading hypotheses now (all UNVERIFIED, journal will arbitrate):
+     (a) the device SUSPENDED or blanked during the dark first-boot gap —
+     the Odin is known to idle-suspend during long sessions (see the
+     idle-suspend note further down this file), and controller input may not
+     be a wake source that early; USB-C power events wake it. (b) the known
+     splash→gamescope handoff gap + slow first-boot Steam work looked like a
+     hang and the plug was coincidence. (c) Friday's power-off from inside
+     OOBE didn't complete cleanly and Monday's boot inherited weird state.
+   - JOURNAL IS SAFE, NO URGENCY: verified in the c build rootfs on fusor —
+     /var/log/journal exists + Storage=auto ⇒ persistent journaling. The
+     incident boot's log sits on the card until we next get a shell.
+   - NO REMOTE ACCESS to the running c card — probed live 08-25 while the
+     device was up on wifi: mDNS name `holodor` resolves (IPv6) but port 22
+     REFUSES — sshd off as shipped, working as documented. ALSO: something
+     at 192.168.1.15 runs sshd but DENIES our key — the old "ssh
+     root@192.168.1.15, key already installed" line far below is STALE;
+     do not assume .15 is the Odin, and don't hammer it.
+   - WHEN A SHELL NEXT EXISTS (Cliff at device — desktop-mode terminal, or
+     whatever path the kernel-22 deploy uses): `journalctl --list-boots`;
+     read the incident boot start-to-first-input (look for suspend entry /
+     DPMS blank / gamescope start stall, and the power_supply/USB plug event
+     timing vs recovery); read the tail of the Friday shutdown boot (clean
+     systemd-poweroff?).
+   - FLAG for the kernel-22 deploy ceremony (block below): its "scp +
+     pacman -U" step assumes ssh onto the device — the c card has sshd OFF,
+     so the ceremony needs an access step first (Cliff enabling sshd from a
+     local shell, or deploying via SD on another path). Decide with Cliff.
    - WHY IT MATTERS (Cliff): "I don't want people experiencing that" — a
      first-boot-after-unboxing dark hang is exactly what a new user would
      hit. If drain is real, think low-battery boot guard / charging screen;
