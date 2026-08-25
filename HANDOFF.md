@@ -10,8 +10,9 @@ Two small things this session; kernel-22 deploy is STILL pending (block below).
 1. Blinking-cursor polish item: tried `vt.global_cursor_default=0` (bsp-16),
    Cliff rolled it back same day — see polish item 4 in the 08-22 PM block.
    Repo + localrepo are back to bsp-15; don't trust any stray bsp-16 artifact.
-2. **INCIDENT 2026-08-25 — dark screen + unresponsive on first power-on after
-   3 days off (UNINVESTIGATED, logs not pulled yet).** Cliff's report, verbatim
+2. **INCIDENT 2026-08-25 — SOLVED same evening via ssh + journals (read the
+   ROOT CAUSE sub-block; the fix is polish item 3, now upgraded to priority).**
+   Cliff's report, verbatim
    sequence: shut the device down Friday night AT the SteamOS OOBE
    "choose your language" screen; device sat off (untouched) through the
    weekend; powered on Monday → static Holodor badge → choppy cutscene (known
@@ -45,30 +46,65 @@ Two small things this session; kernel-22 deploy is STILL pending (block below).
      DPMS blank / gamescope start stall, and the power_supply/USB plug event
      timing vs recovery); read the tail of the Friday shutdown boot (clean
      systemd-poweroff?).
-   - FLAG for the kernel-22 deploy ceremony (block below): its "scp +
-     pacman -U" step assumes ssh onto the device — the c card has sshd OFF,
-     so the ceremony needs an access step first (Cliff enabling sshd from a
-     local shell, or deploying via SD on another path). Decide with Cliff.
+   - ~~FLAG for the kernel-22 deploy ceremony~~ RESOLVED: sshd is now ON on
+     the card and fusor's key is installed — `ssh deck@holodor` works from
+     fusor (verified live 08-25 evening). Root escalation on-device:
+     `systemd-run -t bash` (polkit wheel rule; there is NO sudo config on
+     this image). Deploy ceremony can proceed as written.
+   - **ROOT CAUSE (from the journals, 08-25 evening — this is the answer):**
+     - The Odin's RTC is USELESS across power-off (resets to 1970-01-11;
+       clock restored from last-shutdown timestamp, corrected only when
+       wifi+NTP lands). FORENSICS TRAP: every cold boot's early journal
+       carries the PREVIOUS shutdown's wall time — `--list-boots` looks
+       contiguous when days actually passed. Use `-o short-monotonic`.
+     - Friday night's "shutdown" was actually a SHORT press = SUSPEND (our
+       power-button config). The real clean poweroff was Sat 08:27 (Cliff,
+       before leaving). Device WAS off all weekend; battery full — correct.
+     - Monday power-on boot (id c67112f3…), monotonic: normal healthy boot;
+       deck session up at 35s. Badge+cutscene, then the KNOWN
+       splash→gamescope DARK GAP (polish item 3). At 57s — i.e. ~22s of
+       dark — Cliff short-pressed power → logind: "Power key pressed short"
+       → SUSPEND. Screen now legitimately dead-looking. Second short press
+       69s (wake), LONG press 77s → poweroff. gamescope-wl SEGV'd (sig 11)
+       during that teardown, AFTER the long press — likely shutdown-path
+       crash, not the cause of the dark screen; coredump did NOT survive
+       (coredumpctl empty). Next boot ran 11 min, ended with a clean logind
+       reboot 13:04 (Steam self-update restart or Cliff — unconfirmed),
+       then the current OOBE session. USB-C was a RED HERRING — no charger
+       event is journaled on this platform, and the wakes line up with
+       Cliff's own power presses.
+     - **The UX death spiral this exposes (why item 3 is now PRIORITY, not
+       polish): dark gap → user presses power → device suspends → looks
+       MORE dead → long press → poweroff → "my device is bricked".** It
+       caught the project's own maintainer; it will catch every new user.
+       Fix = hold the splash until the session paints (SteamOS-style).
+       Consider also whether a short press during the first N seconds of a
+       session should suspend at all.
    - WHY IT MATTERS (Cliff): "I don't want people experiencing that" — a
      first-boot-after-unboxing dark hang is exactly what a new user would
      hit. If drain is real, think low-battery boot guard / charging screen;
      if it's the handoff gap, polish item 3's hold-the-splash fix covers it.
 3. Cliff is now driving OOBE forward (language onward) and letting the Steam
    client settle overnight — expect fresh on-device state next session.
-4. NEW POLISH ITEM (Cliff, 08-25, from first real desktop-mode use on the
-   Odin 3): **desktop-mode text is unreadably small** on the 6" 1080p panel
-   — same class of wart as the 16px bootstrap tty font we already fixed
-   with setfont sun32. "Plenty of people are just not going to be able to
-   use this." Fix in the image: ship a Konsole profile with a big default
-   font + set a Plasma Mobile display scale appropriate to this panel
-   (desktop was RP6-tuned; Odin 3 never had a scaling pass). Workaround
-   given live: Ctrl+= zoom in Konsole.
+4. **BUG (bigger than first logged): "Switch to Desktop" on the Odin 3
+   lands on a BARE tty CLI — Plasma Mobile never launches.** Cliff hit it
+   live 08-25 (desktop mode's first-ever run on this device; it was only
+   brought up on the RP6). The session supervisor fell through to the
+   shell — graceful, but not SteamOS behavior. Cliff's verdict: "I would
+   not mind having a CLI as desktop mode but we should be doing whatever
+   proper SteamOS would do." Sub-item: the tty font is unreadable on the
+   6" 1080p panel (workaround: setfont latarcyrheb-sun32, already on the
+   image). When fixing: diagnose why startplasmamobile fails on the Odin 3
+   panel (rotation? kwin?), AND give the desktop a scaling pass for this
+   screen. `steamos-session-select gamescope` from the fallback CLI only
+   writes the choice file (no compositor to signal) — reboot re-enters it.
 5. On-device state drift on the validation card (deliberate, Cliff-driven,
    08-25 evening): deck password set by Cliff (unknown to agents, by
-   design), sshd enabled+running; fusor key install into authorized_keys
-   in progress via `curl https://github.com/transentient.keys` (first
-   attempt silently failed, retry with -f pending). Card ≠ pristine
-   release state from here on — published image unaffected.
+   design); sshd enabled + fusor key in ~deck/.ssh/authorized_keys via
+   `curl github.com/transentient.keys` — `ssh deck@holodor` VERIFIED from
+   fusor. Card ≠ pristine release state from here on — published image
+   unaffected. (fusor's known_hosts had the old dev install's host key for
+   `holodor`; already cleared with ssh-keygen -R.)
 
 ## CURRENT STATE 2026-08-24→25 (Fable, upstream-watch session, closed by /sleep-now) — kernel-22 built, deploy pending
 
