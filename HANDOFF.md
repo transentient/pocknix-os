@@ -55,6 +55,20 @@ Two small things this session; kernel-22 deploy is STILL pending (block below).
      if it's the handoff gap, polish item 3's hold-the-splash fix covers it.
 3. Cliff is now driving OOBE forward (language onward) and letting the Steam
    client settle overnight — expect fresh on-device state next session.
+4. NEW POLISH ITEM (Cliff, 08-25, from first real desktop-mode use on the
+   Odin 3): **desktop-mode text is unreadably small** on the 6" 1080p panel
+   — same class of wart as the 16px bootstrap tty font we already fixed
+   with setfont sun32. "Plenty of people are just not going to be able to
+   use this." Fix in the image: ship a Konsole profile with a big default
+   font + set a Plasma Mobile display scale appropriate to this panel
+   (desktop was RP6-tuned; Odin 3 never had a scaling pass). Workaround
+   given live: Ctrl+= zoom in Konsole.
+5. On-device state drift on the validation card (deliberate, Cliff-driven,
+   08-25 evening): deck password set by Cliff (unknown to agents, by
+   design), sshd enabled+running; fusor key install into authorized_keys
+   in progress via `curl https://github.com/transentient.keys` (first
+   attempt silently failed, retry with -f pending). Card ≠ pristine
+   release state from here on — published image unaffected.
 
 ## CURRENT STATE 2026-08-24→25 (Fable, upstream-watch session, closed by /sleep-now) — kernel-22 built, deploy pending
 
