@@ -4,7 +4,42 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-24→25 (Fable, upstream-watch session, closed by /sleep-now) — kernel-22 built, deploy pending — READ THIS FIRST
+## CURRENT STATE 2026-08-25 (Fable, cursor + incident-log session) — READ THIS FIRST, then the 08-24→25 block
+
+Two small things this session; kernel-22 deploy is STILL pending (block below).
+1. Blinking-cursor polish item: tried `vt.global_cursor_default=0` (bsp-16),
+   Cliff rolled it back same day — see polish item 4 in the 08-22 PM block.
+   Repo + localrepo are back to bsp-15; don't trust any stray bsp-16 artifact.
+2. **INCIDENT 2026-08-25 — dark screen + unresponsive on first power-on after
+   3 days off (UNINVESTIGATED, logs not pulled yet).** Cliff's report, verbatim
+   sequence: shut the device down Friday night AT the SteamOS OOBE
+   "choose your language" screen; device sat off (untouched) through the
+   weekend; powered on Monday → static Holodor badge → choppy cutscene (known
+   SD lazy-load jank, polish item 2) → **screen went dark and it sat doing
+   nothing; no response to input until he plugged in USB-C power**, after
+   which it came back and he continued into OOBE.
+   - Cliff's working theory (his words: "thinking it might have somehow
+     drained the battery down over the weekend"): off-state battery drain
+     to near-critical. PROVISIONAL — nobody has seen the logs or a battery %.
+   - Alternate explanations to keep alive until logs say otherwise: the known
+     splash→gamescope handoff gap + slow first-boot-ish Steam work making the
+     dark period look like a hang (USB-C timing then coincidence); or the
+     Friday power-off from inside OOBE never completed cleanly and the
+     weekend was spent in some on-but-dark state that ate the battery.
+   - NEXT DEVICE SESSION, while journals still exist: `journalctl
+     --list-boots`, read the incident boot AND the tail of the Friday
+     shutdown boot (did it reach systemd-poweroff cleanly?); battery charge
+     at incident boot start (upower/power_supply uevent in the journal);
+     then decide if there's a real off-state drain to chase (measure: note
+     %, full S5 overnight, re-check %).
+   - WHY IT MATTERS (Cliff): "I don't want people experiencing that" — a
+     first-boot-after-unboxing dark hang is exactly what a new user would
+     hit. If drain is real, think low-battery boot guard / charging screen;
+     if it's the handoff gap, polish item 3's hold-the-splash fix covers it.
+3. Cliff is now driving OOBE forward (language onward) and letting the Steam
+   client settle overnight — expect fresh on-device state next session.
+
+## CURRENT STATE 2026-08-24→25 (Fable, upstream-watch session, closed by /sleep-now) — kernel-22 built, deploy pending
 
 Short focused session: Cliff flagged "new stuff hit upstream"; swept all four
 upstreams, ported the relevant ArmadaOS kernel fixes, built + packaged kernel-22.
