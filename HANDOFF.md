@@ -108,6 +108,13 @@ shows the Holodor name (plymouth shutdown path works, never tested before).
    agetty (--noissue --nohostname …). Right fix: hold the splash until the
    next screen is ready (SteamOS-style) — also closes the splash→gamescope
    handoff gap. Same wart, one fix.
+4. **Blinking fbcon cursor over the boot badge** (far right, during the static
+   Holodor image; Cliff flagged 08-25). TRIED AND ROLLED BACK same day
+   (0fcbb5b → revert cd3b666): `vt.global_cursor_default=0` works but kills
+   the cursor on ALL VTs and Cliff wants debug ttys left alone. Don't re-add
+   it. If this gets picked up again, scope it to the splash tty only — e.g.
+   `\e[?25l` to /dev/tty1 early in boot, or fold it into the hold-the-splash
+   fix in item 3 (plymouth covering tty1 hides the cursor for free).
 
 ### DECISION FOR CLIFF (next session, blocks items 2-3 of NEXT)
 Publish 20260821c as-is, or respin **d** with the polish above first?
