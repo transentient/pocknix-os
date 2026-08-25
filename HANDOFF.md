@@ -70,7 +70,13 @@ Cliff flagged upstream movement. Swept all four upstreams:
 - Holo Core preview: unchanged (mash-20251118.3). extra-firmware: no SM8750 changes.
 
 **DEPLOY CEREMONY (Cliff at device):** wake device → `scp` + `pacman -U
-linux-pocknix-sm8750-7.1.3-22` (hook rebuilds /flash/KERNEL, KERNEL.bak = rollback) →
+linux-pocknix-sm8750-7.1.3-22 pocknix-bsp-sm8750-0.2.0-16` — BOTH IN ONE
+TRANSACTION: bsp-16 carries the new kernel-cmdline (vt.global_cursor_default=0,
+kills the blinking fbcon cursor over the boot badge — Cliff spotted it 08-25)
+but the /flash/KERNEL rebuild hook only triggers on the KERNEL package's
+Image/dtbs/modules, so bsp-16 installed alone would NOT re-bake the cmdline.
+One transaction → PostTransaction hook reads the new cmdline. (Hook rebuilds
+/flash/KERNEL, KERNEL.bak = rollback) →
 reboot → test: several suspend/resume cycles incl. suspend-mid-game, controls must
 survive EVERY wake; vol-up while suspended must NOT wake; rumble still works
 (Cyberpunk). Device was asleep/unreachable this session — package NOT staged on device.
@@ -108,6 +114,14 @@ shows the Holodor name (plymouth shutdown path works, never tested before).
    agetty (--noissue --nohostname …). Right fix: hold the splash until the
    next screen is ready (SteamOS-style) — also closes the splash→gamescope
    handoff gap. Same wart, one fix.
+4. **Blinking fbcon cursor over the boot badge** (far right of screen during
+   the static Holodor image; Cliff flagged 2026-08-25). DONE in repo+localrepo:
+   `vt.global_cursor_default=0` added to the sm8750 cmdline (profile.conf +
+   BSP kernel-cmdline, drift guard green), **pocknix-bsp-sm8750 0.2.0-16**
+   built + staged. Deploys with kernel-22 (one-transaction note in the deploy
+   ceremony above); any respin picks it up from profile.conf automatically.
+   Debug note: this hides the cursor on ALL VTs — on a debug console,
+   `printf '\e[?25h'` brings it back for that tty.
 
 ### DECISION FOR CLIFF (next session, blocks items 2-3 of NEXT)
 Publish 20260821c as-is, or respin **d** with the polish above first?
