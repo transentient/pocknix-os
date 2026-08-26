@@ -4,9 +4,34 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-25 (Fable, cursor + incident-log session) — READ THIS FIRST, then the 08-24→25 block
+## CURRENT STATE 2026-08-25→26 (Fable, cursor + incident + KERNEL-22 DEPLOY session) — READ THIS FIRST, then the 08-24→25 block
 
-Two small things this session; kernel-22 deploy is STILL pending (block below).
+**HEADLINE: kernel-22 IS DEPLOYED AND BOOTED on the device (08-26 ~13:25 JST).
+Validation = Cliff's Vampire Survivors play session, verdict pending.** Deploy
+method (repeatable): Cliff scp'd the pkg via `!` (agent's scp was
+classifier-blocked; his `!` fallback per the flash-rc precedent), then agent ran
+`ssh deck@192.168.1.18 systemd-run --wait --pipe systemd-inhibit --what=sleep
+pacman -U --noconfirm …` — the inhibitor matters, the device SUSPENDS EVEN
+PLUGGED IN WITH SCREEN ON (see item 7; it killed the first scp mid-transfer).
+Verified after reboot: pacman -Q = 7.1.3-22, /flash/KERNEL md5 OK + KERNEL.bak
+kept, uname build stamp Aug 24 17:40 JST (= the -22 build), rsinput init clean
+(deadzone/range/MCU params, ZERO checksum errors at boot), audio sinks up
+(speaker default 0.70 — but probe <40s after boot shows EMPTY sinks; ADSP is
+just late, don't panic).
+
+Pre-deploy evidence from the janky evening (boot of 08-25 ~14:00, up 10h):
+- rsinput "Checksum mismatch" + "Frame too short for checksum validation" AT
+  THE POST-SUSPEND WAKE (00:17) — the exact mid-frame UART signature Armada's
+  0515/our 1006 fixes. Cliff's d-pad jank, in the log.
+- IO starvation during Steam install on the SD card: /proc/pressure/io
+  some=99.9 full=94, load 52, CPU pressure ~2% — QAM freeze/slow install fully
+  explained. (pacman -U later: 6min wall, 6s CPU.) Long-term fix = internal
+  UFS install; not a regression.
+- Sound was DEAD by end of that boot (Cliff report; fresh boot restored it,
+  card probes fine). WATCH: audio death across suspend on kernel-22 = next
+  hunt if it recurs (50-no-sink-suspend.conf family).
+
+Also this session; the incident + access notes are in the numbered items below.
 1. Blinking-cursor polish item: tried `vt.global_cursor_default=0` (bsp-16),
    Cliff rolled it back same day — see polish item 4 in the 08-22 PM block.
    Repo + localrepo are back to bsp-15; don't trust any stray bsp-16 artifact.
@@ -104,7 +129,20 @@ Two small things this session; kernel-22 deploy is STILL pending (block below).
    `curl github.com/transentient.keys` — `ssh deck@holodor` VERIFIED from
    fusor. Card ≠ pristine release state from here on — published image
    unaffected. (fusor's known_hosts had the old dev install's host key for
-   `holodor`; already cleared with ssh-keygen -R.)
+   `holodor`; already cleared with ssh-keygen -R.) Plus 08-26: kernel-22
+   installed (headline above); pkg file left at /home/deck/. mDNS name
+   `holodor` resolves intermittently — the device's DHCP IPv4 was
+   192.168.1.18 (not static; re-check with getent/ping when it moves).
+6. **NEW BUG (08-26): device SUSPENDS while PLUGGED IN + CHARGING + SCREEN
+   ON** ("charging icon lit, went to sleep anyway" — Cliff, mid-scp; it
+   dropped the first kernel-22 transfer). Whatever the idle-suspend policy
+   is, it ignores AC. SteamOS behavior: on-AC idle timeout is separate and
+   much longer (or none). Find where our idle-suspend comes from (Steam's
+   own settings? logind? powerdevil is desktop-only) and give AC its own
+   policy. Same family as the OOBE death-spiral (item 3's right fix) —
+   every "it slept when it shouldn't" report compounds the perceived-brick
+   problem. Workaround for long operations over ssh: wrap in
+   `systemd-inhibit --what=sleep`.
 
 ## CURRENT STATE 2026-08-24→25 (Fable, upstream-watch session, closed by /sleep-now) — kernel-22 built, deploy pending
 
