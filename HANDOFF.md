@@ -7,7 +7,23 @@ Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 ## CURRENT STATE 2026-08-25→26 (Fable, cursor + incident + KERNEL-22 DEPLOY session) — READ THIS FIRST, then the 08-24→25 block
 
 **HEADLINE: kernel-22 IS DEPLOYED AND BOOTED on the device (08-26 ~13:25 JST).
-Validation = Cliff's Vampire Survivors play session, verdict pending.** Deploy
+Validation = Cliff's Vampire Survivors play session — FIRST RESULTS GOOD:**
+- Suspend/wake mid-game ×2: rsinput re-init clean at suspend exit, **ZERO
+  checksum/frame errors the whole boot** (last night's wake spewed them).
+  Cliff: stick input "fine in-game" post-wake. The wake-jank fix HOLDS so far.
+- OPEN: **split-second gameplay freezes, soundtrack unaffected** (main-thread
+  stalls, not system hangs). Suspects: SD-card IO stalls, FEX first-run
+  translation warmup, or (rule out!) GPU devfreq stuck low post-resume.
+  Instrumentation live on-device (this boot, systemd-run --collect units):
+  `pocknix-battlog` → /home/deck/battlog.csv (1min battery samples; suspend
+  gaps = drain measurement, overnight suspended-drain test pending Cliff
+  unplugging) and `pocknix-psilog` → /home/deck/psilog.csv (5s: epoch, io
+  psi avg10 some/full, load1, gpu devfreq cur_freq). Correlate freeze times
+  vs psilog; both units die at reboot — restart them if the boot is fresh.
+- Clean-experiment if stutters stay ambiguous: reboot → play WITHOUT
+  suspending → compare. Stutters there = card/FEX warmup; smooth-until-
+  suspend = resume degradation.
+- Still pending: rumble check, vol-up-while-suspended must NOT wake. Deploy
 method (repeatable): Cliff scp'd the pkg via `!` (agent's scp was
 classifier-blocked; his `!` fallback per the flash-rc precedent), then agent ran
 `ssh deck@192.168.1.18 systemd-run --wait --pipe systemd-inhibit --what=sleep
