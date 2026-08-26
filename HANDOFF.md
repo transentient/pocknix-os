@@ -23,7 +23,28 @@ Validation = Cliff's Vampire Survivors play session — FIRST RESULTS GOOD:**
 - Clean-experiment if stutters stay ambiguous: reboot → play WITHOUT
   suspending → compare. Stutters there = card/FEX warmup; smooth-until-
   suspend = resume degradation.
-- Still pending: rumble check, vol-up-while-suspended must NOT wake. Deploy
+- Still pending: rumble check, vol-up-while-suspended must NOT wake.
+- **NEW SULK MODE CAPTURED LIVE 08-26 16:47-16:49 (full log:
+  docs/archive/wifi-sulk-20260826-roam-window.log).** Distinct from both the
+  known soft mode AND upstream 696119c (that one = boot-time iwd-vs-wlan0
+  race, wifi dead from power-on; still worth porting). Anatomy of ours:
+  wake → autoconnect SUCCEEDS in 2s → 36s later iwd ROAMS to the AP's
+  less-loaded radio → reassoc OK → 2s later CLIENT-side deauth reason 1
+  (ath12k wifi7 fw souring post-roam?) → iwd burst-retries all 3 ozma
+  BSSes in 1s, all fail (status 1/30/1 — fw still wedged) → then a
+  64s+ DEAD AIR recovery gap: NM sat quiet (our autoconnect-retries=0
+  drop-in delegates recovery; NM failure-backoff applies) and iwd sat in
+  autoconnect_full without firing (note "Error loading
+  /var/lib/iwd//ozma.psk" — UNEXPLAINED, check what the wifi importer
+  writes vs what iwd expects). Cliff manually reconnected at 64s; it
+  worked instantly and CREATED A SECOND NM 'ozma' PROFILE (uuid e5e1eb08…
+  vs 67aee72e…) — clean up the duplicate before it causes autoconnect
+  ambiguity. OPEN QUESTIONS: would NM/iwd have self-healed at their next
+  backoff/scan (~5min)? Is the roam-deauth an ath12k fw bug others
+  (ROCKNIX/Armada) have quirked around — check their trees next sweep.
+  Possible mitigations to weigh (DON'T shotgun them): iwd roam threshold
+  tuning; revisit the retries=0 drop-in now that it's implicated in the
+  recovery gap; port 696119c regardless. Deploy
 method (repeatable): Cliff scp'd the pkg via `!` (agent's scp was
 classifier-blocked; his `!` fallback per the flash-rc precedent), then agent ran
 `ssh deck@192.168.1.18 systemd-run --wait --pipe systemd-inhibit --what=sleep
