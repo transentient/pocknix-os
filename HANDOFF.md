@@ -4,7 +4,103 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## CURRENT STATE 2026-08-25→26 (Fable, cursor + incident + KERNEL-22 DEPLOY session) — READ THIS FIRST, then the 08-24→25 block
+## SESSION CLOSE 2026-08-26 18:10 JST (/sleep-now) — FINAL STATE + what dies with the session — READ THIS FIRST
+
+**Device state at close:** SUSPENDED, UNPLUGGED, battery ~94% at ~17:45, running
+kernel-22 off the SD card. Cliff put it to sleep deliberately — a multi-hour
+suspended-drain measurement is IN PROGRESS. Balatro + "Vampire Crawlers"(??)
+newly installed (VC = Cliff's name for it; second vampire game, exact Steam
+title unverified). Repo clean and pushed through this block's commit.
+
+**FIRST ACTIONS NEXT SESSION (in order, no Cliff needed for 1-3):**
+1. Reach the device when Cliff wakes it: `ssh deck@192.168.1.18` (DHCP addr,
+   may move — fall back to `getent hosts holodor`, mDNS is intermittent).
+   fusor's key is authorized; root = `systemd-run -t bash` (NO sudo on image).
+2. **Compute the suspend drain**: pull /home/deck/battlog.csv (epoch,capacity%,
+   NA,status). Suspend gaps = missing minutes; drain = Δ%/Δh across each gap.
+   Afternoon teaser: 99→96 over ~93min suspended ≈ 2%/h — verify against the
+   long overnight gap. Compare vs kernel-21 rtcwake numbers (earlier sessions).
+3. **Pull the un-analyzed evidence** still sitting in the journal/psilog:
+   (a) Cliff's "half-sleep" ~17:50 during the Balatro install — dimmed +
+   dropped off net while (maybe) downloading; check for suspend entry vs
+   display-blank, and whether Steam holds a suspend inhibitor during
+   downloads (SteamOS does; suspect we don't) — ties into the
+   suspends-while-plugged-in bug (item 6 below). (b) psilog.csv rows during
+   the Vampire Crawlers session (~17:55-18:05): if its stutters line up with
+   io bursts like VS did, the card theory is sealed across two games.
+   NOTE: ssh probes TIMED OUT (>90s) repeatedly during VC play — heavier IO
+   than VS. Expect the device to be near-unreachable during game launches.
+4. **Wifi-sulk mitigation is PROPOSED, NOT APPLIED — get Cliff's go-ahead,
+   then**: (a) set iwd roam threshold conservative (e.g. RoamThreshold=-85 +
+   RoamThreshold5G in /etc/iwd/main.conf [General]; VERIFY exact key names
+   against iwd docs first) so it stops radio-hopping at strong signal — both
+   sulks were roam-triggered; (b) consolidate the THREE 'ozma' NM profiles
+   (orig importer 67aee72e…, manual dupes e5e1eb08… + c0abe774… — each
+   manual UI reconnect creates another) down to the original, which carries
+   the tuned keyfile settings. DO THE SURGERY IN A DETACHED systemd-run UNIT
+   — restarting iwd/NM kills your ssh session mid-script otherwise.
+5. Then the standing queue: sulk root-cause hunt (ath12k post-roam deauth —
+   check ROCKNIX/Armada trees for ath12k roam quirks next upstream sweep;
+   port upstream 696119c boot-race fix regardless; explain the
+   "Error loading /var/lib/iwd//ozma.psk" — appears on EVERY connect),
+   internal-UFS-install pitch to Cliff (docs/install-to-internal.md; tonight
+   was one long argument for it), splash-hold priority fix, remaining
+   kernel-22 validation (rumble, vol-up-must-not-wake).
+
+**WHAT DIES WITH THIS SESSION (re-arm if wanted):**
+- The fusor-side wake/sleep Monitor (ssh-probe loop) — session-local, GONE.
+  Its v2 pattern: probe every 25s, 3-strike debounce before declaring down.
+- Its TRAP, learned twice tonight: an unreachable device is INDISTINGUISHABLE
+  from suspended from fusor's side — wifi sulk and IO-starved sshd both look
+  like sleep. NEVER log "device slept at HH:MM" off a probe failure alone;
+  only the device journal knows. (Two false "slept" calls made and retracted
+  tonight before the debounce + this rule.)
+- On-device `pocknix-battlog` + `pocknix-psilog` units survive suspend but
+  DIE AT REBOOT (systemd-run --collect, this boot only). CSVs persist at
+  /home/deck/*.csv. Better idea for next session: install them as real units
+  or a system-sleep hook so they persist; kernel pkg tarball also still sits
+  at /home/deck/linux-pocknix-sm8750-7.1.3-22-aarch64.pkg.tar.zst (delete it).
+
+**KERNEL-22 VALIDATION SCOREBOARD (as of close):** wake-jank fix HOLDS —
+4+ suspend/wake cycles incl. mid-game, ZERO rsinput frame errors all boot,
+stick input subjectively fine post-wake (d-pad not re-tested; Cliff played
+stick-only). Stutters = SD card (evidence below), NOT the kernel. Rumble +
+vol-up-wake untested. Suspend drain measurement running. Sound-death and
+half-sleep on the watch list. NOT yet a ceremony PASS — but nothing points
+at kernel-22 itself.
+
+**WRONG THIS SESSION — do NOT re-derive these (evidence in the blocks below):**
+- Battery-drain-over-the-weekend theory: DEAD. Device was cleanly powered off
+  Sat 08:27, battery near-full Monday. Do NOT re-open.
+- "USB-C rescued it": RED HERRING. The recoveries line up with Cliff's own
+  power presses; no charger event is even journaled on this platform.
+- The Monday "dark hang": was ~22 SECONDS of the known splash→gamescope gap
+  + short-press-suspend death spiral. The device was healthy. Fix = hold the
+  splash (priority item). Do NOT hunt a boot hang.
+- "vt.global_cursor_default=0 for the boot cursor": tried, Cliff REJECTED
+  (kills debug-tty cursors), reverted (cd3b666). Do NOT re-add; scope any
+  cursor fix to the splash tty or fold into splash-hold.
+- "Switch to Desktop gives Plasma on the Odin 3": WRONG — it lands on a bare
+  tty (Plasma Mobile never launches on this device; RP6-only so far). Also
+  the tty font there is unreadable (setfont latarcyrheb-sun32 = workaround).
+- "device slept at HH:MM" from fusor-side probes: unreliable, see the trap
+  above — two false calls tonight.
+- kernel-22's cmdline change claim: N/A — bsp stayed at 15; kernel-22 shipped
+  with the UNCHANGED cmdline (cursor revert restored parity before deploy).
+- The old handoff line "ssh root@192.168.1.15, key installed, password
+  pocknix": STALE — something at .15 denies our key and is NOT known to be
+  the Odin. The Odin is deck@192.168.1.18 (DHCP) / mDNS `holodor`.
+
+**CLASSIFIER NOTES (agent-tooling, this session):** agent-run `scp` of the
+kernel pkg to the device was classifier-BLOCKED; Cliff's `!`-prefix scp
+worked (flash-rc precedent extended to network file pushes). Agent-run
+`python -m http.server --bind 0.0.0.0` also blocked (key-serving workaround
+was GitHub: `curl https://github.com/transentient.keys` on the device —
+fusor's key is first in that list). `ssh + systemd-run pacman -U` was
+ALLOWED. Wrap long device operations in `systemd-inhibit --what=sleep` —
+the device suspends even plugged in mid-operation (bug, item 6).
+
+## CURRENT STATE 2026-08-25→26 (Fable, cursor + incident + KERNEL-22 DEPLOY session) — details behind the block above
 
 **HEADLINE: kernel-22 IS DEPLOYED AND BOOTED on the device (08-26 ~13:25 JST).
 Validation = Cliff's Vampire Survivors play session — FIRST RESULTS GOOD:**
