@@ -105,11 +105,15 @@ oneshot (restart clears; ordering fix queued), USBSS re-probe tripwire (watching
 
 ## Phase 6 — Release mechanics
 
-- [ ] **License gate (the non-technical blocker): pocknix-os#21.** Repo stays private
-      until the upstream license question resolves — check status, ping politely, and
-      if no movement, Cliff decision on the path (wait / re-ask / restructure).
-      GPL-2.0-or-later fork obligations to Armada, credits to ROCKNIX + Holo Core +
-      ArmadaOS + batocera.pocket patches are already tracked in README/PATCHES.
+- [x] **License gate: RESOLVED.** pocknix-os#21 closed 2026-07-28; upstream now
+      carries GPL-2.0 (LICENSE.md; maintainer also emailed Cliff). Verified via
+      GitHub API 2026-08-28. Holodor's combined license = GPL-2.0 (upstream 2.0 +
+      Armada 2.0-or-later + kernel patches all compose).
+- [ ] Add Holodor's own LICENSE file (GPL-2.0, matching upstream — read their
+      LICENSE.md text first for any or-later language) + final credits pass
+      (ROCKNIX, Holo Core, ArmadaOS, batocera.pocket — tracked in README/PATCHES).
+- [ ] Cliff decision: flip the repo public (can happen any time now — no longer
+      coupled to anything external).
 - [ ] Final image → archive.org (`holodor-odin3` identifier; metadata proposed to
       Cliff first — identifiers are permanent).
 - [ ] OTA repo public flip per docs/pacman-repo.md checklist (coupled to license gate).
@@ -130,6 +134,6 @@ loggers, LED/test debris.
 - **Next week:** Phase 3 respin + Phase 4 RGB; Phase 5 soak starts on the respin
 - **~Mid-September:** release, if the soak is clean and the license gate opens
 
-The two watch items that could move the date: the 1006 drain/wake tension (may need
-a real kernel fix, not a revert) and pocknix-os#21 (out of our hands; everything else
-can be release-ready while it resolves).
+The one watch item that could move the date: the 1006 drain/wake tension (may need
+a real kernel fix, not a revert). The license gate resolved 07-28 (see Phase 6) —
+nothing external blocks the release anymore.
