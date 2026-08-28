@@ -225,6 +225,15 @@ EOF
     echo "[General]"
     [ -n "${SD_WIFI_COUNTRY}" ] && echo "Country=${SD_WIFI_COUNTRY}"
     echo "EnableNetworkConfiguration=false"
+    # Conservative roaming: both 08-26 wifi sulks were roam-triggered at strong
+    # signal (post-roam ath12k deauth + recovery gap). Hold the current BSS until
+    # the signal is genuinely weak. The Critical pair defaults to -80/-82 and
+    # overrides BSS affinity BEFORE the main thresholds — must be set lower too.
+    # Hardware-validated on the Odin 3, 2026-08-28.
+    echo "RoamThreshold=-85"
+    echo "RoamThreshold5G=-85"
+    echo "CriticalRoamThreshold=-90"
+    echo "CriticalRoamThreshold5G=-90"
   } > "${root}/etc/iwd/main.conf"
   # NM integrates DNS via systemd-resolved; point glibc at resolved's stub.
   ln -sf /run/systemd/resolve/stub-resolv.conf "${root}/etc/resolv.conf"
@@ -316,6 +325,7 @@ EOF
         pocknix-diag.service pocknix-expand-root.service \
         pocknix-lavd.service pocknix-gamescope-rt.service \
         pocknix-slot-successful.service pocknix-wifi-import.service \
+        pocknix-charge-full.service \
         >/dev/null 2>&1 || true
   # audio server (PipeWire) as per-user services — start in the autologin/session user.
   # WirePlumber applies the device UCM (shipped by the device BSP) automatically.

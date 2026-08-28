@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=13
+pkgrel=14   # 14: pocknix-charge-full — undo battmgr's default 80% charge cap
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -17,10 +17,11 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'pocknix-power-mode' 'pocknix-power-mode.service'
         'pocknix-wifi-heal'
         'pocknix-slot-successful' 'pocknix-slot-successful.service'
+        'pocknix-charge-full' 'pocknix-charge-full.service'
         'leds-sleep-pre' 'leds-sleep-post'
         '20-pocknix-powerkey.conf' 'no-freeze-user-sessions.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -74,6 +75,14 @@ package() {
     "${pkgdir}/usr/local/bin/pocknix-slot-successful"
   install -Dm644 "${srcdir}/pocknix-slot-successful.service" \
     "${pkgdir}/usr/lib/systemd/system/pocknix-slot-successful.service"
+
+  # Full-charge restorer: battmgr firmware defaults to an 80%/70% battery-care
+  # window and the restart never fires in deep suspend — users wake to a drained
+  # "fully charged" device. Force 100/95 each boot until a real opt-in panel exists.
+  install -Dm755 "${srcdir}/pocknix-charge-full" \
+    "${pkgdir}/usr/local/bin/pocknix-charge-full"
+  install -Dm644 "${srcdir}/pocknix-charge-full.service" \
+    "${pkgdir}/usr/lib/systemd/system/pocknix-charge-full.service"
 
   # Post-resume Wi-Fi self-heal (called async by the 000-wifi post hook).
   install -Dm755 "${srcdir}/pocknix-wifi-heal" \

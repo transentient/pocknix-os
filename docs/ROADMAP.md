@@ -66,9 +66,18 @@ walked start-to-finish by a human with no agent rescue.
 
 ## Phase 3 — RC respin with everything (agent work, gated on Phase 1)
 
-- [ ] Commit the 08-28 device-side wifi fixes to the repo (RC/repo parity rule):
-      iwd `main.conf` roam thresholds (RoamThreshold/5G=-85, Critical pair=-90) as a
-      shipped drop-in; `autoconnect-retries=0` in the wifi importer template.
+- [x] Commit the 08-28 device-side wifi fixes to the repo (RC/repo parity rule):
+      iwd roam thresholds now baked by build-sd-image.sh (RoamThreshold/5G=-85,
+      Critical pair=-90). `autoconnect-retries=0` was ALREADY shipped in the
+      importer — the sulky device profile was a manual UI dupe that lacked it.
+- [x] **Charging trap fixed (08-28 finding, user-visible badly):** battmgr firmware
+      DEFAULTS to an 80%/70% battery-care window; the 70% restart never fires in
+      deep suspend, so "plugged in overnight" wakes at ~60%. New
+      `pocknix-charge-full` boot unit (bsp-common-14) forces 100/95 until a real
+      opt-in battery-care panel exists. Applied live on device too.
+      Related open: post-dead-battery fuel-gauge readings jump wildly (61%→99%
+      within minutes, charge_counter leaps) — recalibration artifact family;
+      distrust single capacity reads after a full discharge.
 - [ ] Kernel-2x: drain fix in, wake fixes kept, rumble + vol-up-must-not-wake
       validation (still pending from kernel-22 scoreboard).
 - [ ] Sulk hardening: port upstream 696119c iwd/wlan0 boot-race fix.
@@ -85,8 +94,8 @@ LEDs work (HTR3212 driver + `pocknix-stick-leds`, shipped 08-09). Remaining is U
       parity with the fan/power selectors). Agent work, plugin dist builds on fusor.
 - [ ] Find the unidentified Decky control that turned LEDs off (08-20 mystery);
       make defaults deliberate: off by default, picker enables, ff6600 static fallback.
-- [ ] Lights-off-in-sleep hook (LEDs hold state through suspend; protect the
-      drain budget Phase 1 just won back).
+- [x] Lights-off-in-sleep hook — already shipped (bsp-common `leds-sleep-pre/post`
+      stops the animator and zeroes the rings before suspend; verified 08-28).
 
 ## Phase 5 — Stability soak (the "stable, stable, stable" gate)
 
