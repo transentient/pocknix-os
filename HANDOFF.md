@@ -4,7 +4,69 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## SESSION CLOSE 2026-08-26 18:10 JST (/sleep-now) — FINAL STATE + what dies with the session — READ THIS FIRST
+## SESSION 2026-08-28→29 (Fable) — DRAIN BISECT COMPLETE: ARMADA BUNDLE ACQUITTED — READ THIS FIRST
+
+**DEVICE STATE AT CLOSE (04:00 JST 08-29): POWERED OFF (clean), battery 73%, kernel
+7.1.3-22.3 installed (= kernel-22 minus 0701 only; vol-up WILL wake it again).
+/flash KERNEL=22.3 verified, KERNEL.bak=22.1. All three bisect pkgs still in
+/home/deck/. drainlog hook still installed (/usr/lib/systemd/system-sleep/49-drainlog
+→ /var/lib/pocknix/drainlog.csv) — remove when the hunt ends.**
+⚠ CHARGE THRESHOLDS REVERTED: the 100/95 fix was a runtime sysfs write, lost at
+reboot — the device is back on the firmware's 80/70 cap until bsp-common-14 (in repo,
+committed, NOT YET BUILT) is packaged + installed. Until then it stops charging at 80%.
+
+**THE BISECT VERDICT (coulomb-counter 30-min soaks, unplugged deep sleep, all on the
+20260821c userspace; full log ~/odin3-backups/kernel-bisect-20260828/soak-results.log):**
+- kernel-22 (full Armada bundle): **158 mA** — best of the four
+- 22.2 (minus 1006 UART-reassembly): 207 mA
+- 22.3 (minus 0701 vol-up-wakeup): 215 mA
+- 22.1 (minus 1005 MCU-quiesce): **535 mA** — catastrophic; 1005 saves ~380 mA
+**The Armada suspend bundle is ACQUITTED and load-bearing — never revert it, ESPECIALLY
+1005.** The 08-26/28 "bundle = drain culprit" theory is DEAD (correlation, not cause).
+The real regression is elsewhere: ALL configs sit 10–50× above the kernel-18-era
+good numbers (0.3%/h ≈ ~25 mA measured 08-15; 0.07%/h overnight 08-17).
+
+**NEXT EXPERIMENT (decisive, staged, one Cliff-wake needed):** flash
+linux-pocknix-sm8750-7.1.3-18 (staged in ~/odin3-backups/kernel-bisect-20260828/ —
+the EXACT kernel from the good measurements) on today's userspace and soak once.
+Good (~25 mA) ⇒ regression is kernel-side in the 18→21/22 base delta (suspects: 0800/
+0801 fbcon-logo patches — could plausibly hold display/clk refs in suspend — or the
+trimmed-DTB/cmdline changes). Bad (150+ mA) ⇒ the 20260821c IMAGE userspace regressed
+(suspects: plymouth, new services, steam-41, decky-14; then component-isolation soaks:
+radio off / IP stopped / session stopped before suspend). Autopilot + soak harness are
+reusable: bisect-autopilot.sh (catch → hold → flash → soak → poweroff; probes
+deck@holodor — the DHCP lease CHURNS: .25→.26 within hours, NEVER hardcode IPs).
+
+**NEW NAMED BUG: post-resume instant re-suspend.** Every wake on 08-28 needed two
+presses: wake → suspend request hits logind ~2 s later (journal 15:26:11 "NM: sleep
+requested"; only delay-inhibitors present) → asleep again in 3–22 s. Also fires after
+rtcwake alarm wakes (no button involved). Prime suspect: Steam idle policy sees zero
+input since pre-suspend and re-suspends; press #2 counts as input and sticks. Smooth-
+wake pillar item (docs/ROADMAP.md Phase 1/3). WORKAROUND for automation: arm an
+absolute-time systemd-run timer BEFORE suspending, set ~1 min EARLIER than the rtcwake
+alarm — it can't fire during sleep, goes past-due, and fires at the wake instant
+grabbing a block inhibitor (proven, used all night).
+
+**CHARGING TRAP (user-visible, fix shipped in repo):** battmgr firmware DEFAULTS to
+charge_control end=80/start=70; the 70% restart never fires in deep suspend ⇒ "plugged
+in all night, woke at 58%" (Cliff, 08-28). pocknix-charge-full (bsp-common-14) forces
+100/95 each boot. ALSO: post-dead-battery fuel-gauge readings jump (58→61→99% as it
+recalibrates during charge) — distrust single capacity reads after a full discharge;
+the coulomb counter is the truth source.
+
+**OTHER SESSION FACTS:** kernel-22 baseline killed the battery from 89% in <40 h of
+clean journal-verified suspend (Mon 18:06 → dead Wed) — that number (~2%/h) now
+attributed to the unknown non-bundle regression. Wifi-sulk mitigation applied on
+device AND baked into build-sd-image.sh (iwd RoamThreshold/5G=-85 + Critical pair
+-90 — the Critical defaults -80/-82 would fire first, set all four; verified in iwd
+3.10 man page). ozma.psk iwd error = cosmetic (no file; NM supplies PSK). Root-owned-
+CSV trap again (loggers must run as deck). sudo strips env: `DEVICE=sm8750 sudo x`
+builds sm8550 silently — put assignment AFTER sudo. build-packages.sh needs root.
+pocknix-os#21 CLOSED 07-28 (GPL-2.0 upstream) — license gate OPEN, see ROADMAP.
+Roadmap to release: docs/ROADMAP.md (new; Cliff's pillars). Cliff directive: EDL
+restore + full INSTALL.md re-walkthrough = next weekend ceremony; jack test rides it.
+
+## SESSION CLOSE 2026-08-26 18:10 JST (/sleep-now) — FINAL STATE + what dies with the session
 
 **Device state at close:** SUSPENDED, UNPLUGGED, battery ~94% at ~17:45, running
 kernel-22 off the SD card. Cliff put it to sleep deliberately — a multi-hour
