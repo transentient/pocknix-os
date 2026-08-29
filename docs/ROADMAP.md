@@ -22,11 +22,17 @@ today's coulomb numbers. Suspend has likely always been ~2%/h on this port.
 
 - [x] Kernel bisect + kernel-18 control + isolation soak (08-28/29) — evidence chain
       complete, soak-results.log + HANDOFF addendum.
-- [ ] Research sweep (agent running): mainline sm8550/8650/8750 aosd status, whether
-      bootloader-held RPMh/GDSC votes from never-booted subsystems (modem/slpi) veto
-      collapse, what ROCKNIX/Armada/batocera/postmarketOS do, mitigation menu.
-- [ ] Then: pick the attack (release stale votes / boot stub subsystems / upstream
-      wait) — scope honestly; this may be a long platform quest nobody has solved.
+- [x] Research sweep DONE — full findings + attack ladder in
+      docs/aoss-deep-sleep-research.md. Headline: nobody has aosd/cxsd working on
+      mainline sm8550/8650/8750; the TCS sleep-set flush only runs on the s2idle
+      path (our "deep" S3 never exercises it), and PSCI OSI mode is a hard
+      prerequisite. The unbooted-modem theory is unsupported — dropped.
+- [ ] Attack ladder (next device session): (1) `dmesg | grep -i osi`;
+      (2) **s2idle soak** — mem_sleep_default=s2idle + qcom_stats deltas + coulomb
+      (cheapest possibly-huge experiment; needs a wake/suspend revalidation pass);
+      (3) deferred-probe / sync_state / bi_tcxo vote hygiene; (4) port pocknix's
+      RPMh regulator SLEEP-set pair (1046/1047) + our regulator-state-mem DTS;
+      (5) rpmh read-back series for bootloader-vote visibility.
 - [ ] Interim honest positioning for release docs: overnight suspend ≈ 15% battery,
       multi-day storage = power off. Steam download suspend-inhibitor still wanted.
 - [ ] Keep: wake-jank fix validated; suspend-mid-game works; plugged-in suspend safe.
