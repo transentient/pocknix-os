@@ -4,7 +4,31 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## SESSION 2026-08-28→29 (Fable) — DRAIN BISECT COMPLETE: ARMADA BUNDLE ACQUITTED — READ THIS FIRST
+## 2026-08-29 MORNING ADDENDUM — 🎯 DRAIN ROOT CAUSE FOUND: AOSS NEVER COLLAPSES (aosd=0)
+
+**THE ANSWER (supersedes the kernel-hunt below): the SoC never reaches Qualcomm
+chip-level deep sleep.** /sys/kernel/debug/qcom_stats after journal-verified S3
+suspends: **aosd Count 0, cxsd Count 0, ddr Count 0** — Linux "suspend success"
+parks the CPUs but CX rail + DDR stay powered = the ~150–215 mA floor, on EVERY
+kernel. Proof chain (all coulomb-measured, soak-results.log):
+kernel-18 CONTROL on today's userspace = **213 mA** (kernel exonerated — same kernel
+measured "good" on 08-15); isolation soak (session+Steam+IP+Decky stopped, wifi+BT
+rfkill'd) = **171 mA** (userspace worth only ~40 mA — the leak is beneath).
+Subsystem stats: adsp sleeps (Count 3175), cdsp 5, apss 516; **modem/slpi/cdsp1/wpss
+never booted, stats empty** — prime theory: bootloader-held RPMh/GDSC votes for
+never-adopted subsystems veto chip collapse, OR mainline sm8750 simply can't drive
+aosd yet ("deep sleep not released for Linux" — the Armada devs' own words).
+**Research agent dispatched** (mainline lore, ROCKNIX/Armada/batocera trees, pmOS
+experience, mitigation list) — findings land in this session or next handoff.
+LIKELY REFRAME: the "good era 0.07–0.3%/h" numbers were capacity-%-based and
+probably gauge-flattered; Monday's real death (89%→dead <40 h) matches today's
+coulomb numbers. Suspend has plausibly ALWAYS been ~2%/h on this port. ROADMAP
+Phase-1 exit criteria need rewriting around aosd>0 (the real "sleep that works"),
+with honest interim positioning: overnight fine (~15%), multi-day = power off.
+Device end state: kernel-22.3 restored + booted, then CLEAN POWEROFF (~64%),
+bsp-common-14 (charge-full 100/95) INSTALLED+enabled. drainlog hook still in place.
+
+## SESSION 2026-08-28→29 (Fable) — DRAIN BISECT: ARMADA BUNDLE ACQUITTED (kernel hunt, superseded above)
 
 **DEVICE STATE AT CLOSE (04:00 JST 08-29): POWERED OFF (clean), battery 73%, kernel
 7.1.3-22.3 installed (= kernel-22 minus 0701 only; vol-up WILL wake it again).

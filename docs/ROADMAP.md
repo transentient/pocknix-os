@@ -9,12 +9,27 @@ not done until its criteria are measured, not vibed.
 
 ---
 
-## Phase 1 — Sleep back to 0.3%/h (this week)
+## Phase 1 — Sleep that works = AOSS deep sleep (REFRAMED 08-29)
 
-The kernel-22 suspend-drain regression (≥1.6%/h, battery died in <40h from 89%; prior
-kernels measured 0.07–0.3%/h) is the top blocker. The device slept clean the whole
-time — the sleep state itself got expensive. Prime suspects: the ArmadaOS bundle
-(1005 rsinput quiesce / 1006 UART reassembly / 0701 vol-up wakeup).
+**Root cause found 08-29: the SoC never reaches Qualcomm chip-level deep sleep.**
+qcom_stats shows aosd/cxsd/ddr Count 0 across verified S3 suspends — CX rail and
+DDR stay powered = a ~150–215 mA floor (≈2%/h) on EVERY kernel and even with all
+of userspace stopped and radios off. The 08-26 "kernel-22 regression" framing was
+wrong twice over: the Armada bundle is load-bearing (removing the MCU-quiesce patch
+costs +380 mA), and the old "0.07–0.3%/h good era" was probably a capacity-%
+measurement artifact — the one real-world data point (89%→dead in <40 h) matches
+today's coulomb numbers. Suspend has likely always been ~2%/h on this port.
+
+- [x] Kernel bisect + kernel-18 control + isolation soak (08-28/29) — evidence chain
+      complete, soak-results.log + HANDOFF addendum.
+- [ ] Research sweep (agent running): mainline sm8550/8650/8750 aosd status, whether
+      bootloader-held RPMh/GDSC votes from never-booted subsystems (modem/slpi) veto
+      collapse, what ROCKNIX/Armada/batocera/postmarketOS do, mitigation menu.
+- [ ] Then: pick the attack (release stale votes / boot stub subsystems / upstream
+      wait) — scope honestly; this may be a long platform quest nobody has solved.
+- [ ] Interim honest positioning for release docs: overnight suspend ≈ 15% battery,
+      multi-day storage = power off. Steam download suspend-inhibitor still wanted.
+- [ ] Keep: wake-jank fix validated; suspend-mid-game works; plugged-in suspend safe.
 
 - [x] Bisect variant kernels built on fusor (22.1 = −1005, 22.2 = −1006, 22.3 = −0701;
       built overnight 08-28, stashed in `~/odin3-backups/kernel-bisect-20260828/`)
