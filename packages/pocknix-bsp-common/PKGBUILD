@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=14   # 14: pocknix-charge-full — undo battmgr's default 80% charge cap
+pkgrel=15   # 15: cpuidle-state1 sleep-window hooks (s2idle depth); 14: pocknix-charge-full
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -19,9 +19,10 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'pocknix-slot-successful' 'pocknix-slot-successful.service'
         'pocknix-charge-full' 'pocknix-charge-full.service'
         'leds-sleep-pre' 'leds-sleep-post'
+        'cpuidle-state1-sleep-pre' 'cpuidle-state1-sleep-post'
         '20-pocknix-powerkey.conf' 'no-freeze-user-sessions.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -47,6 +48,12 @@ package() {
     "${pkgdir}/usr/lib/pocknix/sleep.d/pre/004-leds"
   install -Dm755 "${srcdir}/leds-sleep-post" \
     "${pkgdir}/usr/lib/pocknix/sleep.d/post/004-leds"
+
+  # 005-cpuidle-state1: open cpu0 deep idle for the suspend window (s2idle depth).
+  install -Dm755 "${srcdir}/cpuidle-state1-sleep-pre" \
+    "${pkgdir}/usr/lib/pocknix/sleep.d/pre/005-cpuidle-state1"
+  install -Dm755 "${srcdir}/cpuidle-state1-sleep-post" \
+    "${pkgdir}/usr/lib/pocknix/sleep.d/post/005-cpuidle-state1"
   # 003-sdam-debug: Qualcomm PMIC SDAM suspend breadcrumb (fail-soft on non-SPMI
   # hardware — the dd just logs to kmsg and moves on).
   install -Dm755 "${srcdir}/sdam-debug-pre" \
