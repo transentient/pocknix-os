@@ -27,12 +27,13 @@ today's coulomb numbers. Suspend has likely always been ~2%/h on this port.
       mainline sm8550/8650/8750; the TCS sleep-set flush only runs on the s2idle
       path (our "deep" S3 never exercises it), and PSCI OSI mode is a hard
       prerequisite. The unbooted-modem theory is unsupported — dropped.
-- [ ] Attack ladder (next device session): (1) `dmesg | grep -i osi`;
-      (2) **s2idle soak** — mem_sleep_default=s2idle + qcom_stats deltas + coulomb
-      (cheapest possibly-huge experiment; needs a wake/suspend revalidation pass);
-      (3) deferred-probe / sync_state / bi_tcxo vote hygiene; (4) port pocknix's
-      RPMh regulator SLEEP-set pair (1046/1047) + our regulator-state-mem DTS;
-      (5) rpmh read-back series for bootloader-vote visibility.
+- [x] Attack ladder rungs 1-3 CLIMBED 08-29: OSI "supported" per dmesg (enablement
+      verification still open); s2idle switched (runtime); state1 sleep-window
+      hooks (bsp-common-15); sync_state unblocked via fw_devlink.sync_state=timeout
+      (GCC/GPUCC were blocked forever by the driverless coresight-tnoc DT node).
+      Remaining rungs: bi_tcxo vote hygiene, pocknix RPMh regulator SLEEP-set pair
+      (1046/1047) + regulator-state-mem DTS, rpmh read-back series, coresight DTS
+      disable (cleaner than the timeout knob).
 - [x] **STEADY-STATE MEASURED 08-30: 31 mA / 0.40%/h over a 17.4-h overnight window**
       (s2idle + state1 window + synced clocks) — 5-7x better than the shipped deep
       config, overnight costs ~7%, a full charge sleeps ~10 days. aosd still 0 =
@@ -45,17 +46,8 @@ today's coulomb numbers. Suspend has likely always been ~2%/h on this port.
 
 - [x] Bisect variant kernels built on fusor (22.1 = −1005, 22.2 = −1006, 22.3 = −0701;
       built overnight 08-28, stashed in `~/odin3-backups/kernel-bisect-20260828/`)
-- [ ] **Ceremony (~2h, one evening):** coulomb-counter soak protocol. Per config:
-      unplug → 30-min suspend (`rtcwake -m no -s 1800 && systemctl suspend`) →
-      `charge_counter` µAh bookends = exact drain rate. Baseline kernel-22 first
-      (also rules out config-drift explanations), then variants. Agent flashes
-      kernels between runs over ssh; Cliff only plugs/unplugs.
-- [ ] Convict the patch. Then EITHER drop it (if its feature survives without it)
-      OR find the proper fix. **Known tension:** 1006 is also the best candidate for
-      the wake-jank fix that HOLDS. If 1006 is the drain culprit we need both halves:
-      check ArmadaOS's tree for follow-ups, and whether their builds pay the same
-      drain (their devs admit sleep isn't fully worked out — we should not inherit
-      their drain to get their wake fix).
+- [x] Soak ceremony + patch conviction: SUPERSEDED — bisect ran 08-28/29, bundle
+      acquitted (see above); the ladder replaced the per-patch hunt.
 - [ ] Steam download suspend-inhibitor (we hold none — verified 08-28; SteamOS does).
       Fixes suspends-mid-download. Small bsp unit watching for active downloads.
 
