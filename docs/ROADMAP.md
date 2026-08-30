@@ -33,8 +33,14 @@ today's coulomb numbers. Suspend has likely always been ~2%/h on this port.
       (3) deferred-probe / sync_state / bi_tcxo vote hygiene; (4) port pocknix's
       RPMh regulator SLEEP-set pair (1046/1047) + our regulator-state-mem DTS;
       (5) rpmh read-back series for bootloader-vote visibility.
-- [ ] Interim honest positioning for release docs: overnight suspend ≈ 15% battery,
-      multi-day storage = power off. Steam download suspend-inhibitor still wanted.
+- [x] **STEADY-STATE MEASURED 08-30: 31 mA / 0.40%/h over a 17.4-h overnight window**
+      (s2idle + state1 window + synced clocks) — 5-7x better than the shipped deep
+      config, overnight costs ~7%, a full charge sleeps ~10 days. aosd still 0 =
+      more upside remains (XO votes, regulator sleep-set port, OSI verification).
+- [ ] s2idle validation ceremony (wake sources, suspend-mid-game, plugged sleep),
+      then flip mem_sleep_default=s2idle in the shipped cmdline.
+- [ ] Release positioning: overnight ≈ 7%, week-scale suspend viable; power off
+      only for month-scale storage. Steam download suspend-inhibitor still wanted.
 - [ ] Keep: wake-jank fix validated; suspend-mid-game works; plugged-in suspend safe.
 
 - [x] Bisect variant kernels built on fusor (22.1 = −1005, 22.2 = −1006, 22.3 = −0701;
