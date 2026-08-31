@@ -25,6 +25,13 @@ Sweep window 08-24→08-31, all four upstreams (full triage in the 09-01 session
   (mash-20251118.3 still current); ROCKNIX SM8750 tree + extra-firmware: zero commits.
 - GitHub's "upstream changed" banner = pocknix's 08-26/27 base-20260826 republish of all
   886 packages (repo-wide diff, noise for us); the real dev burst was Armada's (~50 commits).
+- fex/gamescope/mesa follow-up (Cliff asked, 09-01; API-verified both path eras): FEX = one
+  routine monthly bump (2608) — no action, Valve's Steam-shipped FEX supersedes eventually;
+  gamescope = upstream moved to master w/ mainline rotation PR 2228 — we stay on the
+  ROCKNIX 3.16.0 pin (our validated rotation/DPU stack), future direction only; mesa = they
+  are at 26.2.1 (ARM-side we're ahead on mesa-next 26.3.0-devel) BUT their x86 26.2 FEX
+  payload (791015e) vs our July x86 turnip 26.1.5 overlay = REAL cherry-pick for the next
+  mesa cycle (x86 games render through x86 turnip; a8xx matured fast through 26.x).
 
 ## 2026-08-31 MIDNIGHT — SOAK NOW ON INTERNAL UFS (refresh ceremony done) + OLED lesson
 
