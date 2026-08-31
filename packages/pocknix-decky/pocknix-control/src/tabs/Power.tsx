@@ -1,18 +1,20 @@
 import { PanelSection } from "@decky/ui";
 import type { Dispatch, SetStateAction } from "react";
 import { setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode } from "../backend";
-import { SelectEdit } from "../components/widgets";
+import { ColorPalette, SelectEdit } from "../components/widgets";
 import type { Config } from "../types";
 
+// Modes the stick-LED daemon understands (pocknix-stick-ledsd reads /var/lib/pocknix/led-mode).
 const ledEffectOptions = [
   { data: "off", label: "Off" },
   { data: "static", label: "Static" },
   { data: "rainbow", label: "Rainbow" },
   { data: "breathe", label: "Breathing" },
 ];
-const ledOptions = [
+const ledColorPresets = [
   { data: "ff6600", label: "Hodor Orange" },
   { data: "ff0000", label: "Red" },
+  { data: "ffff00", label: "Yellow" },
   { data: "00ff00", label: "Green" },
   { data: "00ffff", label: "Cyan" },
   { data: "0066ff", label: "Blue" },
@@ -79,14 +81,22 @@ export function Power({ config, setConfig, reload }: {
       reload();
     }
   };
+  // Rainbow ignores the color; off shows nothing — only offer the palette when it matters.
+  const ledColorRelevant = config.ledMode === "static" || config.ledMode === "breathe";
   return (
-    <PanelSection title="PERFORMANCE">
-      <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
-      <SelectEdit label="Charge Limit (experimental)" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
-      <SelectEdit label="Stick LED Effect" value={config.ledMode} options={ledEffectOptions} onChange={(mode) => applyLedMode(mode as string)} />
-      <SelectEdit label="Stick LED Color" value={config.ledColor} options={ledOptions} onChange={(hex) => applyLed(hex as string)} />
-      <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions} onChange={(mode) => applyMode(setFanMode, mode)} />
-      <SelectEdit label="CPU Scheduler" value={config.lavdMode} options={lavdOptions} onChange={(mode) => applyMode(setLavdMode, mode)} />
-    </PanelSection>
+    <>
+      <PanelSection title="PERFORMANCE">
+        <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
+        <SelectEdit label="Charge Limit (experimental)" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
+        <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions} onChange={(mode) => applyMode(setFanMode, mode)} />
+        <SelectEdit label="CPU Scheduler" value={config.lavdMode} options={lavdOptions} onChange={(mode) => applyMode(setLavdMode, mode)} />
+      </PanelSection>
+      <PanelSection title="STICK LEDS">
+        <SelectEdit label="Effect" value={config.ledMode} options={ledEffectOptions} onChange={(mode) => applyLedMode(mode as string)} />
+        {ledColorRelevant && (
+          <ColorPalette colors={ledColorPresets} value={config.ledColor} onChange={(hex) => applyLed(hex)} />
+        )}
+      </PanelSection>
+    </>
   );
 }

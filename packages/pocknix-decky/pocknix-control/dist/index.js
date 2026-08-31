@@ -294,6 +294,37 @@ function SelectEdit({ label, value, options, onChange }) {
     const rgOptions = options.map((option) => (typeof option === "string" ? { data: option, label: option } : option));
     return (SP_JSX.jsx(DFL.PanelSectionRow, { children: label === undefined ? (SP_JSX.jsx(DFL.Dropdown, { selectedOption: value, rgOptions: rgOptions, onChange: (option) => onChange(option.data) })) : (SP_JSX.jsx(DFL.DropdownItem, { label: label, selectedOption: value, rgOptions: rgOptions, onChange: (option) => onChange(option.data) })) }));
 }
+/** True when a check/glyph drawn over #RRGGBB needs to be dark to stay readable. */
+function isBright(hex) {
+    const n = parseInt(hex, 16);
+    if (Number.isNaN(n))
+        return false;
+    const r = (n >> 16) & 0xff, g = (n >> 8) & 0xff, b = n & 0xff;
+    return 0.299 * r + 0.587 * g + 0.114 * b > 150;
+}
+/**
+ * Row of preset color swatches. Steam's gamepad focus style repaints button
+ * backgrounds, so each swatch keeps its color inline (inline beats the class)
+ * and shows focus via its own border + selection via a check glyph.
+ */
+function ColorPalette({ colors, value, onChange }) {
+    const [focused, setFocused] = SP_REACT.useState(null);
+    return (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { display: "flex", flexWrap: "wrap", gap: "8px", padding: "6px 0" }, children: colors.map(({ data, label }) => (SP_JSX.jsx(DFL.DialogButton, { onClick: () => onChange(data), onGamepadFocus: () => setFocused(data), onGamepadBlur: () => setFocused((current) => (current === data ? null : current)), style: {
+                    width: "30px",
+                    minWidth: "30px",
+                    height: "30px",
+                    padding: 0,
+                    borderRadius: "15px",
+                    backgroundColor: `#${data}`,
+                    border: focused === data ? "2px solid #ffffff" : "2px solid rgba(255,255,255,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    lineHeight: "1",
+                    color: isBright(data) ? "#000000" : "#ffffff",
+                }, children: value === data ? "✓" : "" }, data))) }) }));
+}
 
 function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -399,15 +430,17 @@ function Games({ config, setConfig }) {
     return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "GAME TWEAKS", children: [SP_JSX.jsx(SelectEdit, { label: "Game", value: game?.appid || "", options: editTargetOptions(config), onChange: setSelectedGame }), SP_JSX.jsx("div", { className: "pocknix-note", children: "Changes apply on next game launch" }), !editingDefault ? SP_JSX.jsx(DFL.ToggleField, { label: "Use Per-Game Settings", checked: perGameEnabled, onChange: setPerGameEnabled }) : null, editingDefault || perGameEnabled ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(SelectEdit, { label: "FEX Preset", value: fexValue, options: fexOptions, onChange: (id) => patchSettings({ fexProfile: id, fexFlags: {} }) }), SP_JSX.jsx(SelectEdit, { label: "Audio Buffer", value: audioValue, options: audioLatencyOptions, onChange: (id) => patchSettings({ audioLatency: id }) }), SP_JSX.jsx(DFL.ToggleField, { label: "Frame Insertion (LSFG)", description: "Doubles presented fps by interpolation. Needs Lossless Scaling installed from Steam. Adds input latency; routes the game through host Vulkan.", checked: lsfgEnabled, onChange: (on) => patchSettings({ lsfg: { ...lsfgSettings, enabled: on } }) }), lsfgEnabled ? (SP_JSX.jsx(SelectEdit, { label: "Insertion Multiplier", value: lsfgMultiplier, options: lsfgMultiplierOptions, onChange: (m) => patchSettings({ lsfg: { ...lsfgSettings, enabled: true, multiplier: String(m) } }) })) : null, SP_JSX.jsxs("div", { className: "pocknix-note", children: ["Advanced FEX flags", Object.keys(flagOverrides).length ? " (modified)" : ""] }), fexFlagDefs.map(({ key, label }) => (SP_JSX.jsx(DFL.ToggleField, { label: label, checked: effectiveFlag(key), onChange: (on) => setFlag(key, on) }, key)))] })) : null] }), SP_JSX.jsx(AddGameSection, {})] }));
 }
 
+// Modes the stick-LED daemon understands (pocknix-stick-ledsd reads /var/lib/pocknix/led-mode).
 const ledEffectOptions = [
     { data: "off", label: "Off" },
     { data: "static", label: "Static" },
     { data: "rainbow", label: "Rainbow" },
     { data: "breathe", label: "Breathing" },
 ];
-const ledOptions = [
+const ledColorPresets = [
     { data: "ff6600", label: "Hodor Orange" },
     { data: "ff0000", label: "Red" },
+    { data: "ffff00", label: "Yellow" },
     { data: "00ff00", label: "Green" },
     { data: "00ffff", label: "Cyan" },
     { data: "0066ff", label: "Blue" },
@@ -473,7 +506,9 @@ function Power({ config, setConfig, reload }) {
             reload();
         }
     };
-    return (SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "Stick LED Effect", value: config.ledMode, options: ledEffectOptions, onChange: (mode) => applyLedMode(mode) }), SP_JSX.jsx(SelectEdit, { label: "Stick LED Color", value: config.ledColor, options: ledOptions, onChange: (hex) => applyLed(hex) }), SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions, onChange: (mode) => applyMode(setFanMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }));
+    // Rainbow ignores the color; off shows nothing — only offer the palette when it matters.
+    const ledColorRelevant = config.ledMode === "static" || config.ledMode === "breathe";
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit (experimental)", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions, onChange: (mode) => applyMode(setFanMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICK LEDS", children: [SP_JSX.jsx(SelectEdit, { label: "Effect", value: config.ledMode, options: ledEffectOptions, onChange: (mode) => applyLedMode(mode) }), ledColorRelevant && (SP_JSX.jsx(ColorPalette, { colors: ledColorPresets, value: config.ledColor, onChange: (hex) => applyLed(hex) }))] })] }));
 }
 
 function cardSummary(card) {
