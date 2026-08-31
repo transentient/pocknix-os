@@ -1,0 +1,10 @@
+#!/bin/sh
+# Post-resume grace: something (Steam idle policy, most likely) fires a fresh
+# suspend request ~2s after SOME wakes, so the device needs two presses to stay
+# up (hardware-observed 08-28: wake -> logind sleep request at +2s -> dark at
+# +3..22s). Hold a short block inhibitor at every resume; real user input lands
+# within it and resets the idle policy. 15s: long enough to beat the +2s request,
+# short enough not to annoy an immediate deliberate re-suspend.
+systemd-run -q --collect --unit=pocknix-wake-grace \
+  systemd-inhibit --what=sleep --mode=block --why="post-resume grace" sleep 15 2>/dev/null || true
+exit 0

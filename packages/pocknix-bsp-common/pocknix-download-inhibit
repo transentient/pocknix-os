@@ -1,0 +1,14 @@
+#!/bin/sh
+# Hold a sleep inhibitor while Steam is actively downloading. Without this the
+# device idle-suspends mid-download and the download NEVER auto-resumes on wake
+# (Steam pauses it "Disabled (Suspended)" and stays silent — July lesson).
+# Detection: steamapps/downloading/ non-empty for the session user. Held in 45s
+# renewable chunks so a finished download releases within a minute.
+DL=/home/deck/.local/share/Steam/steamapps/downloading
+while :; do
+  if [ -d "$DL" ] && [ -n "$(ls -A "$DL" 2>/dev/null)" ]; then
+    systemd-inhibit --what=sleep --mode=block --why="Steam download in progress" sleep 45
+  else
+    sleep 30
+  fi
+done

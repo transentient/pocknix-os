@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=15   # 15: cpuidle-state1 sleep-window hooks (s2idle depth); 14: pocknix-charge-full
+pkgrel=16   # 16: download-inhibit daemon + wake-grace post hook; 15: cpuidle-state1 hooks
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -20,9 +20,10 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'pocknix-charge-full' 'pocknix-charge-full.service'
         'leds-sleep-pre' 'leds-sleep-post'
         'cpuidle-state1-sleep-pre' 'cpuidle-state1-sleep-post'
+        'pocknix-download-inhibit' 'pocknix-download-inhibit.service' 'wake-grace-post'
         '20-pocknix-powerkey.conf' 'no-freeze-user-sessions.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -54,6 +55,19 @@ package() {
     "${pkgdir}/usr/lib/pocknix/sleep.d/pre/005-cpuidle-state1"
   install -Dm755 "${srcdir}/cpuidle-state1-sleep-post" \
     "${pkgdir}/usr/lib/pocknix/sleep.d/post/005-cpuidle-state1"
+
+  # 006-wake-grace: 15s block inhibitor at every resume — beats the phantom +2s
+  # re-suspend request (post-resume instant re-suspend bug, hardware 08-28).
+  install -Dm755 "${srcdir}/wake-grace-post" \
+    "${pkgdir}/usr/lib/pocknix/sleep.d/post/006-wake-grace"
+
+  # Download guard: hold sleep while Steam is mid-download (a suspended download
+  # never auto-resumes on wake). Enabled in build-sd-image.
+  install -Dm755 "${srcdir}/pocknix-download-inhibit" \
+    "${pkgdir}/usr/lib/pocknix/pocknix-download-inhibit"
+  install -Dm644 "${srcdir}/pocknix-download-inhibit.service" \
+    "${pkgdir}/usr/lib/systemd/system/pocknix-download-inhibit.service"
+
   # 003-sdam-debug: Qualcomm PMIC SDAM suspend breadcrumb (fail-soft on non-SPMI
   # hardware — the dd just logs to kmsg and moves on).
   install -Dm755 "${srcdir}/sdam-debug-pre" \
