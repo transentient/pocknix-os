@@ -4,7 +4,29 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
-## SESSION 2026-08-31 EVE — 🎉 PHASE 1 CLOSED: s2idle DEFAULT SHIPPED, RC 20260831 BUILT+VERIFIED
+## 2026-08-31 NIGHT ADDENDUM — RC 20260831b SUPERSEDES 20260831 (cmdline-hook fix; do not publish 20260831)
+
+**TRAP CONFIRMED ON HARDWARE: installing bsp-sm8750-16 did NOT rebuild /flash/KERNEL** —
+the kernel pkg's 90-linux-pocknix.hook watches boot/Image/dtbs/modules only, not the
+bsp's kernel-cmdline. The device's /flash/KERNEL still carried mem_sleep_default=deep
+AND lacked fw_devlink.sync_state=timeout; a reboot would have silently reverted
+Phase 1. Fixed live (manual pocknix-build-bootimg) then properly: **bsp-sm8750-17
+ships 91-pocknix-cmdline.hook** (triggers on usr/lib/pocknix/kernel-cmdline, guarded
+sh -c exec; commit 7313b1a). Hook PROVEN live: bsp-17 install on-device fired it and
+rebuilt /flash/KERNEL (verified embedded s2idle + sync_state + md5 OK). Cliff chose
+respin-now over Phase-3 cargo. **RC = holodor-odin3-20260831b-seedless.img.zst**
+(6.77 GiB, sha 887878942e98…) — loop-mount spot-check ALL GREEN (kernel-23 bsp-17
+bsp-common-16 decky-15 steam-41 plymouth boot-art; s2idle+sync_state in KERNEL and
+hook-file; 91-hook present; no seed/preseed, root::/deck::, sshd off). Respin chain =
+the proven PKG-mode recipe (build-packages bsp → build-image RESUME+SKIP_PKGPHASE+
+SEEDLESS → build-sd-image SEEDLESS+RELEASE), log build/respin-20260831b.log.
+DEVICE: bsp-17 installed, /flash/KERNEL correct, reboot-safe and self-maintaining.
+Also verified: 10-pocknix-deeponly.conf only pins SuspendState=mem (not the mem_sleep
+mode) — no conflict with the s2idle default; PKGBUILD comment corrected.
+RP5 arrived 08-31; recon sweep (upstream sm8250/ROCKNIX/boot-path/turnip-a650)
+dispatched — findings land in session or next handoff.
+
+## SESSION 2026-08-31 EVE — 🎉 PHASE 1 CLOSED: s2idle DEFAULT SHIPPED, RC 20260831 BUILT+VERIFIED (superseded by b above)
 
 **Ceremony PASSED all 4 gates on the full new stack** (kernel-23 + bsp-common-16 +
 bsp-sm8750-16 + decky-15): one-press wake (wake-grace inhibitor observed firing at
