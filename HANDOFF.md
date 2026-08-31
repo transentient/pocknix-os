@@ -1,5 +1,29 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-08-31 MIDNIGHT — SOAK NOW ON INTERNAL UFS (refresh ceremony done) + OLED lesson
+
+**Internal install REFRESHED to the current stack and BOOTED** (root=sda19, flash=sda18,
+372G free, s2idle-from-cmdline, kernel-23+bsp-17+powerd prototype — clone of the running
+SD system incl. library). Path: pocknix-uninstall-internal --yes && pocknix-install-internal
+--userdata-gib 32 --yes, detached unit under sleep:idle inhibitor, ~35min from the 32GB SD
+(both tools now validated end-to-end on qcom-abl). Android userdata wiped again (accepted;
+EDL restore replaces it in Phase 2). Trigger: Cliff was soaking on the 32GB dashcam mule
+(4MB/s, 73% full) — stutter guaranteed, soak would have failed on storage, not code.
+**32GB SD = rescue card now (drawer).** Cliff used ABL menu to set boot source internal;
+auto-boot-on-charge did the first boot.
+
+**THE OLED LESSON (Cliff's catch): the Odin 3 panel is OLED — dim-showing-dark, frozen-
+black session, DPMS-off and powered-off are VISUALLY IDENTICAL (no backlight glow).** Eyes
+cannot arbitrate any dark-screen report on this device; sysfs + journal are the only truth.
+Live-read protocol upgraded to mandatory.
+
+**SECOND FREEZE SPECIMEN (during clone, ~22:50-23:05): session output black + ALL input
+dead while gamescope ran, ZERO zombies, load 1.6, io-psi only 24%, brightness 2993, dpms
+On** — the freeze family WITHOUT the heavy-starvation signature. Best current suspect for
+the first dark window (21:37-21:42) too. On UFS it has no slow-SD excuse left — if it
+recurs, journal + webhelper logs immediately. Also noted: a power press refused by a block
+inhibitor is SILENT (powerd devnulls systemctl suspend failure) — polish: log/react.
+
 ## 2026-08-31 LATE NIGHT — SOAK DAY 0: death-spiral root-caused, powerd prototype LIVE (uncommitted)
 
 **The "restart didn't work" evening, fully reconstructed (no crash, no wedge, journals clean):**
