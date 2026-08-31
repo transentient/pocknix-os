@@ -109,10 +109,14 @@ walked start-to-finish by a human with no agent rescue.
 
 LEDs work (HTR3212 driver + `pocknix-stick-leds`, shipped 08-09). Remaining is UX:
 
-- [ ] RGB picker panel in Pocknix Control QAM (color + off/static/status modes —
-      parity with the fan/power selectors). Agent work, plugin dist builds on fusor.
-- [ ] Find the unidentified Decky control that turned LEDs off (08-20 mystery);
-      make defaults deliberate: off by default, picker enables, ff6600 static fallback.
+- [x] RGB picker panel SHIPPED 08-31 (pocknix-decky-15): Stick LEDs QAM section,
+      effect selector (off/static/rainbow/breathe) + 9 preset swatches (Hodor
+      orange first). Backend pre-existed; daemon owns persistence
+      (/var/lib/pocknix/led-{mode,color}), changes apply live.
+- [x] 08-20 LED-off mystery: probable cause found — the shipped plugin dist was
+      STALE (built 08-13, behind committed src); the rough LED dropdowns that DID
+      ship were easy to trip. dist rebuilt + repo/dist parity restored. Defaults
+      stay deliberate: off by default, picker enables. Confirm during soak week.
 - [x] Lights-off-in-sleep hook — already shipped (bsp-common `leds-sleep-pre/post`
       stops the animator and zeroes the rings before suspend; verified 08-28).
 
