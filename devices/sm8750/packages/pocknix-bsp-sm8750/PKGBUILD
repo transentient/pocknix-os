@@ -9,14 +9,17 @@
 # devices on their next pacman -Syu.
 #
 # SoC-wide quirks (identical on every board, verified on the RP6):
-#   * 10-pocknix-deeponly.conf — pin deep-only suspend (s2idle can wedge on SM8750)
+#   * 10-pocknix-deeponly.conf — pin SuspendState=mem (no standby/freeze fall-through);
+#                                the mem_sleep MODE (s2idle since bsp-16) comes from the cmdline
 #   * 30-pocknix-cpuidle.conf  — disable cpu0 idle state1 (GMU issues; ROCKNIX 096-cpuidle)
 #   * kernel-cmdline           — the family cmdline for the on-device /flash/KERNEL
 #                                rebuild (qcom-abl); build-packages.sh asserts it
 #                                matches devices/sm8750/profile.conf
 pkgname=pocknix-bsp-sm8750
 pkgver=0.2.0
-pkgrel=16   # 16: kernel-cmdline mem_sleep_default=s2idle (sleeps 5x deeper than "deep" on sm8750; validated 08-31)
+pkgrel=17   # 17: 91-pocknix-cmdline.hook — cmdline-only bsp bumps now rebuild /flash/KERNEL
+            # (the kernel pkg's 90-hook doesn't watch kernel-cmdline; bsp-16 shipped stale on-device)
+            # 16: kernel-cmdline mem_sleep_default=s2idle (sleeps 5x deeper than "deep" on sm8750; validated 08-31)
 pkgdesc="pocknix board support: SM8750 family (AYN Odin 3) — runtime board dispatch, input map, suspend quirks, audio UCM"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -37,8 +40,9 @@ source=('device.conf'
         'AYN-Odin3.conf' 'HiFi.conf'
         '10-pocknix-deeponly.conf' '30-pocknix-cpuidle.conf'
         '50-no-sink-suspend.conf'
-        'kernel-cmdline' 'pocknix-stick-leds' 'pocknix-stick-ledsd' 'pocknix-stick-leds.service')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'kernel-cmdline' '91-pocknix-cmdline.hook'
+        'pocknix-stick-leds' 'pocknix-stick-ledsd' 'pocknix-stick-leds.service')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # Runtime device facts: the model dispatcher + per-board files. boards/ is
@@ -97,4 +101,8 @@ package() {
   # shipped by linux-pocknix-sm8750). One family cmdline (the retired per-device ones
   # were byte-identical); build-packages.sh asserts it matches the family profile.
   install -Dm644 "${srcdir}/kernel-cmdline" "${pkgdir}/usr/lib/pocknix/kernel-cmdline"
+  # ...and the hook that keeps /flash/KERNEL in sync when ONLY the cmdline changes
+  # (the kernel package's 90-hook watches Image/dtbs/modules, not this file).
+  install -Dm644 "${srcdir}/91-pocknix-cmdline.hook" \
+    "${pkgdir}/usr/share/libalpm/hooks/91-pocknix-cmdline.hook"
 }
