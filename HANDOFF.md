@@ -4,6 +4,36 @@
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
 
+## SESSION 2026-08-31 EVE — 🎉 PHASE 1 CLOSED: s2idle DEFAULT SHIPPED, RC 20260831 BUILT+VERIFIED
+
+**Ceremony PASSED all 4 gates on the full new stack** (kernel-23 + bsp-common-16 +
+bsp-sm8750-16 + decky-15): one-press wake (wake-grace inhibitor observed firing at
+suspend-exit+0s), suspend-mid-game (VC), vol-up-does-NOT-wake under s2idle, plugged
+5-min sleep + clean wake. `mem_sleep_default=s2idle` flipped in BOTH cmdline homes
+(profile.conf + bsp kernel-cmdline) and pushed. **RC = holodor-odin3-20260831-
+seedless.img.zst** (building/compressed on fusor, sha256 alongside; raw img
+triple-verified: KERNEL cmdline s2idle + bsp-sm8750-16 installed + hook-file s2idle).
+DEVICE STATE: suspended, ~90%+, running kernel-23 + bsp-common-16 + decky-15 with
+s2idle set at RUNTIME only — install bsp-sm8750-16 (in localrepo) at next wake so
+the hook rebuilds /flash/KERNEL and reboots keep s2idle; until then DON'T reboot it.
+BUILD TRAP ×2 tonight: rebuilding a pkg with same pkgrel + different bytes corrupts
+the cached-checksum chain (kernel-23 bootimg respin, then bsp-sm8750 cmdline) —
+ALWAYS bump pkgrel; loop-mount spot-check caught deep-vs-s2idle drift in the first
+respin (three cmdline homes: image KERNEL, bsp kernel-cmdline file, live /flash).
+FLASH TRAP: `md5sum -c && reboot` chains can pass against a STALE sidecar before
+the pacman hook regenerates it — verify `uname -v` build date after kernel flashes.
+SOAK WATCH: zombie-steamwebhelper UI freeze ×2 in one evening (frozen carousel,
+load 8-13 climbing, ALL input dead incl. power; rescue = systemctl restart
+getty@tty1); VC controls-feel (NOT the activation race — clean single activation
+appid 3265700; try official Gamepad template); 3× slow-SD false alarms (pacman
+27MB pkg starved UI+sshd ~15min; Proton winedevice prefix work 5-min spinner) —
+internal-install pitch keeps writing itself. Monday's "dead device" reconstructed:
+battery-critical CLEAN shutdown works (upower 16:11), auto-boot-on-charge +
+idle-suspend-while-charging + press-during-suspend/replug wedge corner. NEXT:
+(1) Cliff wakes device → push bsp-sm8750-16 → daily driver = soak; (2) EDL block
+(stock restore + JACK TEST + INSTALL.md walkthrough with THIS RC); (3) clean soak
+week → release mechanics (LICENSE file, password flow, archive.org, public flip).
+
 ## 2026-08-29 MORNING ADDENDUM — 🎯 DRAIN ROOT CAUSE FOUND: AOSS NEVER COLLAPSES (aosd=0)
 
 **THE ANSWER (supersedes the kernel-hunt below): the SoC never reaches Qualcomm
