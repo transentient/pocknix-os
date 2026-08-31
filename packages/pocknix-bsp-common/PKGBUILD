@@ -21,9 +21,10 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'leds-sleep-pre' 'leds-sleep-post'
         'cpuidle-state1-sleep-pre' 'cpuidle-state1-sleep-post'
         'pocknix-download-inhibit' 'pocknix-download-inhibit.service' 'wake-grace-post'
+        'iwd-wait-wlan0.conf'
         '20-pocknix-powerkey.conf' 'no-freeze-user-sessions.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -67,6 +68,12 @@ package() {
     "${pkgdir}/usr/lib/pocknix/pocknix-download-inhibit"
   install -Dm644 "${srcdir}/pocknix-download-inhibit.service" \
     "${pkgdir}/usr/lib/systemd/system/pocknix-download-inhibit.service"
+
+  # iwd vs default-wlan0 boot race (pocknix-os 696119c): iwd started before the
+  # driver's wlan0 registers loses its NEW_INTERFACE (ENFILE) and wifi is dead
+  # all boot. Order iwd after the netdev.
+  install -Dm644 "${srcdir}/iwd-wait-wlan0.conf" \
+    "${pkgdir}/usr/lib/systemd/system/iwd.service.d/wait-wlan0.conf"
 
   # 003-sdam-debug: Qualcomm PMIC SDAM suspend breadcrumb (fail-soft on non-SPMI
   # hardware — the dd just logs to kmsg and moves on).
