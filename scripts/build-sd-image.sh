@@ -204,6 +204,12 @@ EOF
   # Desktop (Plasma Mobile) session: register the Flathub remote on the first online boot so
   # Discover/flatpak can install apps. Harmless in game-only use (oneshot, no-op once added).
   chroot "${root}" systemctl enable pocknix-flathub.service 2>/dev/null || true
+  # Splash-hold: keep plymouth (holding the badge frame) up THROUGH session start.
+  # The session supervisor (deck .bash_profile) releases it with --retain-splash
+  # right before gamescope takes DRM — closing the ~20s black boot gap. getty@tty1
+  # starts underneath the splash (its After=plymouth-quit-wait ordering is moot
+  # once these units have no job queued).
+  chroot "${root}" systemctl disable plymouth-quit.service plymouth-quit-wait.service 2>/dev/null || true
   # Waydroid: re-assert the Android /data tuning (nav/density/font/immersive/multi_windows)
   # after each container boot — those settings are wiped by `waydroid init`. See docs/waydroid.md.
   chroot "${root}" systemctl enable pocknix-waydroid-tuning.service 2>/dev/null || true

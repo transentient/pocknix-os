@@ -29,6 +29,12 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     POCKNIX_SESSION="$(cat "${POCKNIX_STATE}" 2>/dev/null || echo gamescope)"
     pocknix_start="$(date +%s)"
     printf '\033[?25l\033[2J\033[H'
+    # Splash-hold: plymouth-quit{,-wait} are disabled in the image, so the boot
+    # splash (holding the badge frame) is still ours here. Release it with
+    # --retain-splash right before the compositor takes DRM: the held frame stays
+    # on the panel through the handoff, closing the ~20s black gap (and hiding the
+    # getty flash). No-op after first launch / when plymouthd isn't running.
+    plymouth quit --retain-splash 2>/dev/null || true
     case "${POCKNIX_SESSION}" in
       plasma|desktop) command -v pocknix-desktop >/dev/null 2>&1 && pocknix-desktop >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
       *)              command -v pocknix-steam   >/dev/null 2>&1 && pocknix-steam   >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
@@ -38,6 +44,8 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     if [ "$(( $(date +%s) - pocknix_start ))" -lt 5 ]; then
       pocknix_fastfails="$(( pocknix_fastfails + 1 ))"
       if [ "${pocknix_fastfails}" -ge 3 ]; then
+        # Reveal the console (splash may still be up if the first launch died).
+        plymouth quit 2>/dev/null || true
         printf '\033[?25h'
         echo "pocknix: session '${POCKNIX_SESSION}' keeps exiting immediately — dropping to a shell." >&2
         echo "        (fix it, then re-login; or 'touch ~/.no-steam' to stay at a shell.)" >&2
@@ -49,4 +57,10 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     fi
   done
   printf '\033[?25h'
+fi
+
+# Escape hatch on tty1 (~/.no-steam): the session loop never ran, so nothing
+# released the boot splash — reveal the console for debugging.
+if [ "$(tty)" = "/dev/tty1" ] && [ -e "${HOME}/.no-steam" ]; then
+  plymouth quit 2>/dev/null || true
 fi
