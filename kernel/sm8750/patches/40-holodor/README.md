@@ -41,6 +41,22 @@ Ported from ArmadaOS 2026-08-20..23 kernel push (kernel-22 bundle, 2026-08-24):
   OPP floor (s2idle + SM8550 AOP specific — we do real S3 on SM8750); Linux 7.2 bump
   (separate, bigger decision).
 
+Ported from ArmadaOS eb63d011a "fix uneven brightness scaling on OLED panels"
+(2026-08-30), for the kernel-24 bundle:
+- **0810 drm-panel-add-brightness-levels-helper** — new drm_panel helper that
+  expands a sparse per-panel output-levels table into a LUT at probe so a panel
+  whose brightness register is gamma-domain can expose a luminance-linear sysfs
+  scale; DT-overridable via brightness-levels/num-interpolated-steps on the
+  panel node. Verbatim from their 0059 (renumbered: ROCKNIX 20-sm8750 already
+  uses 0059/0060; 08xx is our display series after the 0800/0801 boot-logo pair).
+- **0811 drm-panel-icna35xx-luminance-linear-backlight-scale** — converts the
+  Odin 3 panel driver (ROCKNIX 0028) to the helper with a gamma-2.2 DBV curve
+  Armada measured on Odin 3/Odin 2 Portal hardware, and declares
+  BACKLIGHT_SCALE_LINEAR. Fixes Steam's nits-based brightness control flattening
+  the low end to near-black (our "idle-dim looks like the screen is off" soak
+  symptom). Verbatim from their 0060; requires 0810.
+  NOT taken from eb63d011a: their 0106 il97680a conversion — not our panel.
+
 NOTE: 0508 was spuriously "convicted" as the suspend wedge on 2026-08-08 (a module
 bisection confounded by whether the charger was plugged in). It is a legitimate
 controls-after-resume improvement and stays active via the ROCKNIX 20-sm8750 copy.
