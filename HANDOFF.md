@@ -1,5 +1,41 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-08-31 LATE NIGHT — SOAK DAY 0: death-spiral root-caused, powerd prototype LIVE (uncommitted)
+
+**The "restart didn't work" evening, fully reconstructed (no crash, no wedge, journals clean):**
+Steam idle-suspend (with chime; ~10-15min, by design, adjustable Settings→Power) took the
+device down twice with no button press (21:22, 22:19); Cliff's Restart-from-menu at 21:35:08
+worked perfectly; the "dark + pulses-but-nothing" episode 21:42-21:48 = press on a
+dark-looking-but-awake screen SUSPENDS (short press semantics) + wake returns the panel at
+its pre-suspend idle-dim brightness (looks dead) + presses inside the 15s wake-grace get
+REFUSED silently by the block inhibitor. Ended with a CLEAN logind long-press poweroff —
+device was healthy the whole time.
+
+**MEASURED (sampler /home/deck/blanklog.csv): Steam idle-dims to 122/4096 (~3%) and NEVER
+DPMS-blanks — bl_power stays 0, DSI-1 dpms stays On.** powerd's RP6-era screen_is_on()
+guard (bl_power) is blind to it. Any control input instantly restores brightness (verified
+2x on hardware).
+
+**PROTOTYPE (Cliff-approved, deployed LIVE to device /usr/local/bin/pocknix-powerd +
+uncommitted diff in repo working tree overlay/usr/local/bin/pocknix-powerd — commit+respin
+AFTER soak validation):** (1) resume with brightness < 6% of max → restore to 35% ("wake
+never looks dead") — **PROVEN 22:20:59: "resume with dim panel: brightness 122 -> 1433"**;
+(2) short press with brightness < 6% → restore brightness, don't suspend (display-wake
+intent) — not yet exercised; (3) do_suspend() stops pocknix-wake-grace.service first so a
+deliberate press in the grace window suspends instead of being eaten — not yet exercised.
+powerd logs each firing unconditionally; watch journal -u pocknix-powerd during soak.
+
+**OPEN QUESTION (soak watch):** the FIRST dark window (21:37-21:42, boot of 21:35) — idle-dim
+misread as black, or true black? Steam UI WAS up (steamui_system 21:37:10 HDR set); Steam
+never logs dims; Cliff can't recall if gamepad-before-power. PROTOCOL next dark screen:
+press a GAMEPAD button first (healthy dim = instant brighten); if still dark, DON'T touch
+power — tell agent "it's dark now", agent reads brightness/session live over ssh.
+
+**Device debris to clean:** /home/deck/{blanklog.csv,pocknix-powerd.new,
+pocknix-bsp-sm8750-0.2.0-1[67]-any.pkg.tar.zst}. Device: 192.168.1.25 tonight, bsp-17,
+kernel-23, s2idle-from-cmdline CONFIRMED on reboot (mem_sleep [s2idle] with zero runtime
+help — Phase 1 persistence proof).
+
 **Holodor is a SteamOS-faithful Arch Linux for the AYN Odin 3** — Valve's Holo Core aarch64
 userland + ROCKNIX SM8750 kernel, built on a fork of the pocknix-os harness.
 Repo: `github.com/transentient/holodor` (PRIVATE, branch `holodor-main`).
