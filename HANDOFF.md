@@ -1,5 +1,31 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-09-01 — UPSTREAM SWEEP TRIAGED + kernel-24 STAGED (OLED brightness fix; deploy = Cliff's call)
+
+Sweep window 08-24→08-31, all four upstreams (full triage in the 09-01 session; summary):
+- **A1 → PORTED + BUILT: kernel 7.1.3-24 staged in localrepo (commit 6bda4e7, NOT deployed).**
+  Armada eb63d011a: ICNA35xx exposes raw gamma-domain DBV; Steam assumes luminance-linear
+  sysfs backlight → low end flattens to near-black = the 08-31 "idle-dim looks off" finding
+  has a DRIVER component, not just policy. Port = 40-holodor 0810 (drm_panel levels helper)
+  + 0811 (icna35xx conversion, gamma 2.2 measured on Odin 3); verbatim, offsets only;
+  their 0106 (il97680a) excluded. NOTE for first boot on -24: sysfs values map differently
+  (idle-dim "122" will drive a much higher DBV — dim should be VISIBLE); the powerd
+  brightness-floor prototype composes with it. Deploy mid-soak restarts the display soak
+  clock — Cliff decides; else Phase-3 respin cargo alongside bsp-17's hook.
+- **Freeze family corroborated ecosystem-wide**: armada issue #313 = same QAM/menu freeze
+  on Odin 3, Valve: ARM unsupported. Not a Holodor regression; keep collecting specimens.
+- **B1 (Phase 3, we carry the bug): internal boot partition labeled ROCKNIX hijacks a real
+  ROCKNIX SD boot** (first-ROCKNIX-label-wins at SD mount, ABL doesn't match names).
+  pocknix 4179fc7 + armada 152caf952 both renamed theirs this week. Rename needs their
+  migration logic (boot-time rename oneshot + fstab fixup) and sm8750 ABL verification.
+- B-rest: armada DPU dither opt-in (3408b84c9, banding), steam bootstrap extraction-retry
+  (b6578daf1, matches first-boot hang reports), gamescope HDR/SDR fixes (concept-only,
+  their OGC fork ≠ our Valve 3.16), ROCKNIX ABL v1.1.8 (753f693ec, read changelog before
+  Phase 3), ROCKNIX SM8250-on-7.2 series → RP5 recon doc. Holo Core snapshot UNCHANGED
+  (mash-20251118.3 still current); ROCKNIX SM8750 tree + extra-firmware: zero commits.
+- GitHub's "upstream changed" banner = pocknix's 08-26/27 base-20260826 republish of all
+  886 packages (repo-wide diff, noise for us); the real dev burst was Armada's (~50 commits).
+
 ## 2026-08-31 MIDNIGHT — SOAK NOW ON INTERNAL UFS (refresh ceremony done) + OLED lesson
 
 **Internal install REFRESHED to the current stack and BOOTED** (root=sda19, flash=sda18,
