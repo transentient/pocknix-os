@@ -33,6 +33,27 @@ Sweep window 08-24→08-31, all four upstreams (full triage in the 09-01 session
   payload (791015e) vs our July x86 turnip 26.1.5 overlay = REAL cherry-pick for the next
   mesa cycle (x86 games render through x86 turnip; a8xx matured fast through 26.x).
 
+## 2026-09-01 PM — GRAPHICS A/B STACK STAGED (localrepo only; deploy after soak, ship via Phase-3 respin)
+
+Commit d4173e4; full research in docs/turnip-a830-landscape.md. Staged in localrepo/sm8750:
+- **mesa-next-6 + vulkan-freedreno-next-6** (ARM): mesa main PINNED @ 8e12d6000b (09-01;
+  the old un-pinned tarball source was silently SRCDEST-frozen — now commit-pinned+sha256)
+  + 0001 a830 fs_tex_prefetch OFF (upstream's own TODO; a830 was the only a8xx still on)
+  + 0002 a8xx-only 64b-image-atomics OFF (UE5/VKD3D hang mitigation; template-order
+  verified so a7xx keeps upstream behavior — do NOT copy WinNative's blanket script).
+- **fex-rootfs-4**: x86 turnip payload 26.1.5 → 26.3.0_devel-6 at the SAME pin, built from
+  source (packages/fex-rootfs/x86-turnip/, patches symlinked to mesa-next). VERIFIED FACT:
+  x86 Proton games render through the in-sqsh x86 turnip — fex-emu ThunksDB is all-zero
+  (deliberate, pkgrel-2, pressure-vessel corruption) — so the x86 payload is likely the
+  BIGGEST perf lever (games were on a May driver). Driver stamps disambiguate sides:
+  pocknix2.6 (ARM) vs pocknix-x86.6 (x86). LOCKSTEP RULE: any mesa-next pin/patch change
+  requires rebuilding the x86 payload at the same _commit (headers document it).
+- A/B session plan (post-soak, Cliff's call): (1) TU_DEBUG=forcebin env A/B first (no
+  install; faux123's binning-threshold idea, ~6-8% claim at sub-panel res); (2) pacman -U
+  the mesa pair + fex-rootfs → MangoHud frametime logs, judge on 1% lows; rollback pkgs
+  STASHED at build/rollback-pre-mesa6/ (mesa-next-5, vulkan-freedreno-next-5,
+  fex-rootfs-3). deck_emu (MR 38808) + cs_shared_mem 64K = parked.
+
 ## 2026-08-31 MIDNIGHT — SOAK NOW ON INTERNAL UFS (refresh ceremony done) + OLED lesson
 
 **Internal install REFRESHED to the current stack and BOOTED** (root=sda19, flash=sda18,
