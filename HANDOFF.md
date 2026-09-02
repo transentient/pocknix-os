@@ -33,6 +33,34 @@ Sweep window 08-24→08-31, all four upstreams (full triage in the 09-01 session
   payload (791015e) vs our July x86 turnip 26.1.5 overlay = REAL cherry-pick for the next
   mesa cycle (x86 games render through x86 turnip; a8xx matured fast through 26.x).
 
+## 2026-09-02 — SOAK FINDING #2: battery death forensics (drainlog-driven; no code changed)
+
+Cliff's report: VS sessions, "unusual drain between sessions", 10%→5%, slept at 3%,
+flashing red 2h later. DRAINLOG (coulomb bookends at every suspend/resume) + journal:
+- Suspends that day: 10:45→17:22 87mA; **17:50→18:28 785mA (one hot s2idle nap, 6%/38min —
+  intermittent, cause not recoverable post-hoc)**; 18:54→23:44 110mA. Baseline best = 31mA.
+- **Awake sessions escalated: 27min@1.5A, 25min@1.7A, then post-23:44 wake 36min@2.5A +
+  29min@3.0A (42%→3% in ~65min, 3.08Ah).** Journal for that hour: NOTHING — no downloads,
+  no thermal events, power-mode file absent (not the MAX trap), Steam runs with -noshaders
+  (fossilize OFF). Telemetry unit DISABLED → no SoC-side data; VS late-run under FEX at
+  ~10.5W is plausible but "stuck-hot after resume" cannot be excluded. UNRESOLVED.
+- **Death mechanism: manual suspend at 3% → journal ends at "PM: suspend entry (s2idle)"
+  = brownout/battery cutoff during suspend entry; device OFF 00:51→02:25.** upower ships
+  Critical=5 Action=2 CriticalPowerAction=HybridSleep (meaningless w/o swap) — a suspend
+  between 5% and 2% is a death trap because upowerd is frozen asleep. Phase-3 fix:
+  Action=5 + PowerOff, and/or powerd refuses suspend <5% (shut down instead).
+- **RTC TRAP CONFIRMED AGAIN**: boot 0's journal is stamped 00:51:25 but timesyncd's
+  "Initial clock synchronization" at monotonic 35.8s = 02:26:08 → real boot 02:25:32 =
+  Cliff's plug-in (auto-boot-on-charge). ALWAYS derive cold-boot times from monotonic +
+  first NTP sync; never from the early journal stamps.
+- Gauge lied as predicted post-deep-discharge (upowerd "nan percentage" spam at boot;
+  meter 80% vs Decky 65% in the morning); charge_counter smooth. Benign, one cycle settles.
+- My download-inhibitor hypothesis for the 17:50 nap was WRONG (suspend entered cleanly);
+  retracted in-session.
+- Tooling: /usr/lib/pocknix/pocknix-telemetryd (bsp-common, DISABLED) = 60s CSV of
+  capacity/current_ua/watts/temp/cpu/gpu/fan/brightness → the missing data source; enable
+  during soak (diagnostic only). power_now sysfs reads bogus (70W); use current_now×voltage.
+
 ## 2026-09-01 PM — GRAPHICS A/B STACK STAGED (localrepo only; deploy after soak, ship via Phase-3 respin)
 
 Commit d4173e4; full research in docs/turnip-a830-landscape.md. Staged in localrepo/sm8750:
