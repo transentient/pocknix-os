@@ -33,6 +33,42 @@ Sweep window 08-24→08-31, all four upstreams (full triage in the 09-01 session
   payload (791015e) vs our July x86 turnip 26.1.5 overlay = REAL cherry-pick for the next
   mesa cycle (x86 games render through x86 turnip; a8xx matured fast through 26.x).
 
+## 2026-09-03 — SOAK FINDINGS #3 (Vulkaiser sideways) + #4 (wifi sulk ROOT-CAUSED: roam → fw crash; heal never survives)
+
+**#4 WIFI SULK — MECHANISM PROVEN ON HARDWARE (kernel log 23:57:46, boot d7df4d05):**
+wake 23:57:20 → connected → +26s iwd ROAMS to the AP's other radio ("disconnect from AP
+…:11 for new auth to …:19"), reassoc OK → **0.6s later the WCN7860 FIRMWARE CRASHES and
+ath12k auto-recovers** ("mhi Requested to power ON", CE/srng ring dump, "pdev 0
+successfully recovered") → reconnects hit the AP's stale association (auth timeouts,
+"rejected association temporarily, comeback 2s") → iwd gives up into autoconnect_full
+→ dead air; NM sits in "failed" (retries=0 by design). Cliff's re-sleep/wake = full mhi
+power-on = fixed. FREQUENCY: boot -1: 7 resumes/3 roams/2 fw recoveries; boot 0: 5/2/1 —
+roams on roughly every other resume, ~3 of 5 roams crash the fw. The 08-26 "post-roam fw
+souring" theory is now fact. fw = WLAN.GNG.1.0-04065 (2025-08-09), research on newer fw +
+iwd roam knobs dispatched 09-03.
+**HEAL BUG (bsp-common): pocknix-wifi-heal has NEVER run** — /var/lib/pocknix/wifi-heal.log
+does not exist though it logs on every run. Cause: sleep.d/post/000-wifi launches it with
+`setsid … &` from inside systemd-suspend.service; setsid detaches the session, NOT the
+cgroup → systemd kills it when the hooks finish. 006-wake-grace uses systemd-run --collect
+and survives — same fix. ALSO: heal's window (wait_healthy 10 = 20s) ends before the +26s
+roam; needs a ~90s post-resume watch + reaction to the fw-recovery event (gentle
+`nmcli connection up` first, radio cycle, then the existing PCIe-reset escalation).
+Phase-3 wifi cargo, in order: (1) heal launch via systemd-run (one line), (2) longer watch +
+fw-recovery trigger, (3) roam suppression per iwd research (BTM/roam-scan knobs) or
+router band-steering A/B (Cliff's call; environment change, masks the bug for others),
+(4) fw update if one exists, (5) 696119c boot-race port (unrelated family, still queued).
+
+**#3 VULKAISER (appid 349680) RENDERS SIDEWAYS**: old D3D8 shooter picks a fullscreen mode
+matching the raw panel (1080x1920); gamescope (-W 1080 -H 1920 --force-orientation right
+--use-rotation-shader) only rotates when compositing → direct scanout = unrotated. Tried:
+WINE_FULLSCREEN_FAKE_CURRENT_RES=1920x1080 → no effect; nested `gamescope -W 1920 -H 1080
+-f -- %command%` → Steam spinner forever (nested gamescope can't start in our session).
+Cliff parked the game (launch option still set — clear it). Systemic fix = gamescope: never
+direct-scanout while the rotation shader is active, or hide the native mode from clients;
+upstream pocknix's move to mainline rotation (PR 2228) may be the real answer. DIAGNOSTIC
+GAP: gamescope's stderr is captured nowhere on this image (pocknix-session.log = 80 bytes,
+no journal lines) — add session logging. No xrandr/xwininfo on image; xprop exists.
+
 ## 2026-09-02 — SOAK FINDING #2: battery death forensics (drainlog-driven; no code changed)
 
 Cliff's report: VS sessions, "unusual drain between sessions", 10%→5%, slept at 3%,
