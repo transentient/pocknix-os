@@ -48,7 +48,25 @@ Cosmetic: systemd expanded `${i}` inside the wake-grace `sh -c` string ("Referen
 environment variable ... i") — only the never-reached error line; fixed in source
 (`packages/pocknix-bsp-common/wake-grace-post`, `$i`), rides bsp-common-18 at the respin.
 Still open for gate (2): Cliff's 20-cycle one-press / controls / Steam-dialog count, and a
-plugged overnight to confirm 100/95 holds. **Previously:** any suspend/resume on kernel-25 — no remote wake path (RTC trap),
+plugged overnight to confirm 100/95 holds. Cliff's first report (13:30): one clean press, no Steam dialogs (1/20).
+**bsp-common-18** (wake-grace `$i` fix) built + deployed live 13:33.
+**RC c BUILT 2026-09-06 13:47 = `build/image/sm8750/holodor-odin3-20260906c-seedless.img.zst`**
+(7.71 GiB zstd -12, sha256 da7957d2eeb2…, sidecar written; raw img sha 7bc1525a…). Chain:
+build-packages bsp-common → build-image RESUME+SKIP_PKGPHASE+SEEDLESS → build-sd-image SEEDLESS+
+RELEASE (SD_TIMEZONE=Asia/Tokyo) → zstd -12; log build/respin-20260906c.log. Loop-mount spot-check
+ALL GREEN: kernel-25, bsp-common-18, bsp-sm8750-17, decky-15, steam-41, **mesa-next-5 +
+vulkan-freedreno-next-5 + fex-rootfs-3** (= the soaked stack), plymouth + boot-art, lsfg-vk;
+KERNEL cmdline s2idle+sync_state, KERNEL.md5 OK, 90+91 hooks; iwd [Scan]/[Rank] keys + UPower
+5.0/PowerOff baked; 70-charge-full udev rule; no Steam tree, no preseed, root::/deck::, sshd off,
+no wifi profiles, no chargeprobe/drainlog hooks (device-only). NOT PUBLISHED — waits on gate (2).
+**TRAP HIT (new): RESUME+SKIP_PKGPHASE upgrades the rootfs from localrepo, and localrepo holds the
+STAGED mesa-next-6 / vulkan-freedreno-next-6 / fex-rootfs-4** — the first pass of this respin
+shipped the untested pair; spot-check caught it. Fixed by chroot `pacman -U` of
+build/rollback-pre-mesa6/ into build/rootfs, then re-ran build-sd-image + compress. EVERY future
+respin before the graphics A/B verdict must either repeat that downgrade or move the -6/-4 pkgs out
+of localrepo (repo-remove + repo-add the -5/-3 trio) — the spot-check package list is the guard.
+Not a regression vs 20260831b: image iwd main.conf has no Country= (SD_WIFI_COUNTRY unset in
+RELEASE builds; the device's Country=JP is dev-time) — same as every prior RC. **Previously:** any suspend/resume on kernel-25 — no remote wake path (RTC trap),
 so the validation gate above is Cliff's: first s2idle nap on kernel-25 with the charger in.
 Telemetry check for the "slow ~1 min after wake" symptom (09-05): the 60 s sampler is too coarse
 for a 1-minute event; the one gaming wake it caught (09-06 10:42, 13 W) shows big cores at
