@@ -1,5 +1,24 @@
 # Cyberpunk 2077 fps — bench plan & lever analysis (2026-08-15)
 
+## RESULTS — mesa-next-6 / fex-rootfs-4 A/B, 2026-09-06 (hands-free harness, tools/ab/)
+Same 720p / Low / ResolutionScaling Off / VSync Off / FG Off ladder as runs G–J; power `max`, fan
+`performance`; kernel-25, bsp-common-18, Cyberpunk 2.31 fresh install on internal UFS; built-in
+benchmark, numbers read off the results screen; GPU faults 0 on both sides.
+
+| Side | Stack | Runs (avg fps) | Mean | min / max (typ.) |
+|---|---|---|---|---|
+| A | mesa-next-5 + vulkan-freedreno-next-5 + fex-rootfs-3 (x86 turnip 26.1.5) | 22.16, 22.12, 22.04 | **22.11** | 16.5 / 32.7 |
+| B | mesa-next-6 + vulkan-freedreno-next-6 + fex-rootfs-4 (main @ 8e12d6000b + a830 patches), fresh boot | 21.38, 21.30, 21.39 | **21.36** | 16.3 / 31.6 |
+| A′ | A again, fresh boot (control for the reboot between A and B) | 21.99, 22.09, 22.09 | **22.06** | 16.4 / 32.8 |
+
+**Verdict: B is −3.2 % (well outside the ±0.06 run-to-run spread). NOT shipped; device rolled back to
+A; RC 20260906c already carries A.** The August "26.3.0-dev +4.6 %" (run I) does not transfer to this
+pin. Note what the game actually loads: `/proc/<pid>/map_files` of Cyberpunk2077.exe carries the ARM
+stamp (`pocknix2.5` / `pocknix2.6`), i.e. the host turnip via the FEX Vulkan thunk (fex-emu f16e268),
+not the x86 payload — so the x86 turnip rebuild in fex-rootfs-4 was not what moved the number; the
+ARM mesa-next pin was. Three invalid "B" runs (19:29–19:36) were on the un-quit A process and are
+discarded (they equal A to 0.1 fps — a useful null result for the harness).
+
 ## RESULTS — bench session 2026-08-16 (all 720p/Low, built-in benchmark, on-device sampler verified GPU@1100 for every run)
 | Run | Driver | Config | FSR/FG state (verified how) | fps |
 |-----|--------|--------|------------------------------|-----|

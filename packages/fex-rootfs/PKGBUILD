@@ -29,7 +29,7 @@ _rootfsdate=2026-01-08             # pinned dated image from FEX's rootfs CDN (i
 # with mesa-next: same _commit, same patches, or the two sides diverge silently.
 _mesapayload=vulkan-freedreno-next-26.3.0_devel-6-x86_64.pkg.tar.zst
 pkgver=${_rootfsdate//-/}          # 20260108
-pkgrel=4
+pkgrel=4   # A/B 2026-09-06 LOST with mesa-next-6 (-3.2%); NOT shipped, localrepo holds pkgrel 3. The game loads the ARM turnip via the FEX Vulkan thunk, so this x86 payload was not the mover.
 pkgdesc="x86_64 ArchLinux RootFS for FEX (x86 game userland + native Turnip GPU passthrough)"
 arch=('aarch64')
 url="https://rootfs.fex-emu.gg/"

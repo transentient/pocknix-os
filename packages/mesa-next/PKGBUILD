@@ -33,7 +33,7 @@ pkgver=26.3.0_devel
 # added (see source array); same pin + patches feed the x86 turnip payload
 # in fex-rootfs (one pin for both sides — the x86 copy is what x86 Proton
 # games actually load, see packages/fex-rootfs/PKGBUILD).
-pkgrel=6
+pkgrel=6   # A/B 2026-09-06: LOST (Cyberpunk 720p native 22.11 -> 21.36 fps, -3.2%). NOT shipped; localrepo holds pkgrel 5 (build/staged-mesa6/ has the 6 pkgs). See docs/cyberpunk-bench-plan.md.
 _commit=8e12d6000b247715b7c9bfaac67bca565dd8b9d8
 pkgdesc="Mesa trimmed for the RP6/SM8550: freedreno GL + turnip Vulkan, cortex-x3 tuned (26.1.5)"
 arch=('aarch64')

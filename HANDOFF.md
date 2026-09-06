@@ -106,6 +106,24 @@ Xwayland → game; Steam gamepad-UI takes Enter/arrows); `abshot.sh <name>` → 
 /home/deck/ab/ (sha verified; scp trap: mesa pkg names contain ':' → prefix ./). A-side rollback
 = /var/cache/pacman/pkg (-5/-3 present). No power/fan mode files exist (defaults) — bench in
 `max` + fan `performance` like 08-16, then `rm` the mode files to restore defaults.
+**A/B DONE 2026-09-06 20:10 — VERDICT: mesa-next-6 / vulkan-freedreno-next-6 / fex-rootfs-4 LOSE
+(−3.2 %). NOT shipped.** Cyberpunk 2.31 built-in benchmark, 720p Low native, VSync off, power max +
+fan performance: A (−5/−3) 22.16/22.12/22.04; B (−6/−4, fresh boot) 21.38/21.30/21.39; A′ (−5/−3
+fresh-boot control) 21.99/22.09/22.09. Spread ±0.06. GPU faults 0 both sides. Full table + notes in
+docs/cyberpunk-bench-plan.md; raw in tools/ab/results-2026-09-06.txt. Device rolled back to A,
+rebooted, mode files removed (defaults), inhibitor gone, Cyberpunk stays installed (85 GB, internal).
+**localrepo now holds the −5/−3 trio again** (repo-remove/add; the −6/−4 pkgs moved to
+build/staged-mesa6/) → the respin trap is closed; a full `make packages` would still rebuild
+pkgrel 6 from the PKGBUILDs (comments added) — decide whether to revert the pin bump.
+Finding: `/proc/<pid>/map_files` of Cyberpunk2077.exe carries the ARM stamp (pocknix2.5/2.6) →
+the game runs the HOST turnip through the FEX Vulkan thunk (fex-emu f16e268), not the x86 payload;
+the x86-turnip lockstep rule is moot for this title until that changes.
+**Harness = tools/ab/ (README has the working flow + traps).** Traps hit tonight: pgrep -f self-match
+killed my own shell (again); the first "B" set ran in the un-quit A process (verify pid start time);
+FEXServer keeps the old sqsh mounted → driver swap needs quit + reboot; after a reboot wait ≥130 s
+before the title-screen Space; REDlauncher is unreachable by virtual input (skip it with
+`steam://run/1091500//--launcher-skip/` + Enter on Steam's dialog); the game applies pointer
+acceleration → 4 px mouse steps; x11grab is black, use `gamescopectl screenshot`.
 Plan: first launch (prefix + shader compile) → set 720p / Low / FSR off / VSync off in
 UserSettings.json (relaunch to apply; log the VSync value) → built-in benchmark 3× on A with
 absample running → `pacman -U /home/deck/ab/*` → 3× on B → keep if ≥ A on avg AND no faults
