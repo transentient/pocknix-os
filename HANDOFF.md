@@ -71,6 +71,27 @@ through the top-of-charge and the Full transition** — the firmware did NOT re-
 event. Note the device does NOT idle-suspend while on the charger (stayed awake 30+ min, no
 inhibitor of ours — looks like Steam's on-AC setting), so the "plugged overnight" gate is an
 awake hold, not a sleeping one; the sleeping plugged case is the 62-min nap above.
+**Graphics A/B (Cliff asked 14:05 "proceed"): BLOCKED — device went off-network ~14:02, right
+after reporting Full, and stayed unreachable through 16:30 (ssh "connection timed out", not "no
+route"). Either Steam suspended it post-charge, or it is awake with dead wifi (would be the roam
+crash surviving DisableRoamingScan — read the journal for ath12k recovery the moment it returns).
+Pre-work done for the A/B: the game loads the x86 turnip INSIDE fex-rootfs (ThunksDB all-zero
+since fex-emu-2, 07-24), so the unit under test is the trio mesa-next-6 + vulkan-freedreno-next-6
++ fex-rootfs-4 together (fex-rootfs-4 = x86 turnip 26.1.5 → 26.3.0-devel @ 8e12d6000b + our two
+a830/a8xx patches; mesa-next-6 = ARM main 2026-08-09 snapshot → same pin). Upstream delta
+researched (shallow clone in scratchpad, GitLab API is Anubis-blocked): 119 src/freedreno commits
+08-09→09-01 — A830v1 chip-id, gen8 multi-plane descriptor fix, LRZ batch (flag-RAM fast clear,
+no direction write when not writing LRZ, LRZ off for depth-resolve targets / partial-area clears),
+fw 32B rollover workaround, TU_DEBUG=gmem_warmup, autotune logging, subgroup ballot/vote exts,
+ir3 speculatability fixes. x86 side additionally gets 26.1.6–26.1.8 + 26.2.0/26.2.1 (a8xx real
+storage/texel buffer limits, a8xx border_color fix, gen8 perfcntrs, ir3 round-robin errata,
+CP_CCHE_INVALIDATE ordering). "tu/a8xx: remove enforced TU_DEBUG_FLUSHALL" (26.2.0 notes) is NOT
+a cliff: verified 26.1.5 never enforced it. Expectation: bug fixes, ≤ single-digit % fps.
+Measuring plan (unchanged from bench-plan doc): Cyberpunk built-in benchmark 3× per side +
+crtc total_framecount presented-fps + fdinfo GPU busy; the missing piece is hands-free menu
+navigation (uinput virtual pad) + a screen capture path — inventory the device first.
+Fusor housekeeping 16:20: killed four orphaned qemu-aarch64 gpg-agents (pacman keyring inside
+build chroots, 16–35 days old, ~1.2 GB RSS each) after a background watcher was OOM-killed.
 Not a regression vs 20260831b: image iwd main.conf has no Country= (SD_WIFI_COUNTRY unset in
 RELEASE builds; the device's Country=JP is dev-time) — same as every prior RC. **Previously:** any suspend/resume on kernel-25 — no remote wake path (RTC trap),
 so the validation gate above is Cliff's: first s2idle nap on kernel-25 with the charger in.
