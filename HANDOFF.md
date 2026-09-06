@@ -65,6 +65,12 @@ shipped the untested pair; spot-check caught it. Fixed by chroot `pacman -U` of
 build/rollback-pre-mesa6/ into build/rootfs, then re-ran build-sd-image + compress. EVERY future
 respin before the graphics A/B verdict must either repeat that downgrade or move the -6/-4 pkgs out
 of localrepo (repo-remove + repo-add the -5/-3 trio) — the spot-check package list is the guard.
+**Plugged hold (awake, on charger, Cliff out): 61 % at 13:27 → 99 % at 13:47 → 100 % at 14:00:47 →
+status Full at 14:01:03, current −4 mA; charge_control thresholds read 100/95 at EVERY 20 s sample
+through the top-of-charge and the Full transition** — the firmware did NOT re-cap to 80/70 on the
+event. Note the device does NOT idle-suspend while on the charger (stayed awake 30+ min, no
+inhibitor of ours — looks like Steam's on-AC setting), so the "plugged overnight" gate is an
+awake hold, not a sleeping one; the sleeping plugged case is the 62-min nap above.
 Not a regression vs 20260831b: image iwd main.conf has no Country= (SD_WIFI_COUNTRY unset in
 RELEASE builds; the device's Country=JP is dev-time) — same as every prior RC. **Previously:** any suspend/resume on kernel-25 — no remote wake path (RTC trap),
 so the validation gate above is Cliff's: first s2idle nap on kernel-25 with the charger in.
