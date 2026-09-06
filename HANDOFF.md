@@ -29,6 +29,25 @@ New symptom logged 09-05 (Cliff): game runs visibly SLOW (not jittery) for ~1 mi
 normal — check telemetry.csv cpu/gpu clocks around wakes before building anything.
 Deploy: `pacman -U` kernel-25 + bsp-common-17 from build/localrepo over ssh; live device also needs
 the iwd main.conf + UPower.conf edits (image-build-time changes) applied by hand until the respin.
+**DEPLOYED 2026-09-06 12:10 JST (agent, over ssh, device at static 192.168.1.32):** `pacman -U` both
+pkgs → 90-hook rebuilt /flash/KERNEL (md5 sidecar OK, KERNEL.bak = kernel-23 rollback, cmdline
+still `mem_sleep_default=s2idle fw_devlink.sync_state=timeout`) → reboot → verified: `uname -v`
+build date Sep 6 11:15 (kernel-25), pacman -Q 7.1.3-25 + bsp-common 0.1.0-17, mem_sleep [s2idle],
+thresholds 100/95 after boot, powerd + telemetry + lavd active, wifi "ozma" reconnected, the 4
+pmic-glink "Failed to create device link" boot warnings are pre-existing (same count on kernel-23).
+iwd main.conf ([Scan]/[Rank] keys) + UPower.conf (PercentageAction=5.0 / PowerOff) hand-applied
+live, identical to what build-sd-image.sh writes. sleep.d/post/000-wifi on device launches the
+heal via `systemd-run --collect --unit=pocknix-wifi-heal-<epoch>`; 70-pocknix-charge-full.rules
+present. **NOT yet exercised: any suspend/resume on kernel-25** — no remote wake path (RTC trap),
+so the validation gate above is Cliff's: first s2idle nap on kernel-25 with the charger in.
+Telemetry check for the "slow ~1 min after wake" symptom (09-05): the 60 s sampler is too coarse
+for a 1-minute event; the one gaming wake it caught (09-06 10:42, 13 W) shows big cores at
+4090 MHz and GPU at 1100 MHz in the first post-wake sample, so clocks are NOT parked low after
+resume. Fan PWM stayed 0 for ~3 min post-wake at 61–67 °C before the curve kicked in (fancontrol
+resume lag?) — plausible thermal-throttle-then-recover story; needs a 1–5 s sampler around a wake
+(or `pocknix-telemetry` interval knob) before building anything. Also observed: the 11:14→12:03
+s2idle nap on kernel-23 cost 68→61 % (~7 % in 49 min, discharging, gauge freshly relearned at
+100 % on 09-05) — the finding-#2 "hot nap" is still with us; separate from the charging fix.
 
 ## CURRENT STATE 2026-09-03 10:45 JST — READ THIS FIRST (written by Claude Fable 5.1 at /sleep-now)
 
