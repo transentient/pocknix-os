@@ -11,3 +11,10 @@ A4 avg=21.99 min=16.40 max=32.71 frames=1412 20:01 (post-reboot control, fresh p
 A5 avg=22.09 min=16.41 max=33.14 frames=1418 20:03
 A6 avg=22.09 min=16.44 max=32.61 frames=1419 20:05
 VERDICT: A mean 22.11 (pre-reboot) / 22.06 (post-reboot control); B mean 21.36 => -3.2%; run-to-run spread ±0.06. B loses. Not shipped.
+--- Monday items 1-3 run the same night (23:40-00:26), A build (mesa-next-5), fresh processes, power max / fan performance
+item1: process env has DISABLE_LSFGVK=1 (lsfg OFF), TU_DEBUG_FILE=/tmp/tu_debug_file.txt (proton-cachyos), FEX_APP_CONFIG (ThunksDB.Vulkan present); game maps ARM turnip stamp pocknix2.5 with lsfg off => Vulkan thunk is the default route
+N1 (TU_DEBUG_FILE="nobin", runtime file) avg=22.03  -> file mechanism did NOT reach the driver (nobin should cost a lot)
+F1-F3 (TU_DEBUG_FILE="forcebin") 22.05/22.21/22.03 -> inconclusive (same reason)
+P1-P3 (env FD_DEV_FEATURES=has_fs_tex_prefetch=0, verified in /proc/pid/environ) 22.14/21.96/22.15 mean 22.08 = baseline -> patch 0001 is free; NOT the mesa-next-6 regression
+FB1-FB3 (env TU_DEBUG=forcebin, verified) 22.06/22.07/22.10 mean 22.08 = baseline -> forcebin null
+control: env FD_DEV_FEATURES=holodor_bogus_feature=1 -> gamescope itself exited on driver init ("session gamescope keeps exiting") => env DOES reach the driver; the P/FB nulls are real. (Trap: /etc/environment is session-wide; use a per-game injection next time.)

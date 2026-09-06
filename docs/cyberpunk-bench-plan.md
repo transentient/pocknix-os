@@ -19,6 +19,21 @@ not the x86 payload — so the x86 turnip rebuild in fex-rootfs-4 was not what m
 ARM mesa-next pin was. Three invalid "B" runs (19:29–19:36) were on the un-quit A process and are
 discarded (they equal A to 0.1 fps — a useful null result for the harness).
 
+### Follow-ups the same night (inquisitor items 1–3, 2026-09-06 23:40 → 09-07 00:26)
+Same ladder, A build (mesa-next-5), fresh process each condition, variables verified in
+`/proc/<pid>/environ`:
+- **lsfg was OFF in every native run** (`DISABLE_LSFGVK=1` in the game env) — the reviewer's
+  suspicion is refuted. With lsfg off the game still maps the ARM turnip (stamp pocknix2.5) via the
+  FEX Vulkan thunk, so the thunk is the default route and fex-rootfs's x86 turnip is not what runs.
+- **`FD_DEV_FEATURES=has_fs_tex_prefetch=0` (= patch 0001 on the A build): 22.14 / 21.96 / 22.15,
+  mean 22.08 = baseline.** Texture prefetch is free on a830 for this game; patch 0001 was NOT the
+  mesa-next-6 regression. The −3.2 % is in the upstream 08-09→09-01 delta (LRZ batch / ir3).
+- **`TU_DEBUG=forcebin`: 22.06 / 22.07 / 22.10 = baseline.** Null, as predicted. Closed.
+- Control: an invalid `FD_DEV_FEATURES` name made the driver exit — proving the env path works. (It
+  also took gamescope down because /etc/environment is session-wide; per-game injection next time.)
+- The `TU_DEBUG_FILE` runtime file (set by proton-cachyos) did NOT reach the driver: "nobin" in it
+  left fps at 22.03. Don't use it for experiments.
+
 ## RESULTS — bench session 2026-08-16 (all 720p/Low, built-in benchmark, on-device sampler verified GPU@1100 for every run)
 | Run | Driver | Config | FSR/FG state (verified how) | fps |
 |-----|--------|--------|------------------------------|-----|

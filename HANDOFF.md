@@ -118,6 +118,14 @@ pkgrel 6 from the PKGBUILDs (comments added) — decide whether to revert the pi
 Finding: `/proc/<pid>/map_files` of Cyberpunk2077.exe carries the ARM stamp (pocknix2.5/2.6) →
 the game runs the HOST turnip through the FEX Vulkan thunk (fex-emu f16e268), not the x86 payload;
 the x86-turnip lockstep rule is moot for this title until that changes.
+**Inquisitor #2 (docs/inquisitor-review-2026-09-06-fps.md): ship RC on the current stack, stop mesa
+pinning, reframe 48 fps. Its Monday items 1–3 were run the same night:** lsfg verified OFF in the
+native runs (refutes its suspicion); patch 0001 (fs_tex_prefetch) verified FREE via FD_DEV_FEATURES
+env → the −3.2 % is upstream (LRZ/ir3), 0001 can stay or go on merit alone; TU_DEBUG=forcebin null;
+env path proven by a bogus-feature control (which also killed gamescope — /etc/environment is
+session-wide; restored + rebooted, defaults back). Cliff's direction after the review: **chase 1080p,
+not 48 fps.** Cyberpunk stays installed. Remaining from the review: README.md:29-31 display-pipeline
+claim (item 4), publish RC c after gate (2) (item 5).
 **Harness = tools/ab/ (README has the working flow + traps).** Traps hit tonight: pgrep -f self-match
 killed my own shell (again); the first "B" set ran in the un-quit A process (verify pid start time);
 FEXServer keeps the old sqsh mounted → driver swap needs quit + reboot; after a reboot wait ≥130 s
