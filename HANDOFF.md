@@ -1,5 +1,149 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## CURRENT STATE 2026-09-07 00:40 JST — READ THIS FIRST (written by Claude Fable 5.1 at /sleep-now)
+
+### Where we are
+- **SLEEP + CHARGING ARE FIXED AND VALIDATED (Cliff: "hugely important").** kernel-25 (Armada's
+  0504 ipcc mask-summary-irq swap) + bsp-common-18 are on the device and in RC 20260906c. Proven
+  09-06: plugged-during-s2idle nap 61→95 % in 62 min; awake plugged hold reached Full with the
+  100/95 thresholds intact through the Full event; one-press wake, no Steam dialogs, wifi back in
+  1 s, wake-grace + wifi-heal ran as real units. Gate (2) = Cliff's remaining ~19 normal-use wakes.
+- **DEVICE** (Odin 3 "holodor", static 192.168.1.32, `ssh deck@`, root = `systemd-run --quiet
+  --wait --pipe`): internal UFS, kernel 7.1.3-25, bsp-common-18, bsp-sm8750-17, **mesa-next-5 +
+  vulkan-freedreno-next-5 + fex-rootfs-3 (the SHIPPED stack)**, rebooted clean at 00:27 with
+  default power/fan modes (no /var/lib/pocknix/*-mode files), /etc/environment back to stock (0
+  lines), no inhibitor, /tmp/tu_debug_file.txt empty, Cyberpunk 2077 (85 GB, app 1091500)
+  INSTALLED on internal storage with UserSettings.json set to 1280x720 / ResolutionScaling Off /
+  Low / VSync Off (backup UserSettings.firstlaunch.json beside it). Live-only diag hooks
+  48-chargeprobe / 49-drainlog still on the device — remove after gate (2).
+- **RC 20260906c** = build/image/sm8750/holodor-odin3-20260906c-seedless.img.zst (7.71 GiB,
+  sha256 da7957d2eeb2…, sidecar written). Loop-mount spot-check ALL GREEN. Carries kernel-25,
+  bsp-common-18, bsp-sm8750-17, mesa-next-5 pair, fex-rootfs-3, decky-15, steam-41. NOT published
+  — publish after gate (2). 20260831b is superseded; do NOT publish it.
+- **localrepo (build/localrepo/sm8750) holds the SHIPPED mesa/fex trio (-5/-3) again**; the losing
+  -6/-4 packages are parked in build/staged-mesa6/. PKGBUILDs for mesa-next (pkgrel 6) and
+  fex-rootfs (pkgrel 4) are annotated "LOST the A/B" but NOT reverted — a full `make packages`
+  would rebuild pkgrel 6. Cliff's call whether to revert the pin bump.
+- **Repo:** everything pushed through 1ed0720 (+ this handoff commit). Working tree clean.
+- **Cliff's direction after the 2nd inquisitor (09-06 late): "I'd rather chase 1080p."** The 48-fps
+  chase is over; the RC ships on the current driver stack. He still believes the Discord "48 fps"
+  guy (@ice, Armada) has undisclosed tweaks (asked him directly; no answer). Treat 48 as unverified.
+
+### What we did this session (2026-09-06 12:00 → 09-07 00:40)
+1. Deployed kernel-25 + bsp-common-17 over ssh (pacman -U; 90-hook rebuilt /flash/KERNEL, md5 OK,
+   KERNEL.bak = kernel-23), hand-applied the iwd [Scan]/[Rank] + UPower 5.0/PowerOff edits,
+   rebooted, verified (`uname -v` Sep 6 11:15). Gate (1) passed on the first plugged nap.
+2. bsp-common-18 (wake-grace `$i` cosmetic fix) built + deployed. RC 20260906c respun; the first
+   pass shipped the STAGED mesa-6 trio (RESUME+SKIP_PKGPHASE upgrades from localrepo) — caught by
+   the spot-check, fixed by chroot-downgrading build/rootfs from build/rollback-pre-mesa6/, rebuilt.
+3. Mesa research: -5 = un-pinned main snapshot 2026-08-09; -6 = 8e12d6000b (2026-09-01) + patches
+   0001 (a830 fs_tex_prefetch off) / 0002 (a8xx 64b image atomics off). 119 src/freedreno commits in
+   between (shallow clone in scratchpad; GitLab API is Anubis-blocked). "remove enforced FLUSHALL"
+   in 26.2.0 notes is NOT a cliff (26.1.5 never enforced it).
+4. **Graphics A/B, hands-free (tools/ab/, README has the full flow):** Cyberpunk built-in
+   benchmark, 720p Low native, power max + fan performance. A (-5/-3): 22.16/22.12/22.04. B (-6/-4,
+   fresh boot): 21.38/21.30/21.39. A′ control (fresh boot): 21.99/22.09/22.09. **B = −3.2 %, spread
+   ±0.06, 0 GPU faults → NOT shipped.** docs/cyberpunk-bench-plan.md (top section).
+5. **2nd inquisitor** (docs/inquisitor-review-2026-09-06-fps.md): ship RC on current stack, stop
+   mesa pinning, reframe 48 fps; Monday items 1-5. Items 1-3 run the same night (see below).
+6. Cyberpunk installed (steam://install via ~/.steam/steam.pipe; Install + EULA pressed by uinput).
+7. Fusor: four orphaned qemu-aarch64 gpg-agents (pacman keyring in build chroots, ~1.2 GB RSS
+   each, weeks old) killed; page cache dropped once because the harness OOM-killed background
+   tasks on "low memory" with 27 GB available (feedback drafted).
+
+### What we learned that isn't in the code
+- **The game runs the HOST ARM turnip through the FEX Vulkan thunk, lsfg on or off.** Verified by
+  `strings /proc/<pid>/map_files/<libvulkan_freedreno range>` = stamp `pocknix2.5`, with
+  `DISABLE_LSFGVK=1` in the env. The FEX_APP_CONFIG (proton-cachyos's, /run/user/1001/pocknix-fex/
+  <appid>.<pid>.json) carries ThunksDB.Vulkan. So fex-rootfs's x86 turnip payload is NOT what
+  Cyberpunk uses; the "x86 lockstep rule" is moot for this title; the 2nd inquisitor's "with lsfg
+  off it loads the x86 payload" claim is WRONG (its lsfg-was-on suspicion is also refuted).
+- **Patch 0001 (a830 fs_tex_prefetch=False) is FREE**: `FD_DEV_FEATURES=has_fs_tex_prefetch=0` on
+  the -5 build = 22.14/21.96/22.15 (baseline 22.06). The −3.2 % of mesa-next-6 is therefore in the
+  upstream 08-09→09-01 delta — ranked suspects: the eight LRZ commits (Aug 12-24: LRZ off for
+  depth-resolve targets / partial-area clears / input-attachment changes), then the ir3
+  speculatability rework (Aug 26). NOT measured; a group revert would isolate them.
+- **TU_DEBUG=forcebin is null** (22.06/22.07/22.10). Closed for good.
+- **The env path DOES reach the driver**: a bogus FD_DEV_FEATURES name made turnip exit(1) — in
+  gamescope too (see traps). The nulls above are real, not un-applied.
+- **TU_DEBUG_FILE (/tmp/tu_debug_file.txt, set by proton-cachyos) does NOT reach the driver**:
+  "nobin" in it left fps at 22.03. Don't use it for experiments.
+- **The benchmark is superbly repeatable** (±0.06 fps across 15 runs) — a 1 % effect is
+  detectable in three runs. 25 min per condition, unattended.
+- **Wifi "unreachable while awake" 09-06 14:02→14:27 had ZERO radio events** — idle power-save,
+  not the roam crash. The device then idle-suspended (unplugged idle ≈ 15 min; on charger it does
+  NOT idle-suspend — Steam's on-AC setting).
+- **CPU thermal zones read 99–105 °C under power-mode `max`** (governor performance pins all
+  cores) even in menus; GPU zones 74–82. `max` is bench-only; always `rm` the mode files after.
+
+### What we were WRONG about this session — do NOT re-derive
+- **"Patch 0001 is the prime suspect for the −3.2 %" — WRONG.** Measured free (above).
+- **"The x86 turnip rebuild in fex-rootfs-4 is what moved the number" / the lockstep rule matters
+  for Cyberpunk — WRONG.** The game loads the ARM driver via the thunk.
+- **"A mesa rebuild is needed to test 0001" — WRONG.** FD_DEV_FEATURES is a runtime env override
+  (freedreno_dev_info.py), verified working.
+- **The first three "B" runs (19:29–19:36) were on the UN-QUIT A process** (same pid 96418, start
+  19:02) — a driver swap needs the game QUIT (verify `ps -o lstart= -p PID` changes) AND a REBOOT,
+  because FEXServer keeps the old fex-rootfs sqsh mounted. Their numbers (22.06/22.07/22.03) equal A
+  to 0.1 fps — a null control for the harness, nothing more.
+- **Polling a sleeping device for 3.5 hours (14:05→17:40) — WRONG, and Cliff was angry** ("every
+  damn time it goes to sleep and you act like you had no idea"). Memory written:
+  feedback-device-sleeps-hold-inhibitor. Hold `systemd-inhibit --what=sleep:idle` FIRST.
+- **`pkill -f`/`pgrep -f` with the target's name matches your own shell — struck TWICE tonight**
+  (device: killed my ssh shell + apparently the launcher; fusor: killed my own restore command).
+  Use `pgrep -f "Cyberpunk2077[.]exe"` (regex trick) or kill by known pid. Never pkill -f.
+- **Restarting getty@tty1 when gamescope was actually still alive** (18:53) — my `pgrep -x gamescope`
+  check printed nothing while it was running; `pgrep -a -f "gamescope -W"` is the reliable check.
+- **x11grab under gamescope is black** — use `gamescopectl screenshot /tmp/x.png` (as deck).
+- **Large relative mouse deltas land in the wrong place in the game** (Windows pointer accel) —
+  4 px steps track exactly; the game draws the cursor at 1.5× X coords (1280x720 window scaled).
+- **REDlauncher cannot be driven by any virtual input** (gamescope routes to :0 while it shows) —
+  skip it: `echo "steam://run/1091500//--launcher-skip/" > ~/.steam/steam.pipe`, then `abkey.py
+  enter` ~10 s later for Steam's "custom arguments" dialog.
+- **The Steam results screen ignores Enter/B/Tab** — click "Settings" at X (270,591) with
+  abmouse.py; it reopens straight on the Graphics tab.
+- **Space too early after a post-reboot launch does nothing** (shader warm-up) — wait ≥130 s.
+
+### TRAPS (new this session)
+- **/etc/environment is SESSION-WIDE.** A bogus/invalid FD_DEV_FEATURES there made GAMESCOPE exit
+  on driver init → "pocknix: session 'gamescope' keeps exiting immediately" on the panel. Restore
+  the file + `systemctl restart getty@tty1`. Next time inject per-game (wrapper env / launch opts).
+- **RESUME+SKIP_PKGPHASE respins upgrade the rootfs from localrepo** — localrepo must hold exactly
+  the shipped stack (it does now). Spot-check package list is the guard.
+- **absample.sh's GPU-busy column is unreliable for the FEX game** (fdinfo not found); presented-fps
+  column is fine (crtc total_framecount). Don't quote its busy number.
+- **`scp` treats the `:` in mesa pkg filenames as host:path** — prefix `./`.
+- **mode files:** `pocknix-fan-mode` lacks +x (`sh /usr/local/bin/pocknix-fan-mode …`);
+  `pocknix-power-mode` with NO ARG tries to apply something — always pass a mode.
+
+### NEXT (ordered; #1 needs no Cliff)
+1. **README.md:29-31** still says AAA ~20 fps is "root-caused to the young mainline display
+   pipeline … not the GPU" — wrong since 08-19 (INSTALL.md was fixed, README wasn't). Fix in Cliff's
+   voice (see feedback-public-docs-voice). 5 min.
+2. **1080p program (Cliff's new direction).** Use tools/ab/ unattended: ladder = 1080p native /
+   1080p + FSR3 Quality / Balanced / Performance / + lsfg 2x, judged by the built-in bench avg AND
+   the crtc presented-fps meter (absample) for the lsfg rows; also 900p rows. Set via
+   UserSettings.json (Resolution "1920x1080", ResolutionScaling "FSR3", FSR3 quality key = check
+   the file), relaunch per config. Deliverable = a table + a recommended 1080p config in the
+   bench doc and Pocknix Control. Reboot between driver changes only; config changes just need a
+   game relaunch. Cyberpunk stays installed. Hold the inhibitor first; `max` mode; rm modes after.
+3. **Gate (2)** (Cliff): ~19 more normal wakes → then remove 48-chargeprobe/49-drainlog from the
+   device, **publish RC 20260906c** (scripts/publish-image.sh, LICENSE, password flow, archive.org
+   `holodor-odin3`, OTA repo publish — Phase-3 items 6-7 in the 09-03 block).
+4. **Decide the mesa pin**: either revert mesa-next PKGBUILD to the pkgrel-5 state (safe: localrepo
+   already matches) or leave pkgrel 6 parked. If anyone wants the upstream delta later: isolate the
+   LRZ group (revert the 8 Aug-12→24 LRZ commits on the 09-01 pin, one build, 25-min bench).
+5. Deferred, unchanged: Vulkaiser/gamescope direct-scanout (#3), present-path pacing (bounded
+   ~15 %, docs/present-path-attack-plan.md), RP5 Act Two, @ice (no answer; treat as closed).
+
+### Open questions
+- Which upstream commit group owns the −3.2 % (LRZ vs ir3)? Group-revert build isolates it.
+- Does the `TU_DEBUG_FILE` notifier fail because of the FEX thunk (inotify in the host lib)? Not
+  worth chasing; env works.
+- Why does `pgrep -x gamescope` sometimes miss a running gamescope? Use `-f "gamescope -W"`.
+
+— Claude Fable 5.1, 2026-09-07 00:40 JST
+
 ## 2026-09-06 — INQUISITOR VERDICT + SHIPPING THE FIXES (kernel-25, bsp-common-17)
 Cliff (09-05): "another claudehole… measuring instead of fixing." Independent review in
 **docs/inquisitor-review-2026-09-05.md** — READ IT. Verdict: direction (s2idle, root-caused wake
