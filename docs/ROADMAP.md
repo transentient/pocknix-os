@@ -1,5 +1,8 @@
 # Holodor — road to release (written 2026-08-28)
 
+> **Superseded 2026-09-04 by [plan-2026-09-04.md](plan-2026-09-04.md)** — Cliff's 8 points,
+> mapped to status + steps + done-when. Phase details below remain the history.
+
 Cliff's requirements, verbatim: **stable, stable, stable. Sleep that works — we had
 that, we need it back. Smooth wake. RGB. Headphone jacks.**
 

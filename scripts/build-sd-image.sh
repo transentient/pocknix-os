@@ -240,7 +240,22 @@ EOF
     echo "RoamThreshold5G=-85"
     echo "CriticalRoamThreshold=-90"
     echo "CriticalRoamThreshold5G=-90"
+    # Roams are what crash the WCN7860 firmware post-resume (09-03 root cause; iwd 3.12
+    # source verified in docs/wifi-roam-crash-research.md). DisableRoamingScan gates BOTH
+    # low-RSSI and 802.11v BTM-directed roams; the RoamThreshold keys alone don't stop BTM.
+    # Bias the initial pick toward 5 GHz so "stuck on the first BSS" is the good BSS.
+    echo "[Scan]"
+    echo "DisableRoamingScan=true"
+    echo "[Rank]"
+    echo "BandModifier5GHz=1.2"
   } > "${root}/etc/iwd/main.conf"
+  # UPower brownout policy: the stock Critical=5/Action=2/HybridSleep trio let the device
+  # SUSPEND at 3% and die entering suspend (09-02 00:51, gauge wrecked). No swap here, so
+  # HybridSleep is meaningless; power off cleanly at 5% instead. UPower has no drop-in dir.
+  if [ -f "${root}/etc/UPower/UPower.conf" ]; then
+    sed -i -e 's/^PercentageAction=.*/PercentageAction=5.0/' \
+           -e 's/^CriticalPowerAction=.*/CriticalPowerAction=PowerOff/' "${root}/etc/UPower/UPower.conf"
+  fi
   # NM integrates DNS via systemd-resolved; point glibc at resolved's stub.
   ln -sf /run/systemd/resolve/stub-resolv.conf "${root}/etc/resolv.conf"
 

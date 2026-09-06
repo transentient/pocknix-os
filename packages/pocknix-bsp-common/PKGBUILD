@@ -5,7 +5,9 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=16   # 16: download-inhibit daemon + wake-grace post hook; 15: cpuidle-state1 hooks
+pkgrel=17   # 17: wake-grace retries the inhibit (logind race = 2-presses-to-wake); wifi-heal launched as a
+            #     transient unit (setsid& died with the hook cgroup, never ran) + nmcli connection-up first;
+            #     charge-full re-applied on USB power_supply udev events; 16: download-inhibit + wake-grace
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -17,14 +19,14 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'pocknix-power-mode' 'pocknix-power-mode.service'
         'pocknix-wifi-heal'
         'pocknix-slot-successful' 'pocknix-slot-successful.service'
-        'pocknix-charge-full' 'pocknix-charge-full.service'
+        'pocknix-charge-full' 'pocknix-charge-full.service' '70-pocknix-charge-full.rules'
         'leds-sleep-pre' 'leds-sleep-post'
         'cpuidle-state1-sleep-pre' 'cpuidle-state1-sleep-post'
         'pocknix-download-inhibit' 'pocknix-download-inhibit.service' 'wake-grace-post'
         'iwd-wait-wlan0.conf'
         '20-pocknix-powerkey.conf' 'no-freeze-user-sessions.conf'
         '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -111,6 +113,8 @@ package() {
     "${pkgdir}/usr/local/bin/pocknix-charge-full"
   install -Dm644 "${srcdir}/pocknix-charge-full.service" \
     "${pkgdir}/usr/lib/systemd/system/pocknix-charge-full.service"
+  install -Dm644 "${srcdir}/70-pocknix-charge-full.rules" \
+    "${pkgdir}/usr/lib/udev/rules.d/70-pocknix-charge-full.rules"
 
   # Post-resume Wi-Fi self-heal (called async by the 000-wifi post hook).
   install -Dm755 "${srcdir}/pocknix-wifi-heal" \

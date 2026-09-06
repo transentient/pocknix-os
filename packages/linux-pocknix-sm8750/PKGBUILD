@@ -19,7 +19,7 @@
 # (quirk params), owned by each device's BSP (e.g. pocknix-bsp-rp6).
 pkgname=linux-pocknix-sm8750
 pkgver=7.1.3
-pkgrel=24   # 24: OLED luminance-linear backlight (40-holodor 0810/0811, armada eb63d011a) — fixes near-black idle-dim low end
+pkgrel=25   # 25: charging in s2idle sleep — swap 0504 ipcc IRQF_NO_SUSPEND removal for Armada 973ced69 "mask summary irq for s2ram only" (keeps the battmgr doorbell live in s2idle). 24: OLED luminance-linear backlight (40-holodor 0810/0811)
 pkgdesc="SM8750 kernel (stock ${pkgver} + ROCKNIX patch stack, all-boards dtbs) — packaged from 'make kernel' output"
 arch=('aarch64')
 url="https://github.com/shuuri-labs/pocknix-os"

@@ -1,5 +1,276 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-09-06 — INQUISITOR VERDICT + SHIPPING THE FIXES (kernel-25, bsp-common-17)
+Cliff (09-05): "another claudehole… measuring instead of fixing." Independent review in
+**docs/inquisitor-review-2026-09-05.md** — READ IT. Verdict: direction (s2idle, root-caused wake
+bugs) right; method wrong — three days of charge_counter probes, a plugged deep run on a
+documented wedge path, zero shipped fixes. The charging-in-s2idle cause was in our own tree:
+`20-sm8750/0504-wakeup-qcom-ipcc-remove-IRQF-NO-SUSPEND.patch` deafens the battmgr doorbell in
+s2idle; **Armada replaced it 08-13 (973ced69) with `0504-mailbox-qcom-ipcc-mask-summary-irq-for-
+suspend-to-ram.patch`** — "fix charging not starting when plugged in during s2idle sleep".
+Corroboration from the Real: Armada/Batocera Discord users on s2idle never see charging stop.
+**Killed:** the knob experiments, the knee test, chargeprobe-experiments runs, any deep run.
+Done today (agent, repo):
+- **kernel-25** = 24 + the 0504 swap (Armada patch verbatim; 42 patches applied clean). Built with
+  `DEVICE=sm8750 sudo -E scripts/build-kernel.sh` (default DEVICE is sm8550 — HANDOFF:1061 trap,
+  hit again). log build/kernel25-build.log.
+- **bsp-common-17:** wake-grace retries the inhibit until logind accepts (2-presses-to-wake fix);
+  wifi-heal launched as a transient unit (was `setsid &`, died with the hook cgroup, never ran)
+  and now tries `nmcli connection up <last wifi profile>` before the radio cycle / PCIe reset;
+  udev rule 70-pocknix-charge-full re-applies 100/95 on USB power_supply change events.
+- **Image build (scripts/build-sd-image.sh):** iwd `[Scan] DisableRoamingScan=true` +
+  `[Rank] BandModifier5GHz=1.2`; UPower `PercentageAction=5.0` + `CriticalPowerAction=PowerOff`.
+- **powerd (overlay, was live-only prototype — now committed):** refuses suspend <5 % on battery
+  (powers off instead), logs `systemctl suspend` refusals, dim-panel restore, grace-cancel.
+Validation gate (Cliff): (1) plugged 60-min s2idle nap from ≤70 % → `current_now` at wake still
+charging (48-chargeprobe row) + plugged overnight reaches 100/95; (2) 20 wake cycles = one press,
+controls ≤3 s, wifi ≤10 s, no Steam dialogs. Then remove 48-chargeprobe/49-drainlog from the device.
+New symptom logged 09-05 (Cliff): game runs visibly SLOW (not jittery) for ~1 min after a wake, then
+normal — check telemetry.csv cpu/gpu clocks around wakes before building anything.
+Deploy: `pacman -U` kernel-25 + bsp-common-17 from build/localrepo over ssh; live device also needs
+the iwd main.conf + UPower.conf edits (image-build-time changes) applied by hand until the respin.
+
+## CURRENT STATE 2026-09-03 10:45 JST — READ THIS FIRST (written by Claude Fable 5.1 at /sleep-now)
+
+### Where we are
+- **SOAK CLOSED by Cliff on 2026-09-03.** Three days of daily-driving the full release stack on
+  internal UFS: zero forced power-holds, zero dead-controls rescues, zero silent-audio boots,
+  zero suspend wedges. Sleep/wake/controls/audio held. Soak findings #1–#4 (blocks below)
+  are all root-caused with fixes queued. **We are now in Phase 3** (docs/ROADMAP.md): respin
+  cargo → graphics A/B → respin RC "c" → Phase-2 EDL block → release mechanics.
+- **Device** (Odin 3, hostname holodor): booted INTERNAL UFS (root /dev/sda19, /flash
+  /dev/sda18, ~370G free), kernel 7.1.3-23, bsp-sm8750-17, bsp-common-16, decky-15,
+  steam-41, mesa-next-5 (ARM) + fex-rootfs-3 (x86 turnip 26.1.5), **powerd prototype live**
+  (committed this session, see below). s2idle from cmdline (persistence proven). DHCP lease
+  was **192.168.1.29** at close (churns constantly: .15/.18/.19/.25/.26/.29 seen; DNS/mDNS
+  unreliable — find it with a /dev/tcp port-22 sweep + `findmnt -n -o SOURCE /` == sda19;
+  .7 and .15 are OTHER boxes that refuse our key). `ssh deck@<ip>`; root via
+  `systemd-run --quiet --wait --pipe <cmd>` (no sudo on image). 32GB SD = rescue card (drawer).
+- **Live device state changed 2026-09-03 10:38:** `pocknix-telemetry.service` ENABLED (60s CSV
+  → /var/lib/pocknix/telemetry.csv: capacity,status,voltage_uv,current_ua,watts,temp,cpu/gpu
+  clocks,fan,brightness — first sample 12% charging 2.9A 11W 72°C); charge thresholds written
+  live end=100/start=95 (were 80/70 — firmware re-asserts the cap AFTER boot even though
+  pocknix-charge-full ran; runtime write is lost at reboot). Battery ~12% and charging at close;
+  **fuel gauge is UNTRUSTWORTHY until one full charge to 100% + normal discharge** (relearn).
+- **Router swap imminent (Cliff, 09-03):** LAN + internet down for a while. If SSID/PSK change,
+  the Odin's NM profile "ozma" is dead → push a new keyfile over ssh (importer format in
+  pocknix-wifi-import) or Cliff redoes it in the UI. fusor is static .70. NOTE: a router without
+  band steering may make the roam→fw-crash stop reproducing — fix it regardless.
+- **Staged on fusor, NOT deployed:** `linux-pocknix-sm8750-7.1.3-24` (OLED luminance-linear
+  backlight, 40-holodor 0810/0811, commit 6bda4e7); `mesa-next-6` + `vulkan-freedreno-next-6`
+  (mesa main @ 8e12d6000b + a830 fs_tex_prefetch OFF + a8xx 64b-atomics OFF) + `fex-rootfs-4`
+  (x86 turnip rebuilt at the SAME pin, commit d4173e4); rollback stash for the previous trio at
+  build/rollback-pre-mesa6/. **RC 20260831b is the last built image** — content-stale vs the
+  repo now; do NOT publish it; Phase-3 respin "c" replaces it (Phase-2 walkthrough should use c).
+- **Repo:** everything pushed (HEAD after this session's final commit). Working tree clean.
+
+### Phase-3 cargo = NEXT (ordered; #1 needs no Cliff)
+1. **Wi-Fi fix pair (bsp-common → 17):** (a) `/etc/iwd/main.conf` add `[Scan]
+   DisableRoamingScan=true` (+ `[Rank] BandModifier5GHz` bias) — verified in iwd source: gates
+   BOTH RSSI roams and 802.11v BTM roams; the roam thresholds are baked in
+   scripts/build-sd-image.sh today — put the new keys in the same place (or move all iwd conf
+   into bsp-common). (b) `sleep.d/post/000-wifi`: launch the heal with `systemd-run --collect
+   --unit=pocknix-wifi-heal …` instead of `setsid … &` (cgroup teardown kills it — it has NEVER
+   run); (c) heal: watch ~90s post-resume (roam hits at +26s), on unhealthy try
+   `nmcli connection up <active wifi profile>` before the radio-cycle/PCIe-reset escalation;
+   ideally also trigger on the kernel "pdev 0 successfully recovered" event any time.
+   Research: docs/wifi-roam-crash-research.md. Then Cliff validates with suspend/wake cycles.
+2. **Power UX (bsp-common):** commit-ready powerd prototype is IN (this session); add: upower
+   `PercentageAction=5` + `CriticalPowerAction=PowerOff` (HybridSleep is meaningless w/o swap;
+   suspend between 5% and 2% = brownout death, proven 09-02 00:51); powerd refuses suspend
+   <5% (shutdown instead) and LOGS when `systemctl suspend` is refused by an inhibitor (silent
+   refusal = "pulses but nothing"); pocknix-charge-full must RE-APPLY on charger/udev
+   power_supply events, not only at boot (firmware re-caps to 80/70 later).
+3. **Kernel:** kernel-24 rides the respin (Cliff: "ride it out" = no mid-soak deploy; soak is
+   over now). Consider kernel-25 = ROCKNIX PR 3189 (patch 1020, ath12k scan priority → fast
+   reconnects after any radio recovery) + PR 3171 (0615/0616, no passive multiband scan on
+   wcn7860 — this fw asserts on it) + 7.1.13 stable bump. Do NOT expect 7.2 to help (verified).
+4. **Graphics A/B session (needs Cliff + MangoHud):** (1) `TU_DEBUG=forcebin` env A/B first —
+   no install; (2) `pacman -U` mesa-next-6 + vulkan-freedreno-next-6 + fex-rootfs-4 (scp
+   allowed this session) → MangoHud frametime logs, same game/scene, judge on 1% lows; ship
+   only if it wins; rollback from build/rollback-pre-mesa6/. Driver stamps: ARM
+   `pocknix2.6`, x86 `pocknix-x86.6`. LOCKSTEP: any mesa-next pin/patch change ⇒ rebuild
+   packages/fex-rootfs/x86-turnip at the same _commit + re-pin sha in fex-rootfs PKGBUILD.
+5. **Respin RC c** (kernel-24, bsp-common-17, bsp-sm8750-17+, mesa pair if it won, plymouth/
+   boot-art unchanged): proven chain = build-packages → build-image RESUME+SKIP_PKGPHASE+
+   SEEDLESS → build-sd-image SEEDLESS+RELEASE → zstd; loop-mount spot-check ALWAYS (three
+   cmdline homes: image KERNEL, bsp kernel-cmdline, live /flash); bump every touched pkgrel.
+6. **Phase-2 EDL block (Cliff, BONESAW):** stock restore + **JACK TEST** + **wlan fw check**
+   (`/vendor/firmware_mnt/verinfo/ver_info.txt` key wlan_gng vs our GNG.1.0-04065; if newer,
+   lift the cnss2 file set) + INSTALL.md walkthrough with RC c.
+7. **Release mechanics:** LICENSE (GPL-2.0), password flow, archive.org `holodor-odin3`,
+   public flip, docs audit (Cliff's voice), OTA repo publish.
+8. **Deferred:** Vulkaiser/gamescope direct-scanout (finding #3); ROCKNIX-label hijack rename
+   (sweep B1); gamescope stderr capture (diagnostic gap); Act Two RP5 (docs/rp5-act-two-recon.md
+   — sm8250 family already in-tree; DXVK-2 donor = main work).
+
+### What we did 2026-08-31 → 09-03 (this session, four calendar days)
+bsp-17 cmdline hook + RC 20260831b respin; powerd prototype (brightness floor / press-on-dim /
+grace-cancel) deployed live; soak moved from the 32GB dashcam SD to internal UFS (uninstall+
+install-internal validated end-to-end, ~35min); upstream sweep triaged; kernel-24 ported+built;
+RP5 recon; turnip landscape + faux123 assessment; mesa-next-6 pair + fex-rootfs-4 staged;
+battery death forensics (#2); Vulkaiser (#3); wifi roam→fw-crash root cause + heal-never-ran
+(#4) + firmware/iwd research; telemetry enabled; charge cap lifted live. All in the dated blocks
+below and docs/{rp5-act-two-recon,turnip-a830-landscape,wifi-roam-crash-research}.md.
+
+### SOAK FINDING #5 (2026-09-03 17:30): PLUGGED-IN s2idle SLEEP BARELY CHARGES — regression vs deep
+Cliff: "connected to USB-C all day, was at 65%, only started charging when awake". drainlog
+bookends (coulomb estimate, both plugged, status=Charging at both ends):
+- 09-02 03:25→09:02 (5.6h s2idle): 61→69%, +908mAh ≈ **+160mA net**
+- 09-03 11:27→17:08 (5.7h s2idle): 49→60%, +683mAh ≈ **+120mA net**
+- awake right after: 60→80% in 21 min ≈ 4–5A at 8.5V PD. 08-17 reference under **deep**
+  (kernel-18, 0519 already in since 08-11): ~2.3A asleep = half the awake rate.
+So s2idle (default since 08-31) charges at ~1/30 of awake vs deep's ~1/2. NOT the 80/70 cap
+(thresholds read 100/95 live, SoC was below 70 anyway). Cable-seating can't be excluded for
+09-03 alone but the 09-02 cycle matches, so treat as real. Hypotheses (UNTESTED): PD contract
+collapses to 5V default / USB-suspend ICL while the AP idles in s2idle; or charger fw throttles
+without AP-side battmgr traffic. NOT the ADSP being "asleep" per se (deep charged fine).
+- INSTRUMENTED: `/usr/lib/systemd/system-sleep/48-chargeprobe` (temporary, live on device)
+  → `/var/lib/pocknix/chargeprobe.csv`: battery+usb-input+typec state at pre/post and a
+  0.25s×40 loop right after resume (catches PD state BEFORE renegotiation). Remove when done.
+- A/B RUNNER on fusor: `~/odin3-backups/sleepcharge-ab.sh s2idle 300` then `... deep 300`
+  (plugged, 30–85% SoC; sets mem_sleep at runtime, restores s2idle after). Deep+charger was
+  the 0519-fixed wedge — 0519 is in kernel-23, but keep the rescue SD handy the first time.
+- **OVERNIGHT SERIES RESULT (09-04, plugged, s2idle, rtc-alarmed slices, ~35s awake between):**
+  | slice | gain (charge_counter) | net |
+  | 160 min | 501 mAh | 187 mA |  ← battery current at resume instant = -7 mA (charging PAUSED)
+  | 80 min  | 280 mAh | 208 mA |
+  | 40 min  | 614 mAh | 906 mA |
+  | 20 min  | 426 mAh | 1.24 A |
+  | 10 min  | 140 mAh | 0.8 A  |  (98%, taper)
+  | 26-min nap (09-03 18:36, unplanned) | 453 mAh | ~1 A |
+  = **BOUNDED-WINDOW model: charging runs ~25–30 min into an s2idle sleep, then the charger fw
+  PAUSES it (PD contract stays up at 8.6–9.1 V; USB online; bat current ≈0). Any wake restarts
+  it.** Explains the all-day 49→60% and Cliff's 65%. 80-min slice is low for the model (open).
+  Wake-instant reads (04:50): typec data_role=device, pwr=sink, mode=usb_power_delivery; dwc3
+  a600000.usb rt=active ctl=on, usb_role=device (0519 role-clear did NOT fire for this charger);
+  battmgr usb_type=**SDP** (!), input_current_limit=3 A. Hypothesis (UNTESTED): fw treats the
+  quiet device-mode USB link as bus-suspend after a timeout and applies the SDP suspend ICL;
+  deep power-collapses the AP so fw takes the off-mode-charging path (2.3 A on 08-17).
+- **DEEP A/B ATTEMPTED 09-04 13:31 → PLUGGED-IN DEEP WEDGE. NEVER AGAIN.** Plugged (8.4 V PD),
+  60%, `-m deep 40`: journal of that boot ENDS at "PM: suspend entry (deep)" 13:31:56 — no resume
+  was ever logged. At the 14:12 alarm the panel lit with the STALE pre-suspend frame (Steam home +
+  wlan icon, looked "awake"), controls dead, no ARP/ping, SoC ran HOT; forced power-off ~15:30,
+  clean boot 15:39. Same signature as the 0519 patch text ("dead screen, SoC hot, forced reset").
+  **0519 does not protect this charger**: wake-instant reads show usb_role stayed `device` (the
+  partner advertises USB data, so the role-clear never fires) — 0519 only covers chargers that
+  don't. No deep charge number exists (the 60→72% by 15:43 spans sleep+hot wedge+boot).
+  Deep stays banned; the s2idle series above is the whole dataset. Knee test (s2idle only, safe):
+  `~/odin3-backups/sleepcharge-ab.sh 5 10 15 20 30 45` from ≤70%.
+- **KNOB EXPERIMENTS 09-05 (plugged s2idle, 60-min slices, runner /home/deck/chargeprobe-experiments.sh):**
+  role-none → SKIP (sysfs `usb_role/*/role` write refused: dwc3-qcom switch has no
+  allow_userspace_control ⇒ needs a kernel patch = extend 0519 to charger partners regardless of
+  the USB-data flag; same patch is the plugged-deep-hang candidate). dwc3-unbind → SKIP (refused;
+  lucky). **state1-off** (cpuidle state1 sleep hooks disabled): 52→62 %, **724 mAh / 716 mA net,
+  bat_ua@wake +167 mA**, ipcc/glink irqs +18984 over the hour (AP DOES service the link in
+  s2idle — the "FIFO starves" theory is unlikely). vs pause-model cap ≈500 mAh and a no-pause
+  hour ≈900+ ⇒ weakly positive, INCONCLUSIVE. Needs `chargeprobe-experiments.sh 60 baseline
+  state1-off` from ≤70 % (2 h, s2idle only, safe unattended). Afterwards the device slept
+  plugged 11:46→19:20 (Steam idle-suspend) and reached **Full 100 %** — gauge relearn top-off
+  done; a normal discharge completes it.
+- Fix ladder once deep confirms: (1) keep dwc3 out of the state the fw reads as bus-suspend
+  under s2idle (runtime-PM/`power/control`, or force USB_ROLE_NONE for charger partners —
+  0519's intent, which this charger dodges by advertising USB data); (2) stopgap = plugged-in
+  periodic rtc self-wake (~every 25 min) — but powerd's resume-brightness-restore would light
+  the panel each time, so it needs an "AC-timer wake ⇒ stay dark, re-suspend" path in powerd.
+- Runner scripts: device `/home/deck/chargeprobe-series.sh` (root unit, rtc-alarmed slices,
+  wall-clock waits — `sleep` freezes across suspend), fusor `~/odin3-backups/sleepcharge-ab.sh`
+  (`report` prints the series log + probe rows). Series log: /var/lib/pocknix/chargeprobe-series.log.
+- Cliff also set router reservations 09-03: Odin 3 = **192.168.1.32**, RP5 = .30 (no more sweeps).
+
+### SOAK FINDING #6 (2026-09-04 12:53): "post-resume instant re-suspend" ROOT-CAUSED — wake-grace inhibitor RACES logind
+Cliff: suspended mid-game (10:57), woke 12:53:07, screen went dark again 1 s later, second press
+stuck, then Steam "another account is currently playing this game" → Reconnect → Steam Home
+with the game (Vampire Survivors) still running/audible, untracked by the Steam UI.
+Journal: `systemd-inhibit[306288]: Failed to inhibit: The operation inhibition has been
+requested for is already running` → pocknix-wake-grace FAILED (exit 1) → 12:53:08 "The system
+will suspend now!" (Steam idle policy: its idle clock counted the 2 h of sleep). The post
+sleep hook runs INSIDE logind's still-open suspend operation, and logind refuses block-mode
+sleep inhibitors while the operation is in flight. 2 of 12 wakes since 09-03 hit it (18:23:33,
+12:53:07); the 18:23 one didn't re-suspend only because the device had slept 28 s (idle clock
+not expired). Every wake where the inhibit succeeded stayed up. The Steam "another account"
+dialog is fallout of the double sleep/relogin (connection_log: logged off → back on 12:53:21).
+FIX (bsp-common `wake-grace-post`, not yet applied): retry the inhibit until logind accepts it
+(e.g. loop ≤20× with 0.1–0.2 s sleeps inside the transient unit), or take the grace from
+powerd on PrepareForSleep(false) instead of the sleep hook. powerd on device == the
+uncommitted repo prototype (md5 1bbc357d…), so brightness-restore is live.
+
+### WRONG THIS SESSION — do NOT re-derive
+- **"Installing bsp-16 rebuilds /flash/KERNEL" — WRONG.** The kernel pkg's 90-hook watches
+  Image/dtbs/modules only. Fixed by bsp-17's 91-pocknix-cmdline.hook (proven live).
+- **Download-inhibitor theory for the 09-01 17:50 hot nap — WRONG** (suspend entered cleanly).
+- **"The first dark window (08-31 21:37–42) was the 3% idle-dim" — UNPROVEN and Cliff pushed
+  back correctly.** Steam UI WAS up (HDR set 21:37:10); Steam never logs dims; Cliff can't
+  recall gamepad-before-power. Treat as OPEN. Later same night a frozen-black session at FULL
+  brightness was caught live (backlight 2993, dpms On, gamescope alive, 0 zombies, load 1.6) —
+  the freeze family without starvation — prime suspect for that first window too.
+- **"You'd see backlight glow through black" — WRONG. THE ODIN 3 PANEL IS OLED** (Cliff's catch).
+  Idle-dim-on-dark-content, frozen-black, DPMS-off and powered-off are VISUALLY IDENTICAL. Never
+  reason from what the screen "looks like"; sysfs + journal only. Live-read protocol is
+  mandatory: gamepad button first (healthy dim brightens instantly), still dark → hands off
+  power, agent reads brightness/dpms/session over ssh.
+- **"The device rebooted at 00:51" — WRONG, RTC TRAP.** Cold boots inherit the previous
+  timestamp until NTP; boot 0's `Initial clock synchronization` at monotonic 35.8s = 02:26 →
+  real boot 02:25 = Cliff's plug-in (auto-boot-on-charge). ALWAYS derive cold-boot times from
+  `-o short-monotonic` + first timesyncd sync. The device actually DIED at suspend entry at 3%.
+- **Vulkaiser launch options: `WINE_FULLSCREEN_FAKE_CURRENT_RES=1920x1080` = no effect;
+  nested `gamescope -W 1920 -H 1080 -f -- %command%` = Steam spinner forever** (nested
+  gamescope cannot start inside our session). Launch option still set on appid 349680 — clear
+  it. Do not re-propose either.
+- **"Play drain was high" (Cliff 09-03) — MEASURED NORMAL: 1.1–1.44A (5–6W).** The battery
+  warning came from the gauge collapsing 33%→10% in 17min under load (a "6.3A" reading =
+  impossible = gauge correction).
+- **`charge_counter` is NOT a raw coulomb counter** — it's battmgr's remaining-charge estimate
+  and gets rewritten (rose +217mAh during a DISCHARGING sleep 09-02 19:03→23:57; dropped 1.86Ah
+  in 17min 09-03). For drain, trust `current_now` (telemetry.csv, now enabled); trust NO % until
+  a full 100% relearn charge. The 08-29/30 coulomb soak numbers were taken on a healthy gauge
+  and remain the reference; today's are not comparable.
+- **"pocknix-wifi-heal runs on resume" — WRONG, it has NEVER run** (setsid ≠ new cgroup;
+  systemd kills it). Its log file has never existed.
+- **"Take Wi-Fi down across sleep dodges the roam" (ROCKNIX pattern) — we ALREADY do
+  radio off/on across sleep**; the roam happens ~26s AFTER the fresh post-resume connect.
+- **Kernel 7.2 for ath12k — no help** (all relevant fixes already in 7.1.y). **No newer
+  WCN7860 firmware exists publicly** (GNG family; HMT blobs are NOT usable). Don't chase either.
+- **"A830 turnip drivers are mature" (Discord) — FALSE with receipts** (docs/turnip-a830-
+  landscape.md); "not meant for 1080p" — unsupported; "more capable than the Deck" — true on
+  paper, eaten by FEX tax + young driver. Rolling our own FORK = still no; curated patch layer
+  on our own build = yes (that's mesa-next-6).
+- The 785mA hot nap (09-01 17:50) and the 2.85A awake hour (09-01 23:44–00:51) are
+  UNEXPLAINED — no post-hoc data existed. Do not invent causes; telemetry now catches the next.
+
+### Traps (new this session; older ones in the blocks below still apply)
+- Anything backgrounded from a systemd-sleep hook MUST use `systemd-run --collect` (see heal).
+- Charge thresholds: read before write (firmware default 80/70; shipped policy 100/95); the fw
+  re-asserts 80/70 after boot; runtime writes vanish at reboot.
+- upower on image: Low=20 Critical=5 Action=2 CriticalPowerAction=HybridSleep — the 2–5% band
+  is a death trap for manual suspends.
+- gamescope runs `-W 1080 -H 1920 --force-orientation right --use-rotation-shader`: rotation
+  only when compositing; a client surface matching the raw 1080x1920 gets direct scanout
+  UNROTATED. gamescope stderr is captured nowhere (pocknix-session.log ≈ empty); no
+  xrandr/xwininfo on the image (xprop exists).
+- Steam idle-suspend (~10–15 min, chime) is by design and takes the device down with no press —
+  don't hunt it as a bug; gamepad buttons are NOT wake sources (deliberate).
+- Power press while a block inhibitor holds (installs, clone) is silently refused by powerd.
+- `power_now` sysfs reads bogus (70W); compute current_now × voltage_now.
+- Agent-run scp to the device was ALLOWED all session (earlier classifier block not reproduced).
+- Internal install pair `pocknix-uninstall-internal --yes && pocknix-install-internal
+  --userdata-gib 32 --yes` works as a detached unit under `systemd-inhibit --what=sleep:idle`;
+  it WIPES Android userdata again (accepted; EDL restore replaces it).
+- build-packages DEVICE default is sm8550; `sudo env DEVICE=sm8750 …` (env AFTER sudo).
+
+### Open questions
+- First dark window 08-31: dim vs frozen-black? (protocol above). Freeze family: 2 specimens
+  now (21:42 boot, 22:50 during clone) — collect journal + webhelper logs at the next one.
+- True overnight sleep drain with a game resident (telemetry answers it next time).
+- Does roam→fw-crash reproduce on the new router / with DisableRoamingScan?
+- powerd fixes #2 (press-on-dim) and #3 (grace-cancel) were never observed firing — powerd
+  logs each unconditionally; check `journalctl -u pocknix-powerd`.
+- Does AYN's Android OTA carry a newer wlan_gng firmware? (Phase-2 check.)
+- Is Steam's idle-suspend timeout acceptable for release, or do we want AC-aware policy?
+
+— written 2026-09-03 10:45 JST by **Claude Fable 5.1** (soak week: hook trap, internal
+migration, death forensics, roam-crash root cause; Cliff closed the soak and is swapping routers)
+
 ## 2026-09-01 — UPSTREAM SWEEP TRIAGED + kernel-24 STAGED (OLED brightness fix; deploy = Cliff's call)
 
 Sweep window 08-24→08-31, all four upstreams (full triage in the 09-01 session; summary):

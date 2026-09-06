@@ -35,6 +35,19 @@ RESUME_IGNORE_SECS = 3.0   # swallow KEY_POWER this long after any resume
 RESCAN_SECS        = 5     # re-enumerate devices that (dis)appeared
 SUSPEND_TIMEOUT    = 5     # never let a stuck systemctl block the loop
 BACKLIGHT_GLOB     = "/sys/class/backlight/*/bl_power"
+BRIGHTNESS_GLOB    = "/sys/class/backlight/*/brightness"
+
+# Idle-dim vs dead-looking screen (soak finding #1, 2026-08-31): Steam idle-dims to ~3%
+# of max and never DPMS-blanks on this stack; 3% reads as OFF to a human, so users press
+# power "to wake the screen" and actually SUSPEND a healthy device — then the wake brings
+# the panel back still at 3% ("wake did nothing") and the death spiral is on. Treat
+# sub-floor brightness as screen-off: a press RESTORES brightness instead of suspending,
+# and every resume raises a sub-floor panel to RESTORE_FRAC so wake is always visible.
+# Steam's own dim logic re-dims on idle later; a deliberate user brightness this low is
+# assumed not to exist (Steam's slider floor sits above it).
+DIM_FLOOR_FRAC     = 0.06  # below this fraction of max_brightness = "looks off"
+RESTORE_FRAC       = 0.35  # what a display-wake press / resume restores to
+GRACE_UNIT         = "pocknix-wake-grace.service"  # bsp-common wake-grace inhibitor
 
 # Per-event journal chatter (suspend/resume/screen-off lines) is off by default; set
 # Environment=POCKNIX_POWERD_DEBUG=1 on the unit to get it back. Device-discovery and
@@ -64,13 +77,81 @@ def screen_is_on():
             continue
     return not found   # nodes exist and none were 0 -> off; no nodes at all -> assume on
 
+def brightness_state():
+    # Returns (cur, max, path) for the first readable backlight with a sane max, else None.
+    import glob
+    for p in glob.glob(BRIGHTNESS_GLOB):
+        try:
+            cur = int(open(p).read().strip())
+            mx = int(open(os.path.join(os.path.dirname(p), "max_brightness")).read().strip())
+            if mx > 0:
+                return cur, mx, p
+        except (OSError, ValueError):
+            continue
+    return None
+
+def looks_off():
+    st = brightness_state()
+    return st is not None and st[0] < st[1] * DIM_FLOOR_FRAC
+
+def restore_brightness(reason):
+    st = brightness_state()
+    if st is None:
+        return
+    cur, mx, path = st
+    if cur >= mx * DIM_FLOOR_FRAC:
+        return
+    target = int(mx * RESTORE_FRAC)
+    try:
+        open(path, "w").write(str(target))
+        print(f"pocknix-powerd: {reason}: brightness {cur} -> {target} (of {mx})", flush=True)
+    except OSError as e:
+        print(f"pocknix-powerd: brightness restore failed: {e}", flush=True)
+
+def battery_state():
+    # (capacity%, on_ac) from sysfs; (None, True) if unreadable so we never block a suspend on a guess.
+    import glob
+    cap, ac = None, False
+    for d in glob.glob("/sys/class/power_supply/*"):
+        try:
+            t = open(os.path.join(d, "type")).read().strip()
+            if t == "Battery":
+                cap = int(open(os.path.join(d, "capacity")).read().strip())
+            elif open(os.path.join(d, "online")).read().strip() == "1":
+                ac = True
+        except (OSError, ValueError):
+            continue
+    return cap, (ac if cap is not None else True)
+
+MIN_SUSPEND_PCT = 5   # below this on battery, suspend = brownout death (09-02 00:51); power off instead
+
 def do_suspend():
     dbg("short press -> suspending")
+    cap, ac = battery_state()
+    if cap is not None and cap < MIN_SUSPEND_PCT and not ac:
+        print(f"pocknix-powerd: battery {cap}% < {MIN_SUSPEND_PCT}% and unplugged -> poweroff instead of suspend", flush=True)
+        try:
+            subprocess.run(["systemctl", "poweroff"], timeout=SUSPEND_TIMEOUT,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+        return
+    # A deliberate press inside the wake-grace window must WIN, not be silently
+    # refused by the grace's block inhibitor ("pulses but does nothing", 08-31).
     try:
-        subprocess.run(["systemctl", "suspend"], timeout=SUSPEND_TIMEOUT,
+        subprocess.run(["systemctl", "stop", GRACE_UNIT], timeout=SUSPEND_TIMEOUT,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except (subprocess.TimeoutExpired, OSError):
         pass
+    try:
+        r = subprocess.run(["systemctl", "suspend"], timeout=SUSPEND_TIMEOUT,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        if r.returncode != 0:
+            # A block inhibitor (install, clone, download-inhibit) makes this refusal SILENT
+            # to the user ("pulses but nothing happens") — at least make it loud in the journal.
+            print(f"pocknix-powerd: systemctl suspend refused (rc={r.returncode}): {r.stderr.strip()}", flush=True)
+    except (subprocess.TimeoutExpired, OSError) as e:
+        print(f"pocknix-powerd: systemctl suspend failed: {e}", flush=True)
 
 def has_power_key(dev):
     return ecodes.KEY_POWER in dev.capabilities().get(ecodes.EV_KEY, [])
@@ -125,6 +206,9 @@ while True:
         ignore_until = now + RESUME_IGNORE_SECS
         down_at.clear()            # a pre-suspend down must not pair with a post-resume up
         dbg(f"resume detected — ignoring power key for {RESUME_IGNORE_SECS}s")
+        # Waking to a sub-floor (idle-dimmed) panel looks identical to a failed wake and
+        # feeds the press spiral — make every wake visibly a wake.
+        restore_brightness("resume with dim panel")
     last_delta = delta
 
     for fd in ready:
@@ -147,6 +231,12 @@ while True:
                         # wakes the screen, a later press (screen on) then suspends as normal.
                         if not screen_is_on():
                             dbg("screen off (idle-blank) -> wake only, not suspending")
+                            continue
+                        # Same intent when the panel is idle-dimmed below the visibility floor
+                        # (this stack dims, never blanks — bl_power stays 0): the user is trying
+                        # to get the screen back, so give them that, actively.
+                        if looks_off():
+                            restore_brightness("press on dim panel -> display wake")
                             continue
                         # guard the freeze window too: events queued across our own
                         # suspend get dropped even before the delta jump is seen
