@@ -90,6 +90,26 @@ a cliff: verified 26.1.5 never enforced it. Expectation: bug fixes, ≤ single-d
 Measuring plan (unchanged from bench-plan doc): Cyberpunk built-in benchmark 3× per side +
 crtc total_framecount presented-fps + fdinfo GPU busy; the missing piece is hands-free menu
 navigation (uinput virtual pad) + a screen capture path — inventory the device first.
+**A/B SESSION STARTED 17:40 (Cliff woke it; Cliff: "every damn time it goes to sleep and you act
+like you had no idea" — memory saved: hold an inhibitor FIRST).** State: `holodor-ab-inhibit`
+transient unit holds `systemd-inhibit --what=sleep:idle --mode=block` (8 h) — STOP IT when done
+(`systemctl stop holodor-ab-inhibit`). Cyberpunk was NOT on the internal install (fresh from the
+soak move; only Balatro/Vulkaiser/Vampire*); install triggered via `echo steam://install/1091500 >
+~/.steam/steam.pipe`, Install + EULA pressed through a uinput keyboard, 87 GB downloading at
+~330 Mbps from 17:44. The 14:02→14:27 unreachable window had ZERO wifi events (not a crash;
+looks like idle power-save) then idle-suspend at 14:27:50.
+Harness on device (/usr/local/bin): `absample.sh <label> <secs>` (1 Hz: presented fps from crtc
+total_framecount, GPU MHz, GPU busy from fdinfo, temp, W, big-core kHz → /var/lib/pocknix/ab/
+<label>.csv); `abkey.py enter down left meta+f sleep:2 …` (uinput keyboard, root; gamescope →
+Xwayland → game; Steam gamepad-UI takes Enter/arrows); `abshot.sh <name>` → /tmp/ab-<name>.png via
+`gamescopectl screenshot` (x11grab is BLACK under gamescope — don't). B-side pkgs staged in
+/home/deck/ab/ (sha verified; scp trap: mesa pkg names contain ':' → prefix ./). A-side rollback
+= /var/cache/pacman/pkg (-5/-3 present). No power/fan mode files exist (defaults) — bench in
+`max` + fan `performance` like 08-16, then `rm` the mode files to restore defaults.
+Plan: first launch (prefix + shader compile) → set 720p / Low / FSR off / VSync off in
+UserSettings.json (relaunch to apply; log the VSync value) → built-in benchmark 3× on A with
+absample running → `pacman -U /home/deck/ab/*` → 3× on B → keep if ≥ A on avg AND no faults
+(dmesg GPU fault count), else rollback. Numbers → docs/cyberpunk-bench-plan.md.
 Fusor housekeeping 16:20: killed four orphaned qemu-aarch64 gpg-agents (pacman keyring inside
 build chroots, 16–35 days old, ~1.2 GB RSS each) after a background watcher was OOM-killed.
 Not a regression vs 20260831b: image iwd main.conf has no Country= (SD_WIFI_COUNTRY unset in
