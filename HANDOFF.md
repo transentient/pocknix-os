@@ -38,7 +38,17 @@ pmic-glink "Failed to create device link" boot warnings are pre-existing (same c
 iwd main.conf ([Scan]/[Rank] keys) + UPower.conf (PercentageAction=5.0 / PowerOff) hand-applied
 live, identical to what build-sd-image.sh writes. sleep.d/post/000-wifi on device launches the
 heal via `systemd-run --collect --unit=pocknix-wifi-heal-<epoch>`; 70-pocknix-charge-full.rules
-present. **NOT yet exercised: any suspend/resume on kernel-25** — no remote wake path (RTC trap),
+present. **FIRST s2idle NAP ON kernel-25 = GATE (1) PASSED (2026-09-06 12:25→13:27, 62 min):** device went
+to sleep UNPLUGGED at 61 %, Cliff plugged the charger in DURING sleep, woke at 13:27: capacity
+**95 %**, status Charging, current_now +1.34 A, usb online=1 (the exact plugged-while-asleep case
+that kernel-23's deafened ipcc doorbell lost). Same wake: pocknix-wake-grace got its inhibit
+first try and released at +15 s; wifi-heal ran as transient unit `pocknix-wifi-heal-<epoch>`,
+saw wlan0 associated at +1 s and exited healthy at +3 s; chargeprobe loop ran (row appended).
+Cosmetic: systemd expanded `${i}` inside the wake-grace `sh -c` string ("Referenced but unset
+environment variable ... i") — only the never-reached error line; fixed in source
+(`packages/pocknix-bsp-common/wake-grace-post`, `$i`), rides bsp-common-18 at the respin.
+Still open for gate (2): Cliff's 20-cycle one-press / controls / Steam-dialog count, and a
+plugged overnight to confirm 100/95 holds. **Previously:** any suspend/resume on kernel-25 — no remote wake path (RTC trap),
 so the validation gate above is Cliff's: first s2idle nap on kernel-25 with the charger in.
 Telemetry check for the "slow ~1 min after wake" symptom (09-05): the 60 s sampler is too coarse
 for a 1-minute event; the one gaming wake it caught (09-06 10:42, 13 W) shows big cores at

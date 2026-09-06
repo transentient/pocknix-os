@@ -17,6 +17,6 @@ systemd-run -q --collect --unit=pocknix-wake-grace /bin/sh -c '
     systemd-inhibit --what=sleep --mode=block --why="post-resume grace" sleep 15 && exit 0
     i=$((i+1)); sleep 0.1
   done
-  echo "pocknix-wake-grace: inhibit never accepted (${i} tries)" >&2; exit 1
+  echo "pocknix-wake-grace: inhibit never accepted ($i tries)" >&2; exit 1
 ' 2>/dev/null || true
 exit 0
