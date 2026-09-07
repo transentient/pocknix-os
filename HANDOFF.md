@@ -35,6 +35,25 @@
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
   the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
 
+### EVENING 09-07: two Cliff reports (18:30)
+1. **Sleeping with the USB-C hub attached is UNSAFE.** 16:46 sleep on the hub (31 %, Charging) never
+   woke: next journal record is a cold boot (Cliff held power). 18:15 deliberate repeat on the hub:
+   woke at 18:21 (charged 28->31 % asleep, wake-grace + wifi-heal ran) BUT on resume the kernel
+   logged `dwc3-qcom a600000.usb: port-1 HS-PHY not in L2`, `xhci-hcd: WARNING: Host System Error`,
+   `usb 2-1: device not accepting address 2, error -108` x4, and dropped the whole hub (r8152 gone,
+   no re-enumeration, lsusb empty). Two hub sleeps: one hang, one recovered with the host stack
+   dead. Same dwc3 host-mode suspend family as plan Point 1's candidates (dwc3 power/control, USB
+   role). NOT fixed. Mitigations to pick from: (a) doc line "unplug USB accessories before sleep";
+   (b) sleep pre-hook that unbinds the xhci host / forces the USB role to device before s2idle and
+   restores after; (c) find the upstream dwc3-qcom L2 fix (ROCKNIX/Armada sweep by symptom
+   "HS-PHY not in L2"). The hub still charges fine while awake (~9 W, about a third of the wall
+   charger: 2.3 A at the battery, 12 % -> 31 % over 50 min).
+2. **Vampire Survivors "froze" on an intro screen on first launch after the cold boot**; second
+   launch fine (Cliff played). No GPU fault / crash in that boot's logs; matches the known
+   Steam-Input activation race (controls dead at launch, looks frozen). Not new, not caused by
+   today's changes. Note the device now REALLY boots into balanced (unit enabled) - first time
+   Cliff has run daily on capped clocks; watch for complaints.
+
 ### The 1080p ladder (Cliff's direction) - DONE, docs/cyberpunk-bench-plan.md top section
 720p native 22.11 | 1080p native 14.02 | 1080p FSR Quality 17.99 | 1080p FSR Balanced 19.90 |
 1080p FSR Performance 22.19 | 900p FSR Quality 21.75 | 720p FSR Performance (shipped) 30.61.
