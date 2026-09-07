@@ -26,15 +26,16 @@ pkgbase=mesa
 pkgname=(mesa-next vulkan-freedreno-next)
 epoch=2
 pkgver=26.3.0_devel
-# pkgrel 6: pin mesa main @ 8e12d6000b247715b7c9bfaac67bca565dd8b9d8
-# (committed 2026-09-01, "nv30/ci: add recent regression") — previously the
-# source pulled the un-pinned main tarball, which SRCDEST then froze at
-# whatever HEAD the first download saw. Two a830/a8xx experiment patches
-# added (see source array); same pin + patches feed the x86 turnip payload
-# in fex-rootfs (one pin for both sides — the x86 copy is what x86 Proton
-# games actually load, see packages/fex-rootfs/PKGBUILD).
-pkgrel=6   # A/B 2026-09-06: LOST (Cyberpunk 720p native 22.11 -> 21.36 fps, -3.2%). NOT shipped; localrepo holds pkgrel 5 (build/staged-mesa6/ has the 6 pkgs). See docs/cyberpunk-bench-plan.md.
-_commit=8e12d6000b247715b7c9bfaac67bca565dd8b9d8
+# pkgrel 5 = the SHIPPED build (RC 20260906c, soaked). Its source was the un-pinned
+# mesa-main tarball, frozen by SRCDEST at the commit below (read from the cached
+# tarball's pax header on 2026-09-07); it is now pinned explicitly so a clean checkout
+# rebuilds the same tree. No patches.
+# History: pkgrel 6 (2026-09-01) moved the pin to 8e12d6000b + two a830/a8xx device-table
+# patches and LOST the 2026-09-06 Cyberpunk A/B by 3.2% (docs/cyberpunk-bench-plan.md);
+# never shipped, patches parked in patches-staged/. Next pin bump: one variable at a
+# time, benched with tools/ab before it enters localrepo.
+pkgrel=5
+_commit=bab34da4a378379e65d212b405525f50255efd31   # mesa main, 2026-08-09
 pkgdesc="Mesa trimmed for the RP6/SM8550: freedreno GL + turnip Vulkan, cortex-x3 tuned (26.1.5)"
 arch=('aarch64')
 url="https://www.mesa3d.org/"
@@ -50,29 +51,12 @@ makedepends=(glslang
 )
 # upstream considers LTO broken until explicit notice (Arch mesa does the same)
 options=(!lto)
-# Patch layer (pkgrel 6) — small, curated, a830/a8xx-scoped device-prop experiments
-# (docs/turnip-a830-landscape.md items 2+3). Both are one-line python device-table
-# changes, NOT compiler/codegen forks; drop each as upstream settles the question:
-#   0001: has_fs_tex_prefetch = False for a830 ONLY — upstream's own TODO at the
-#         a810 entry ("possibly also needed for a830"); a810/a8xx_gen2 already do it.
-#   0002: has_64b_image_atomics = False for a8xx ONLY (via a8xx_base) — upstream
-#         5b87bbfad3b hangs the GPU on a8xx under UE5/VKD3D SM6.6 (Expedition 33
-#         black-screen candidate). a6xx/a7xx (RP6/RP5) keep upstream behavior.
-# (History: the armada ir3 bindless-UBO patch of pkgrel 2 was trialed against the
-# KH x86-Proton bugs, changed nothing, dropped — see git history.)
-source=("mesa-${_commit}.tar.gz::https://gitlab.freedesktop.org/mesa/mesa/-/archive/${_commit}/mesa-${_commit}.tar.gz"
-        '0001-freedreno-a830-disable-fs-tex-prefetch.patch'
-        '0002-freedreno-a8xx-disable-64b-image-atomics.patch')
-sha256sums=('749575ee7c04b3431799f300efa116fca8cf8cddf8e6536fcb19be91d3c47d58'
-            'SKIP'
-            'SKIP')
+# No source patches (see patches-staged/README.md for the parked ones).
+source=("mesa-${_commit}.tar.gz::https://gitlab.freedesktop.org/mesa/mesa/-/archive/${_commit}/mesa-${_commit}.tar.gz")
+sha256sums=('f12e8fc8b3e93ca107faf6ef6caccd99f523191d4e5cf59ff370b4e1043bcb60')
 
 prepare() {
   cd "mesa-${_commit}"
-  local p
-  for p in 0001 0002; do
-    patch -p1 < "${srcdir}/${p}-"*.patch
-  done
   # (the 25.1.5-era c11-threads C23 patch is upstream in 26.x — dropped)
   # Include the package release in the version string so Chromium/CEF (steamwebhelper!)
   # invalidates its GPU cache across our rebuilds — same trick as Arch's mesa.

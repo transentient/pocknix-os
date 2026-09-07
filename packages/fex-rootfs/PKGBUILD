@@ -20,16 +20,14 @@
 
 pkgname=fex-rootfs
 _rootfsdate=2026-01-08             # pinned dated image from FEX's rootfs CDN (immutable path)
-# x86_64 turnip dropped INTO the image (see repack below). Since pkgrel 4 this is OUR
-# OWN build (x86-turnip/ subdir, built natively on an x86_64 Arch box — see its
-# PKGBUILD header), not an Arch archive binary: it carries the same pinned mesa-main
-# commit + the two a830/a8xx patches as packages/mesa-next pkgrel 6, because the x86
-# copy here is the driver x86 Proton games actually load (ThunksDB all-zero — no
-# Vulkan host-thunk; see packages/fex-emu). Keep this payload version in lockstep
-# with mesa-next: same _commit, same patches, or the two sides diverge silently.
-_mesapayload=vulkan-freedreno-next-26.3.0_devel-6-x86_64.pkg.tar.zst
+_mesaver=26.1.5-1                  # x86_64 turnip dropped INTO the image (see repack below)
 pkgver=${_rootfsdate//-/}          # 20260108
-pkgrel=4   # A/B 2026-09-06 LOST with mesa-next-6 (-3.2%); NOT shipped, localrepo holds pkgrel 3. The game loads the ARM turnip via the FEX Vulkan thunk, so this x86 payload was not the mover.
+pkgrel=3
+# History: pkgrel 4 (2026-09-01) swapped the payload for our own x86 turnip build at the
+# mesa-next-6 pin (recipe parked in x86-turnip/). It lost the 2026-09-06 Cyberpunk A/B with
+# mesa-next-6 (-3.2%) and was never shipped; and the game turned out to load the ARM turnip
+# through the FEX Vulkan thunk anyway, so this x86 payload is not what x86 Proton games use
+# for Vulkan. Reverted to the shipped pkgrel-3 recipe (docs/cyberpunk-bench-plan.md).
 pkgdesc="x86_64 ArchLinux RootFS for FEX (x86 game userland + native Turnip GPU passthrough)"
 arch=('aarch64')
 url="https://rootfs.fex-emu.gg/"
@@ -41,36 +39,29 @@ depends=('fex-emu' 'squashfuse' 'vulkan-freedreno')
 makedepends=('squashfs-tools')
 options=('!strip' '!debug')
 
-# MESA OVERLAY (pkgrel 3, payload swapped pkgrel 4): the CDN image bundles x86 turnip Mesa
-# 25.3.3-git, which reports storageBuffer8BitAccess=false under FEX — DXVK 3.x hard-requires
-# it ("No adapters found", hit with proton-cachyos x86). Upstream has published no newer
-# ArchLinux image (2026-01-08 is still latest), so we repack the sqsh with our x86_64 turnip
-# payload (was: Arch archive 26.1.5; the pkgrel-3 26.1.5 overlay was validated on-device
-# 2026-07-24 — Mesa 26.1.5-arch1.1, feature true, KH runs on DXVK 3.0.2) + the two deps the
-# image lacks (libdisplay-info, xcb-util-keysyms). Dep closure of the 26.3-devel payload
-# re-verified against the image 2026-09-01: max versioned symbol GLIBC_2.38 (rootfs glibc
-# 2.42), every NEEDED lib present in image or overlay, image libSPIRV-Tools.so covers all
-# SPIRV symbols; only the tu_* per-chip templates are weak-undef, same as the 26.1.5 payload.
+# MESA OVERLAY (pkgrel 3): the CDN image bundles x86 turnip Mesa 25.3.3-git, which reports
+# storageBuffer8BitAccess=false under FEX — DXVK 3.x hard-requires it ("No adapters found",
+# hit with proton-cachyos x86). Upstream has published no newer ArchLinux image (2026-01-08 is
+# still latest), so we repack the sqsh with Arch x86_64 vulkan-freedreno 26.1.5 + its two deps
+# the image lacks (libdisplay-info, xcb-util-keysyms; rootfs glibc 2.42 covers the rest).
+# Validated on-device 2026-07-24: Mesa 26.1.5-arch1.1, feature true, KH runs on DXVK 3.0.2.
 # ONLY the libs are overlaid (not the pkgs' icd jsons — the image's freedreno_icd.*.json
 # already point at /usr/lib/libvulkan_freedreno.so; adding the unsuffixed json would
 # double-enumerate the driver).
-#
-# The payload pkg is a LOCAL file (gitignored, ~big): rebuild it in x86-turnip/ (native
-# x86_64 makepkg), copy it up here, and re-pin its sha256 below.
 #
 # FEX verifies rootfs images with xxh3_64 (its own check at fetch), NOT sha256 — and the dated URL
 # path is immutable. So SKIP makepkg's hash for now; pin a real sha256 after the first VM download
 # (TODO, same discipline as the Proton sha512 pin in piece 4).
 source=("ArchLinux-${_rootfsdate}.sqsh::https://rootfs.fex-emu.gg/ArchLinux/${_rootfsdate}/ArchLinux.sqsh"
-        "${_mesapayload}"
+        "vulkan-freedreno-${_mesaver}-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/v/vulkan-freedreno/vulkan-freedreno-1%3A${_mesaver}-x86_64.pkg.tar.zst"
         "libdisplay-info-0.3.0-1-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/l/libdisplay-info/libdisplay-info-0.3.0-1-x86_64.pkg.tar.zst"
         "xcb-util-keysyms-0.4.1-5-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/x/xcb-util-keysyms/xcb-util-keysyms-0.4.1-5-x86_64.pkg.tar.zst")
 noextract=("ArchLinux-${_rootfsdate}.sqsh"
-           "${_mesapayload}"
+           "vulkan-freedreno-${_mesaver}-x86_64.pkg.tar.zst"
            "libdisplay-info-0.3.0-1-x86_64.pkg.tar.zst"
            "xcb-util-keysyms-0.4.1-5-x86_64.pkg.tar.zst")
 sha256sums=('SKIP'
-            'f70e29726573bfbe12467afbee09018e69a56831182984c3b64e883bd7c11d7b'
+            '7ed72c2c6b92c5bbca4199b7b3026bd3f42adf70805c43196dbfcead1e73665a'
             '07ab1479ec5e70aea174e2d0e340bd9364b507ed74f2df3bfd51b3c6f40e5787'
             '312213911881c0742e2a825432feac761e863945b74bb3a6daca97a99778d35e')
 
@@ -78,7 +69,7 @@ package() {
   # Repack under fakeroot so the image's stored ownerships survive the round-trip. Match the
   # original's compression (zstd, 128K blocks — checked via unsquashfs -s).
   unsquashfs -q -d "${srcdir}/rootfs" "${srcdir}/ArchLinux-${_rootfsdate}.sqsh"
-  tar --zstd -xf "${srcdir}/${_mesapayload}" \
+  tar --zstd -xf "${srcdir}/vulkan-freedreno-${_mesaver}-x86_64.pkg.tar.zst" \
     -C "${srcdir}/rootfs" usr/lib/libvulkan_freedreno.so
   tar --zstd --wildcards -xf "${srcdir}/libdisplay-info-0.3.0-1-x86_64.pkg.tar.zst" \
     -C "${srcdir}/rootfs" 'usr/lib/libdisplay-info.so*'
