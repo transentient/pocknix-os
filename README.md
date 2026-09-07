@@ -70,7 +70,7 @@ Holodor stands on extraordinary shoulders:
 
 ## License
 
-GPL-2.0-or-later (inherited proudly from the projects above). Art assets by
+GPL-2.0 (see [LICENSE](LICENSE)), the same license as the projects above. Art assets by
 **ssalmon** (CC-BY 4.0).
 
 *Not affiliated with Valve, AYN, or anyone else. Steam is a trademark of Valve Corp.
