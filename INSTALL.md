@@ -134,6 +134,11 @@ mode **Linux** → Start.
 **Quick Access → Decky → Pocknix Control → Power**. The battery charge limit
 setting there is **experimental** - the device may charge past the limit.
 
+**Frame insertion**: the **Frame Insertion (LSFG)** toggle in **Pocknix Control → Games**
+uses the model from **Lossless Scaling**, a paid Steam app (about 175 MB). Holodor does
+not ship it. Buy it on Steam, install it on the device like any game, and the toggle
+starts working; until then, turning it on has no effect.
+
 ---
 
 ## Part D - Optional: install to internal storage

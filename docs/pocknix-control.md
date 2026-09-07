@@ -36,6 +36,12 @@ Changes apply on the **next game launch**.
   extra audio latency. 120 ms clears crackle and is inaudible in most games. Keep it low (or
   on Game default) for timing-sensitive titles - rhythm games, fighting games, anything where
   you play to the beat or need tight audio cues.
+- **Frame Insertion (LSFG)** with an **Insertion Multiplier** (2x, 3x, 4x): inserts generated
+  frames between the game's real frames to make motion look smoother. It uses the model from
+  **Lossless Scaling**, a paid Steam app that Holodor does not ship. Buy and install it on the
+  device like any game (about 175 MB); until it is installed the toggle has no effect. Costs
+  about 5 percent of the game's real frame rate; the in-game fps counter does not count the
+  inserted frames. Do not combine it with a game's own frame generation.
 
 ### Adding non-Steam games
 
