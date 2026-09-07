@@ -1,5 +1,72 @@
 # Cyberpunk 2077 fps — bench plan & lever analysis (2026-08-15)
 
+## RESULTS - 1080p ladder, 2026-09-07 (hands-free, tools/ab/abladder.sh)
+Question (Cliff's direction after the driver A/B): is a 1080p output config worth shipping over the
+720p ones? Same stack as the 09-06 A side (mesa-next-5, kernel-25), Cyberpunk 2.31 built-in
+benchmark, Low preset, VSync off, in-game FG off, power `max` + fan `performance`, lsfg off unless
+stated; every row's settings read back from the results screen. Raw log: tools/ab/results-2026-09-07.txt.
+
+| Output | Scaling (internal) | Runs (avg fps) | Mean | vs 720p native |
+|---|---|---|---|---|
+| 1280x720 | native | 22.12, 22.10 (09-06: 22.16/22.12/22.04) | **22.11** | - |
+| 1920x1080 | native | 14.02, 14.01 | **14.02** | −37 % |
+| 1920x1080 | FSR3 Quality (1280x720) | 18.07, 17.94, 17.96 | **17.99** | −19 % |
+| 1920x1080 | FSR3 Balanced (~1129x635) | 19.85, 19.91, 19.93 | **19.90** | −10 % |
+| 1920x1080 | FSR3 Performance (960x540) | 22.18, 22.18, 22.21 | **22.19** | ±0 |
+| 1600x900 | FSR3 Quality (~1067x600) | 21.70, 21.79 | **21.75** | −2 % |
+| 1280x720 | FSR3 Performance (640x360) = shipped AAA config | 30.48, 30.74 | **30.61** | +38 % |
+
+Readings (measured, not theorised):
+- **Output resolution costs real GPU time on this chip even when the internal render is smaller.**
+  1080p + FSR Performance renders FEWER pixels than 720p native (960x540 vs 1280x720) and lands at
+  the same 22 fps: the ~10 ms/frame difference between 1080p-Quality (18.0) and 720p-native (22.1),
+  both at a 1280x720 internal render, is the upscale pass plus everything the engine runs at output
+  resolution (post-processing, UI). Run-to-run spread stayed ±0.1 fps, so these gaps are real.
+- **1080p is a 30-40 % fps tax at equal internal resolution; it buys a sharper image, not frames.**
+  The rung that keeps 720p-native fps at a higher output is 900p + FSR Quality (21.75). 1080p +
+  FSR Performance keeps 22 fps but from a 960x540 render, which FSR then stretches 2x per axis.
+- **The shipped 720p + FSR Performance config is still the fps king (30.6)**; nothing at 1080p comes
+  within 8 fps of it.
+- **Composite-cadence cap (`gamescopectl debug_set_fps_limit 60`, 08-15's stale lever): NULL.**
+  21.98/21.96 vs 22.11 uncapped (−0.6 %), zero DPU ppdone/vblank timeouts. Closed.
+- **The FEX Vulkan thunk story is simpler than the 09-06 notes say:** proton-cachyos on this image
+  is aarch64 Wine (`lib/wine/aarch64-unix/winevulkan.so` is what the game process maps), so the
+  game's Vulkan stack is always the host ARM loader + turnip + host layers, whatever
+  `ThunksDB.Vulkan` says (it is 0 in the live FEX config). The x86 turnip inside fex-rootfs is not in
+  this game's path at all.
+- **lsfg trap:** the layer is loaded on every lsfg-enabled launch (`/usr/lib/liblsfg-vk-layer.so`
+  mapped) but is inert without `steamapps/common/Lossless Scaling/Lossless.dll`. This fresh
+  internal install did not have Lossless Scaling installed; the first lsfg rows presented exactly
+  the lsfg-off rate. Installed via `steam://install/993090` (175 MB), rows re-run below.
+- **Presented-fps meter (crtc total_framecount) inside the benchmark:** the scene sits at the game
+  rate (14-35 samples at 720p native), the benchmark's transitions spike to ~105-110 and menus to
+  120-126, and the sampler occasionally logs a ±512k glitch row. Use scene-only samples (8 < fps < 90
+  for lsfg-off, wider for lsfg-on) and medians; never a raw mean.
+
+lsfg 2x rows (in-game FG off). The benchmark counter cannot see generated frames, so the row is judged
+by the base-fps COST the layer imposes (its GPU work), which is the same signature the 08-16 session
+measured (~2 ms per real frame):
+
+| Config | lsfg off | lsfg 2x | cost |
+|---|---|---|---|
+| 720p + FSR Performance (shipped) | 30.61 | 29.21, 29.18 | -4.6 % |
+| 1080p + FSR Performance | 22.19 | 21.18, 21.08 | -4.8 % |
+| 1080p + FSR Balanced | 19.90 | 19.08, 19.02 | -4.3 % |
+| 900p + FSR Quality | 21.75 | 20.78, 20.76 | -4.5 % |
+
+lsfg is active in every config once Lossless.dll exists (the first rows of the day, without the DLL,
+cost exactly 0 %: 22.20 vs 22.19). The crtc presented-fps meter did NOT show a doubled rate inside
+the benchmark for any row (lsfg-off scene readings already sit 1.1-1.5x above the game rate because
+gamescope re-composites, and lsfg-on readings landed in the same band), so inside the benchmark that
+meter is not a usable lsfg judge; the 08-16 gameplay reading (56.7 presented over ~28 real) stands as
+the only presented-rate measurement and Cliff's eyes are the product test.
+
+**Recommendation for the 1080p question.** Keep 720p + FSR Performance + lsfg 2x as the default AAA
+config (30.6 base, the only rung above 30). If a sharper image is wanted at the cost of frames, the
+rung to offer is **900p + FSR Quality + lsfg 2x** (20.8 base; same fps class as 720p native with a
+1600x900 output). True 1080p output buys nothing this GPU can pay for: even with a 960x540 internal
+render it only matches 720p native (22 fps), and at a 720p internal render it loses 19 %.
+
 ## RESULTS — mesa-next-6 / fex-rootfs-4 A/B, 2026-09-06 (hands-free harness, tools/ab/)
 Same 720p / Low / ResolutionScaling Off / VSync Off / FG Off ladder as runs G–J; power `max`, fan
 `performance`; kernel-25, bsp-common-18, Cyberpunk 2.31 fresh install on internal UFS; built-in
