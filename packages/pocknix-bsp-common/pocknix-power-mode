@@ -4,7 +4,8 @@
 # Discovers cpufreq policies and the GPU devfreq node, caps each at a profile
 # fraction of hardware max (kernel clamps CPU writes to valid steps; the GPU cap
 # picks the nearest available step <= target). Mode persists in
-# /var/lib/pocknix/power-mode; pocknix-power-mode.service re-applies at boot.
+# /var/lib/pocknix/power-mode; pocknix-power-mode.service re-applies at boot (except
+# `max`, which reverts to balanced at boot, see below).
 # Born from telemetry: an uncapped A830 + shader storm = 20W draw, 95C, and a
 # net-discharging "charging" device. Eco exists so the fan and battery can win.
 #   eco:         CPU 60% / GPU ~55%   (fan curve stays user-selected; pair with quiet)
@@ -14,6 +15,13 @@
 #                (bench/AAA mode: devfreq can never downclock mid-frame; hot+loud)
 MODE_FILE=/var/lib/pocknix/power-mode
 MODE="${1:-$(cat "$MODE_FILE" 2>/dev/null || echo performance)}"
+# `max` is session-only: it pins the GPU and the CPU governor (95C, -20..-34%/h) and once
+# survived a reboot from a bench into a full day of play (2026-08-17). With no argument
+# (= the boot re-apply from pocknix-power-mode.service) a persisted `max` becomes balanced.
+if [ -z "${1:-}" ] && [ "$MODE" = max ]; then
+  echo "power mode: max is not kept across boots, applying balanced"
+  MODE=balanced
+fi
 PIN=0
 case "$MODE" in
   eco)         CPU_PCT=60; GPU_PCT=55 ;;

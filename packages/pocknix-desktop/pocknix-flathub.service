@@ -9,6 +9,10 @@ Wants=network-online.target
 Type=oneshot
 ExecStart=/usr/bin/pocknix-flathub-setup
 RemainAfterExit=yes
+# network-online.target fires before DNS is usable on some boots (flatpakrepo fetch fails
+# with a resolver error); retry instead of leaving the remote unregistered until a reboot.
+Restart=on-failure
+RestartSec=30
 
 [Install]
 WantedBy=multi-user.target
