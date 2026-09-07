@@ -48,6 +48,10 @@
    restores after; (c) find the upstream dwc3-qcom L2 fix (ROCKNIX/Armada sweep by symptom
    "HS-PHY not in L2"). The hub still charges fine while awake (~9 W, about a third of the wall
    charger: 2.3 A at the battery, 12 % -> 31 % over 50 min).
+   18:29 replugging the hub re-enumerated it fully (ethernet back, no reboot). 18:31 CONTROL sleep with
+   nothing attached: clean wake, wake-grace + wifi-heal ran; the kernel still printed `dwc3-qcom
+   port-1 HS-PHY not in L2` on that resume too, so the warning alone is old and harmless; the
+   destructive part (xhci Host System Error, device drop, or no wake) needs a device on the port.
 2. **Vampire Survivors "froze" on an intro screen on first launch after the cold boot**; second
    launch fine (Cliff played). No GPU fault / crash in that boot's logs; matches the known
    Steam-Input activation race (controls dead at launch, looks frozen). Not new, not caused by
