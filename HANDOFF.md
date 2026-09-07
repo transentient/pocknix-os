@@ -22,8 +22,14 @@
   (flathub unit Restart=on-failure); a5ce23a LICENSE (GPL-2.0 verbatim from upstream, no or-later
   notice; README license line aligned); 1aee7f1 1080p ladder results + docs.
   **localrepo holds bsp-common-19 and desktop-9 now** - the next RC (d) picks them up.
-- **RC 20260906c** is still the built candidate (kernel-25, bsp-common-18, ...). RC d = respin with
-  bsp-common-19 + desktop-9 (+ anything else Cliff wants) via the proven chain; NOT built yet.
+- **RC 20260907 (= RC d) BUILT 15:58** = build/image/sm8750/holodor-odin3-20260907-seedless.img.zst
+  (7.71 GiB, sha256 184d9011…, sidecar written; raw img sha 9dce75fc…; log build/respin-20260907.log).
+  Loop-mount spot-check ALL GREEN: kernel-25, bsp-common-19, bsp-sm8750-17, desktop-9, decky-15,
+  steam-41, mesa-next-5 pair, fex-rootfs-3, lsfg-vk; pocknix-power-mode.service ENABLED (new),
+  flathub Restart=on-failure baked, power-mode max guard present; KERNEL cmdline s2idle+sync_state,
+  md5 OK; iwd [Scan]/[Rank], UPower 5.0/PowerOff, 70-charge-full rule; only pocknix-sleep in
+  system-sleep (no diag hooks); no Steam tree, root::/deck::, sshd off, Asia/Tokyo, hostname
+  holodor. Supersedes 20260906c (do not publish c). Not flashed, not published.
 - **mesa-next PKGBUILD = pkgrel 5 pinned to bab34da4** (the commit the shipped build actually came
   from, read from the SRCDEST tarball's pax header; archive sha256 verified). Patches parked in
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
@@ -72,9 +78,8 @@ output is a 30-40 % tax at equal internal render and never pays.** Raw: tools/ab
 1. **Cliff:** rm the two diag hooks (command above); decide RC d contents; docs voice sweep
    (README has been fact-fixed and de-em-dashed; INSTALL.md untouched; docs/install-to-internal.md
    still has 14 em-dashes; docs/cyberpunk-bench-plan.md older sections have 39).
-2. **RC d respin** (agent): build-image RESUME+SKIP_PKGPHASE+SEEDLESS -> build-sd-image SEEDLESS+
-   RELEASE -> zstd; loop-mount spot-check (bsp-common-19, desktop-9, mesa-next-5 pair, fex-rootfs-3,
-   kernel-25). localrepo is correct now (staged mesa-6 pkgs live in build/staged-mesa6/, not in repo).
+2. **RC 20260907 is built and spot-checked** (above). Next: Cliff flashes/installs it when he wants
+   (or it becomes the Phase-2 walkthrough image); publish after that.
 3. **Phase-2 weekend block** (Cliff, BONESAW): EDL stock restore -> JACK TEST -> does Android boot
    fully / OTA -> wlan fw version (`/vendor/firmware_mnt/verinfo/ver_info.txt` wlan_gng vs our
    GNG.1.0-04065) -> INSTALL.md walk as a fresh user (resolve the [VERIFY] markers: Android menu
