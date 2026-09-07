@@ -1,5 +1,85 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## CURRENT STATE 2026-09-07 16:00 JST - READ THIS FIRST (written by Claude Fable 5.1)
+
+### Where we are
+- **Cliff's calls today (09-07):** RCs are release candidates, as many as needed, he releases when it
+  feels right. He considers sleep, wake, and charging SOLVED (that is gate (2)); the one open wake
+  item is his 09-05 "game runs slow ~1 min after a wake" note, unconfirmed since. He will sweep every
+  public doc for voice himself; agents write NO em-dashes and no shorthand in docs from now on.
+- **Device:** Odin 3 on internal UFS, kernel 7.1.3-25, **bsp-common-19 + pocknix-desktop-9 deployed
+  live 15:50 and reboot-validated** (see below), mesa-next-5 pair, fex-rootfs-3, steam-41, decky-15.
+  Wifi 192.168.1.32; **Cliff's USB-C hub with ethernet works out of the box (r8153, `enu1u1u4`,
+  DHCP, was 192.168.1.47)** and the device charges through the hub; USB host mode is therefore
+  proven. Wired ssh is immune to the wifi roam crash and idle power-save; it still dies in s2idle.
+  Cyberpunk (85 GB) + **Lossless Scaling (app 993090, 175 MB, DLL 3.2.2)** installed; Cyberpunk
+  UserSettings.json restored to 1280x720 / FSR3 Performance / VSync off, game-tweaks.json has a
+  1091500 block with lsfg 2x ON. Live-only diag hooks 48-chargeprobe / 49-drainlog are STILL on the
+  device (classifier blocked my rm; backed up to fusor ~/odin3-backups/diag-hooks-20260907/) -
+  Cliff runs: `sudo rm /usr/lib/systemd/system-sleep/48-chargeprobe /usr/lib/systemd/system-sleep/49-drainlog`.
+- **Repo (all committed, NOT pushed unless Cliff did):** 9905f2a mesa pin revert + README facts;
+  42a6b29 bsp-common-19 (max power mode is session-only, reverts to balanced at boot) + desktop-9
+  (flathub unit Restart=on-failure); a5ce23a LICENSE (GPL-2.0 verbatim from upstream, no or-later
+  notice; README license line aligned); 1aee7f1 1080p ladder results + docs.
+  **localrepo holds bsp-common-19 and desktop-9 now** - the next RC (d) picks them up.
+- **RC 20260906c** is still the built candidate (kernel-25, bsp-common-18, ...). RC d = respin with
+  bsp-common-19 + desktop-9 (+ anything else Cliff wants) via the proven chain; NOT built yet.
+- **mesa-next PKGBUILD = pkgrel 5 pinned to bab34da4** (the commit the shipped build actually came
+  from, read from the SRCDEST tarball's pax header; archive sha256 verified). Patches parked in
+  packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
+  the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
+
+### The 1080p ladder (Cliff's direction) - DONE, docs/cyberpunk-bench-plan.md top section
+720p native 22.11 | 1080p native 14.02 | 1080p FSR Quality 17.99 | 1080p FSR Balanced 19.90 |
+1080p FSR Performance 22.19 | 900p FSR Quality 21.75 | 720p FSR Performance (shipped) 30.61.
+lsfg 2x costs 4.3-4.8 % of base fps in every config (= active). Composite-cadence cap (gamescope
+debug_set_fps_limit 60): null (-0.6 %), closed. **Recommendation: keep 720p + FSR Performance +
+lsfg 2x as the default; offer 900p + FSR Quality + lsfg 2x as the "sharper" option; true 1080p
+output is a 30-40 % tax at equal internal render and never pays.** Raw: tools/ab/results-2026-09-07.txt.
+
+### What we learned that isn't in the code
+- **proton-cachyos on this image is aarch64 Wine** (`lib/wine/aarch64-unix/winevulkan.so` mapped
+  by the game process); the game's Vulkan stack is the HOST loader + host turnip (stamp pocknix2.5)
+  + host layers, regardless of FEX ThunksDB.Vulkan (0 in the live config). The 09-06 "FEX Vulkan
+  thunk" story and the fex-rootfs "x86 turnip lockstep" rule are both moot for Proton games.
+- **lsfg needs Lossless.dll** (`steamapps/common/Lossless Scaling/Lossless.dll`); the layer loads
+  and logs a normal init either way but generates nothing without it. A fresh install of Holodor
+  has no Lossless Scaling; the QAM toggle silently does nothing until the user installs app 993090.
+  Consider a Decky hint ("Lossless Scaling not installed") - polish item.
+- **The crtc presented-fps meter is not an lsfg judge inside the Cyberpunk benchmark**: lsfg-off
+  scene readings already sit 1.1-1.5x above the game rate (gamescope re-composites), lsfg-on
+  readings land in the same band. Judge lsfg by its base-fps cost (~4.5 %) or by eye in gameplay.
+- **Output resolution costs GPU time even when the internal render is smaller** (1080p + FSR
+  Performance at 960x540 internal = 720p native fps).
+- **Harness traps fixed today (tools/ab/abladder.sh):** `su deck -c` from a systemd unit needs
+  `XDG_RUNTIME_DIR=/run/user/1001` for gamescopectl; a run URL sent <15 s after killing the previous
+  game races Steam's custom-arguments dialog and REDlauncher comes up (driver now fails fast on a
+  REDlauncher pid and the batch retries); the results-screen click coordinates scale with the
+  window width (handled).
+- **Fusor harness kills background waits with a bogus "low memory" (27 GB free)** - poll in the
+  foreground with a bounded loop instead of run_in_background.
+- Gamescope stderr IS captured: /home/deck/pocknix-steam.log (the 09-03 "diagnostic gap" was a
+  wrong-file look; pocknix-session.log only holds the supervisor's 80 bytes).
+
+### NEXT (ordered)
+1. **Cliff:** rm the two diag hooks (command above); decide RC d contents; docs voice sweep
+   (README has been fact-fixed and de-em-dashed; INSTALL.md untouched; docs/install-to-internal.md
+   still has 14 em-dashes; docs/cyberpunk-bench-plan.md older sections have 39).
+2. **RC d respin** (agent): build-image RESUME+SKIP_PKGPHASE+SEEDLESS -> build-sd-image SEEDLESS+
+   RELEASE -> zstd; loop-mount spot-check (bsp-common-19, desktop-9, mesa-next-5 pair, fex-rootfs-3,
+   kernel-25). localrepo is correct now (staged mesa-6 pkgs live in build/staged-mesa6/, not in repo).
+3. **Phase-2 weekend block** (Cliff, BONESAW): EDL stock restore -> JACK TEST -> does Android boot
+   fully / OTA -> wlan fw version (`/vendor/firmware_mnt/verinfo/ver_info.txt` wlan_gng vs our
+   GNG.1.0-04065) -> INSTALL.md walk as a fresh user (resolve the [VERIFY] markers: Android menu
+   names, ROCKNIX ABL release URL + files, non-ssh terminal path, boot order with SD inserted) ->
+   install-to-internal -> restore_backup_abl.sh -> Android boots.
+4. Polish candidates not yet done: Decky "Lossless Scaling not installed" hint; Pocknix Control
+   preset for the 900p option; ROCKNIX-label rename (B1); mangoapp_use_output_timing validation.
+5. Release mechanics after RC d: publish-image.sh, password flow, archive.org `holodor-odin3`,
+   OTA repo publish, public flip.
+
+- Claude Fable 5.1, 2026-09-07 16:00 JST
+
 ## CURRENT STATE 2026-09-07 00:40 JST — READ THIS FIRST (written by Claude Fable 5.1 at /sleep-now)
 
 ### Where we are
