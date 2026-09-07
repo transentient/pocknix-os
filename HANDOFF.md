@@ -58,6 +58,13 @@ output is a 30-40 % tax at equal internal render and never pays.** Raw: tools/ab
   window width (handled).
 - **Fusor harness kills background waits with a bogus "low memory" (27 GB free)** - poll in the
   foreground with a bounded loop instead of run_in_background.
+- **pocknix-power-mode.service was NEVER enabled by the image** (build-sd-image.sh's enable list
+  lacked it), so the mode Pocknix Control persists (eco/balanced/performance) silently reverted to
+  uncapped on every boot - plan Point 4's "mode chosen in Decky is the mode after a reboot" was
+  failing all along. Fixed: build-sd-image.sh now enables it (commit after 2291254); enabled live on
+  the device 15:47 and verified: persisted `max` -> "balanced (cpu 80%, gpu 82%)" at unit start.
+  Rides RC d. The flathub retry was also verified live (failed on DNS at boot, restarted at +30 s,
+  succeeded).
 - Gamescope stderr IS captured: /home/deck/pocknix-steam.log (the 09-03 "diagnostic gap" was a
   wrong-file look; pocknix-session.log only holds the supervisor's 80 bytes).
 

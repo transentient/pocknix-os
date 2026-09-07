@@ -198,6 +198,10 @@ EOF
   # SteamOS model; see limits.d/60-pocknix-gaming.conf. Replaces the old rt-demote watcher).
   chroot "${root}" systemctl enable pocknix-fancontrol.service pocknix-fex-binfmt.service \
         pocknix-volumed.service pocknix-gamescope-rt.service pocknix-powerd.service 2>/dev/null || true
+  # Power mode: re-apply the mode persisted by Pocknix Control (eco/balanced/performance) at boot.
+  # Was never enabled before 2026-09-07, so a chosen mode silently reverted to uncapped on every
+  # boot; bsp-common-19's helper also turns a persisted bench-only `max` into balanced here.
+  chroot "${root}" systemctl enable pocknix-power-mode.service 2>/dev/null || true
   # Decky Loader (QAM plugins, incl. Pocknix Control): seed deck's ~/homebrew at boot, then run
   # the loader under FEX in its private-binfmt namespace (see packages/pocknix-decky).
   chroot "${root}" systemctl enable pocknix-decky-sync.service pocknix-decky-loader.service 2>/dev/null || true
