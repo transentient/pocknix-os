@@ -33,6 +33,7 @@ const setPowerMode = (mode) => call("set_power_mode", mode);
 const setChargeLimit = (pct) => call("set_charge_limit", pct);
 const setLedColor = (hex) => call("set_led_color", hex);
 const setLedMode = (mode) => call("set_led_mode", mode);
+const setDownloadInhibitMode = (mode) => call("set_download_inhibit_mode", mode);
 const setLavdMode = (mode) => call("set_lavd_mode", mode);
 const saveTweaks = (data) => call("save_tweaks", data);
 const detectSdcard = () => call("detect_sdcard");
@@ -791,6 +792,11 @@ const powerOptions = [
 ];
 // Built-in curves first (the backend lists them in that order), then the user's own.
 const fanOptions = (config) => Object.entries(config.fanCurves || {}).map(([name, curve]) => ({ data: name, label: curve.label }));
+const downloadInhibitOptions = [
+    { data: "always", label: "Always (also on battery)" },
+    { data: "plugged", label: "Only on charger" },
+    { data: "never", label: "Never" },
+];
 const lavdOptions = [
     { data: "autopilot", label: "Autopilot" },
     { data: "performance", label: "Performance" },
@@ -826,7 +832,7 @@ function Power({ config, setConfig, reload }) {
     const applyMode = async (setter, mode) => {
         try {
             const next = await setter(mode);
-            setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves, powerMode: next.powerMode, lavdMode: next.lavdMode } : current));
+            setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves, powerMode: next.powerMode, lavdMode: next.lavdMode, downloadInhibitMode: next.downloadInhibitMode } : current));
         }
         catch (error) {
             reload();
@@ -861,7 +867,7 @@ function Power({ config, setConfig, reload }) {
             return;
         DFL.showModal(SP_JSX.jsx(FanCurveModal, { name: config.fanMode, curve: activeCurve, existing: config.fanCurves, onSaved: (next) => setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves } : current)) }));
     };
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit (experimental)", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "FAN", children: [SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions(config), onChange: (mode) => applyMode(setFanMode, mode) }), activeCurve ? SP_JSX.jsx(FanCurveGraph, { points: parseCurve(activeCurve.curve), currentTemp: fan?.temp ?? null }) : null, SP_JSX.jsx("div", { className: "pocknix-note", children: fan && fan.temp !== null && fan.percent !== null ? `Now: ${fan.temp}°C, fan at ${fan.percent}%` : "Fan readout unavailable" }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: openEditor, disabled: !activeCurve, children: activeCurve?.factory ? "Customize this curve..." : "Edit this curve..." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICK LEDS", children: [SP_JSX.jsx(SelectEdit, { label: "Effect", value: config.ledMode, options: ledEffectOptions, onChange: (mode) => applyLedMode(mode) }), ledColorRelevant && (SP_JSX.jsx(ColorPalette, { colors: ledColorPresets, value: config.ledColor, onChange: (hex) => applyLed(hex) }))] })] }));
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit (experimental)", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "DOWNLOADS", children: [SP_JSX.jsx(SelectEdit, { label: "Stay awake for downloads", value: config.downloadInhibitMode || "always", options: downloadInhibitOptions, onChange: (mode) => applyMode(setDownloadInhibitMode, mode) }), SP_JSX.jsx("div", { className: "pocknix-note", children: "A download that is interrupted by sleep does not resume on its own. While one is running and this is on, the device stays awake and the power button will not put it to sleep. Below 5% on battery it powers off regardless." })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "FAN", children: [SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions(config), onChange: (mode) => applyMode(setFanMode, mode) }), activeCurve ? SP_JSX.jsx(FanCurveGraph, { points: parseCurve(activeCurve.curve), currentTemp: fan?.temp ?? null }) : null, SP_JSX.jsx("div", { className: "pocknix-note", children: fan && fan.temp !== null && fan.percent !== null ? `Now: ${fan.temp}°C, fan at ${fan.percent}%` : "Fan readout unavailable" }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: openEditor, disabled: !activeCurve, children: activeCurve?.factory ? "Customize this curve..." : "Edit this curve..." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICK LEDS", children: [SP_JSX.jsx(SelectEdit, { label: "Effect", value: config.ledMode, options: ledEffectOptions, onChange: (mode) => applyLedMode(mode) }), ledColorRelevant && (SP_JSX.jsx(ColorPalette, { colors: ledColorPresets, value: config.ledColor, onChange: (hex) => applyLed(hex) }))] })] }));
 }
 
 function cardSummary(card) {

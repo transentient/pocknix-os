@@ -5,7 +5,7 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=19   # 19: power-mode: `max` no longer survives a reboot (boot re-apply turns it into balanced). 18: wake-grace-post: `$i` not `${i}` in the error line (systemd expanded `${i}` inside the sh -c string, cosmetic warning every wake). 17: wake-grace retries the inhibit (logind race = 2-presses-to-wake); wifi-heal launched as a
+pkgrel=20   # 20: download-inhibit policy file (always|plugged|never, Pocknix Control switch) + no hold at <=5% on battery. 19: power-mode: `max` no longer survives a reboot (boot re-apply turns it into balanced). 18: wake-grace-post: `$i` not `${i}` in the error line (systemd expanded `${i}` inside the sh -c string, cosmetic warning every wake). 17: wake-grace retries the inhibit (logind race = 2-presses-to-wake); wifi-heal launched as a
             #     transient unit (setsid& died with the hook cgroup, never ran) + nmcli connection-up first;
             #     charge-full re-applied on USB power_supply udev events; 16: download-inhibit + wake-grace
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"

@@ -80,6 +80,12 @@ Pocknix Control provides the same feature natively in game mode instead:
 - **CPU Scheduler**: **Autopilot** (the `scx_lavd` default - adapts to load on the fly) or
   **Performance** (keeps the CPU aggressive at the cost of battery and heat).
 
+- **Stay awake for downloads** (its own **Downloads** section): **Always** (default),
+  **Only on charger**, or **Never**. A Steam download that is interrupted by sleep does not
+  resume by itself, so while a download is running and this is on, the device stays awake and
+  the power button will not put it to sleep. Below 5% on battery the device powers off
+  regardless of this setting.
+
 ## Storage
 
 Formats a microSD card so Steam can use it as game storage.

@@ -7,12 +7,15 @@ from .system import atomically_write, run_cmd
 FAN_MODE_FILE = Path("/var/lib/pocknix/fan-mode")
 LAVD_MODE_FILE = Path("/var/lib/pocknix/lavd-mode")
 POWER_MODE_FILE = Path("/var/lib/pocknix/power-mode")
+DOWNLOAD_INHIBIT_FILE = Path("/var/lib/pocknix/download-inhibit-mode")
 
 FAN_DEFAULT = "quiet"   # curve names: built-in + user curves, see fan_curves.py
 LAVD_MODES = ("autopilot", "performance")
 LAVD_DEFAULT = "autopilot"
 POWER_MODES = ("eco", "balanced", "performance")
 POWER_DEFAULT = "performance"
+DOWNLOAD_INHIBIT_MODES = ("always", "plugged", "never")
+DOWNLOAD_INHIBIT_DEFAULT = "always"
 
 
 def _read_mode(path, allowed, default):
@@ -43,6 +46,17 @@ def set_power_mode(mode):
         raise ValueError(f"unknown power mode: {mode!r}")
     # The helper applies cpu/gpu caps immediately and persists the mode itself.
     run_cmd(["/usr/local/bin/pocknix-power-mode", mode])
+
+
+def download_inhibit_mode():
+    return _read_mode(DOWNLOAD_INHIBIT_FILE, DOWNLOAD_INHIBIT_MODES, DOWNLOAD_INHIBIT_DEFAULT)
+
+
+def set_download_inhibit_mode(mode):
+    if mode not in DOWNLOAD_INHIBIT_MODES:
+        raise ValueError(f"unknown download inhibit mode: {mode!r}")
+    # pocknix-download-inhibit re-reads this file every loop (<= 45 s); no restart needed.
+    atomically_write(DOWNLOAD_INHIBIT_FILE, mode + "\n", 0o644)
 
 
 def set_fan_mode(mode):

@@ -49,6 +49,7 @@ export interface Config {
   ledColor: string;
   ledMode: string;
   lavdMode: string;
+  downloadInhibitMode: string;
   tweaks: Tweaks;
   fexProfiles: Record<string, FexProfile>;
   installedGames: InstalledGame[];

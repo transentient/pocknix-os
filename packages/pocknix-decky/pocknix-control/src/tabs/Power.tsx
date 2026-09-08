@@ -1,7 +1,7 @@
 import { ButtonItem, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
 import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { getFanStatus, setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode } from "../backend";
+import { getFanStatus, setDownloadInhibitMode, setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode } from "../backend";
 import { FanCurveGraph } from "../components/FanCurveGraph";
 import { FanCurveModal } from "../components/FanCurveModal";
 import { ColorPalette, SelectEdit } from "../components/widgets";
@@ -40,6 +40,11 @@ const powerOptions = [
 // Built-in curves first (the backend lists them in that order), then the user's own.
 const fanOptions = (config: Config) =>
   Object.entries(config.fanCurves || {}).map(([name, curve]) => ({ data: name, label: curve.label }));
+const downloadInhibitOptions = [
+  { data: "always", label: "Always (also on battery)" },
+  { data: "plugged", label: "Only on charger" },
+  { data: "never", label: "Never" },
+];
 const lavdOptions = [
   { data: "autopilot", label: "Autopilot" },
   { data: "performance", label: "Performance" },
@@ -77,7 +82,7 @@ export function Power({ config, setConfig, reload }: {
   const applyMode = async (setter: (mode: string) => Promise<Config>, mode: string) => {
     try {
       const next = await setter(mode);
-      setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves, powerMode: next.powerMode, lavdMode: next.lavdMode } : current));
+      setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves, powerMode: next.powerMode, lavdMode: next.lavdMode, downloadInhibitMode: next.downloadInhibitMode } : current));
     } catch (error) {
       reload();
     }
@@ -121,6 +126,12 @@ export function Power({ config, setConfig, reload }: {
         <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
         <SelectEdit label="Charge Limit (experimental)" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
         <SelectEdit label="CPU Scheduler" value={config.lavdMode} options={lavdOptions} onChange={(mode) => applyMode(setLavdMode, mode)} />
+      </PanelSection>
+      <PanelSection title="DOWNLOADS">
+        <SelectEdit label="Stay awake for downloads" value={config.downloadInhibitMode || "always"} options={downloadInhibitOptions} onChange={(mode) => applyMode(setDownloadInhibitMode, mode)} />
+        <div className="pocknix-note">
+          A download that is interrupted by sleep does not resume on its own. While one is running and this is on, the device stays awake and the power button will not put it to sleep. Below 5% on battery it powers off regardless.
+        </div>
       </PanelSection>
       <PanelSection title="FAN">
         <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions(config)} onChange={(mode) => applyMode(setFanMode, mode)} />
