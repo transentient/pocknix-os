@@ -58,7 +58,8 @@ Holodor stands on extraordinary shoulders:
 - **[Valve](https://store.steampowered.com) & [Collabora](https://www.collabora.com)** -
   Holo Core, the official SteamOS aarch64 userland this project is faithful *to*.
 - **[ArmadaOS](https://github.com/armada-os)** - pioneering SteamOS-on-Odin, the
-  haptics bring-up we ported, and hard-won suspend fixes.
+  haptics bring-up we ported, hard-won suspend fixes, and the design of the fan
+  curve editor.
 - **[batocera.pocket](https://github.com/darkplace/batocera.pocket)** (lukemotion,
   continuing suckbluefrog's work) - the stick-LED driver, Wi-Fi resilience ideas,
   and more.
