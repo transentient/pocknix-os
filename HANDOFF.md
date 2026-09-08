@@ -50,6 +50,18 @@
   restart; plugin loads). First daemon version died on `set -u` (ACTIVE set in a subshell) -
   fixed. Backend end-to-end tested on the device (save -> daemon adopts curve -> delete ->
   falls back to quiet). UI needs Cliff's eyes. Built-in curves unchanged in speeds/temps.
+- **UI verified hands-free 18:22-18:31** with tools/ab/cdp.py (raw DevTools client on Steam's CEF
+  port 8080: `cdp.py SharedJSContext "DFL.Navigation.OpenQuickAccessMenu(DFL.QuickAccessTab.Decky)"`,
+  then `.click()` on buttons by text in the QuickAccess tab; Decky modals live in the "Steam Big
+  Picture Mode" tab) + gamescopectl screenshots: FAN section renders (graph, live marker, readout),
+  Customize opens fullscreen, add/next point, sliders track, Save as new curve -> file written,
+  daemon adopts it, dropdown updates, Edit -> Delete -> Really delete -> back to quiet. Fixed on
+  the way: graph capped to 480 px in the modal, doubled "(custom)" label, default name "My <curve>".
+  NOT verified by hand: touch drag on the graph and d-pad editing (Cliff).
+- **TRAP: never `systemctl restart pocknix-decky-loader` under a running Steam** - Decky's
+  re-injector counts the reconnects as webhelper crashes, hits its own `exit` NameError and
+  dies; Pocknix Control then shows "Loading" forever. Deploy a plugin with pacman -U +
+  /usr/lib/pocknix/pocknix-decky-sync + `systemctl restart getty@tty1` (session restart, ~40 s).
 - NOT in an RC yet: the overlay daemon change needs a respin (RC e) and decky-16 is in localrepo.
 
 ### EVENING 09-07: two Cliff reports (18:30)
