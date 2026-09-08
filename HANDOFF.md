@@ -35,6 +35,17 @@
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
   the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
 
+### 09-09: "STAY AWAKE FOR DOWNLOADS" SWITCH (bsp-common-20 + decky-17, deployed live 08:19)
+- Cliff learned the download sleep-guard has existed since bsp-common-16 (08-31, ours, not
+  upstream) and asked for a switch, default on. Power tab now has a DOWNLOADS section:
+  Always (default) / Only on charger / Never -> /var/lib/pocknix/download-inhibit-mode, read by
+  pocknix-download-inhibit every loop; it also never holds at <=5 % on battery (UPower powers
+  off at 5 % anyway). Branches unit-tested with a fake sysfs; UI round-trip verified via cdp.py
+  (pick "Only on charger" -> file says plugged -> back to always). Note for docs: while a
+  download runs and the guard is on, the power button will not sleep the device (block
+  inhibitor); powerd logs the refusal. Both packages are in localrepo; ride RC e.
+- cdp.py trick learned: Decky dropdown popups render in the "Steam Big Picture Mode" tab.
+
 ### 09-08: CUSTOM FAN CURVES SHIPPED TO THE DEVICE (Cliff's ask: "ArmadaOS has one, people wanted it")
 - Commit bfd662c (+ fixup): overlay pocknix-fancontrol rewritten as a curve engine (points
   "tempC:pwm", linear interpolation, EMA on the hottest cpu/gpu zone, ramp +40/-8 per 3 s tick,
