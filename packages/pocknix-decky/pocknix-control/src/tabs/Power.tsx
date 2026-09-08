@@ -1,8 +1,12 @@
-import { PanelSection } from "@decky/ui";
+import { ButtonItem, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
+import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode } from "../backend";
+import { getFanStatus, setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode } from "../backend";
+import { FanCurveGraph } from "../components/FanCurveGraph";
+import { FanCurveModal } from "../components/FanCurveModal";
 import { ColorPalette, SelectEdit } from "../components/widgets";
-import type { Config } from "../types";
+import { parseCurve } from "../lib/fanCurve";
+import type { Config, FanStatus } from "../types";
 
 // Modes the stick-LED daemon understands (pocknix-stick-ledsd reads /var/lib/pocknix/led-mode).
 const ledEffectOptions = [
@@ -33,12 +37,9 @@ const powerOptions = [
   { data: "balanced", label: "Balanced (~80% clocks)" },
   { data: "performance", label: "Performance (uncapped)" },
 ];
-const fanOptions = [
-  { data: "quiet", label: "Quiet" },
-  { data: "moderate", label: "Moderate" },
-  { data: "performance", label: "Performance" },
-  { data: "max", label: "Max (always 100%)" },
-];
+// Built-in curves first (the backend lists them in that order), then the user's own.
+const fanOptions = (config: Config) =>
+  Object.entries(config.fanCurves || {}).map(([name, curve]) => ({ data: name, label: curve.factory ? curve.label : `${curve.label} (custom)` }));
 const lavdOptions = [
   { data: "autopilot", label: "Autopilot" },
   { data: "performance", label: "Performance" },
@@ -76,20 +77,62 @@ export function Power({ config, setConfig, reload }: {
   const applyMode = async (setter: (mode: string) => Promise<Config>, mode: string) => {
     try {
       const next = await setter(mode);
-      setConfig((current) => (current ? { ...current, fanMode: next.fanMode, powerMode: next.powerMode, lavdMode: next.lavdMode } : current));
+      setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves, powerMode: next.powerMode, lavdMode: next.lavdMode } : current));
     } catch (error) {
       reload();
     }
   };
   // Rainbow ignores the color; off shows nothing — only offer the palette when it matters.
   const ledColorRelevant = config.ledMode === "static" || config.ledMode === "breathe";
+  // Live fan readout while the tab is open (the daemon drives the fan from the same hottest zone).
+  const [fan, setFan] = useState<FanStatus | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const status = await getFanStatus();
+        if (!cancelled) setFan(status);
+      } catch {
+        // decorative
+      }
+    };
+    poll();
+    const timer = window.setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+  const activeCurve = config.fanCurves?.[config.fanMode] || config.fanCurves?.quiet;
+  const openEditor = () => {
+    if (!activeCurve) return;
+    showModal(
+      <FanCurveModal
+        name={config.fanMode}
+        curve={activeCurve}
+        existing={config.fanCurves}
+        onSaved={(next) => setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves } : current))}
+      />,
+    );
+  };
   return (
     <>
       <PanelSection title="PERFORMANCE">
         <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
         <SelectEdit label="Charge Limit (experimental)" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
-        <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions} onChange={(mode) => applyMode(setFanMode, mode)} />
         <SelectEdit label="CPU Scheduler" value={config.lavdMode} options={lavdOptions} onChange={(mode) => applyMode(setLavdMode, mode)} />
+      </PanelSection>
+      <PanelSection title="FAN">
+        <SelectEdit label="Fan Curve" value={config.fanMode} options={fanOptions(config)} onChange={(mode) => applyMode(setFanMode, mode)} />
+        {activeCurve ? <FanCurveGraph points={parseCurve(activeCurve.curve)} currentTemp={fan?.temp ?? null} /> : null}
+        <div className="pocknix-note">
+          {fan && fan.temp !== null && fan.percent !== null ? `Now: ${fan.temp}°C, fan at ${fan.percent}%` : "Fan readout unavailable"}
+        </div>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={openEditor} disabled={!activeCurve}>
+            {activeCurve?.factory ? "Customize this curve..." : "Edit this curve..."}
+          </ButtonItem>
+        </PanelSectionRow>
       </PanelSection>
       <PanelSection title="STICK LEDS">
         <SelectEdit label="Effect" value={config.ledMode} options={ledEffectOptions} onChange={(mode) => applyLedMode(mode as string)} />

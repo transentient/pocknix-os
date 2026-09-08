@@ -26,6 +26,33 @@ export const styles = `
         word-break: break-all;
         white-space: pre-wrap;
       }
+      .pk-fan-graph {
+        margin: 6px 16px 2px;
+        padding: 4px;
+        border-radius: 6px;
+        border: 2px solid transparent;
+      }
+      .pk-fan-graph-focused {
+        border-color: rgba(255,255,255,0.6);
+      }
+      .pk-fan-graph-editing {
+        border-color: #ffd166;
+      }
+      .pk-fan-hint, .pocknix-control-tabs-modal .pocknix-note {
+        padding: 4px 8px;
+        font-size: 12px;
+        line-height: 16px;
+        opacity: 0.7;
+      }
+      .pk-fan-title {
+        margin: 0 0 8px 16px;
+        font-size: 18px;
+      }
+      .pk-fan-error {
+        margin: 4px 16px;
+        color: #ff6b6b;
+        font-size: 12px;
+      }
       .pocknix-control-tabs .pocknix-note {
         box-sizing: border-box;
         width: 100%;

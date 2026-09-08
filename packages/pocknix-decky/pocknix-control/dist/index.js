@@ -26,6 +26,9 @@ const definePlugin = (fn) => {
 
 const getConfig = () => call("get_config");
 const setFanMode = (mode) => call("set_fan_mode", mode);
+const saveFanCurve = (name, label, curve) => call("save_fan_curve", name, label, curve);
+const deleteFanCurve = (name) => call("delete_fan_curve", name);
+const getFanStatus = () => call("fan_status");
 const setPowerMode = (mode) => call("set_power_mode", mode);
 const setChargeLimit = (pct) => call("set_charge_limit", pct);
 const setLedColor = (hex) => call("set_led_color", hex);
@@ -210,6 +213,33 @@ const styles = `
         line-height: 14px;
         word-break: break-all;
         white-space: pre-wrap;
+      }
+      .pk-fan-graph {
+        margin: 6px 16px 2px;
+        padding: 4px;
+        border-radius: 6px;
+        border: 2px solid transparent;
+      }
+      .pk-fan-graph-focused {
+        border-color: rgba(255,255,255,0.6);
+      }
+      .pk-fan-graph-editing {
+        border-color: #ffd166;
+      }
+      .pk-fan-hint, .pocknix-control-tabs-modal .pocknix-note {
+        padding: 4px 8px;
+        font-size: 12px;
+        line-height: 16px;
+        opacity: 0.7;
+      }
+      .pk-fan-title {
+        margin: 0 0 8px 16px;
+        font-size: 18px;
+      }
+      .pk-fan-error {
+        margin: 4px 16px;
+        color: #ff6b6b;
+        font-size: 12px;
       }
       .pocknix-control-tabs .pocknix-note {
         box-sizing: border-box;
@@ -430,6 +460,302 @@ function Games({ config, setConfig }) {
     return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "GAME TWEAKS", children: [SP_JSX.jsx(SelectEdit, { label: "Game", value: game?.appid || "", options: editTargetOptions(config), onChange: setSelectedGame }), SP_JSX.jsx("div", { className: "pocknix-note", children: "Changes apply on next game launch" }), !editingDefault ? SP_JSX.jsx(DFL.ToggleField, { label: "Use Per-Game Settings", checked: perGameEnabled, onChange: setPerGameEnabled }) : null, editingDefault || perGameEnabled ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(SelectEdit, { label: "FEX Preset", value: fexValue, options: fexOptions, onChange: (id) => patchSettings({ fexProfile: id, fexFlags: {} }) }), SP_JSX.jsx(SelectEdit, { label: "Audio Buffer", value: audioValue, options: audioLatencyOptions, onChange: (id) => patchSettings({ audioLatency: id }) }), SP_JSX.jsx(DFL.ToggleField, { label: "Frame Insertion (LSFG)", description: "Doubles presented fps by interpolation. Needs Lossless Scaling installed from Steam. Adds input latency; routes the game through host Vulkan.", checked: lsfgEnabled, onChange: (on) => patchSettings({ lsfg: { ...lsfgSettings, enabled: on } }) }), lsfgEnabled ? (SP_JSX.jsx(SelectEdit, { label: "Insertion Multiplier", value: lsfgMultiplier, options: lsfgMultiplierOptions, onChange: (m) => patchSettings({ lsfg: { ...lsfgSettings, enabled: true, multiplier: String(m) } }) })) : null, SP_JSX.jsxs("div", { className: "pocknix-note", children: ["Advanced FEX flags", Object.keys(flagOverrides).length ? " (modified)" : ""] }), fexFlagDefs.map(({ key, label }) => (SP_JSX.jsx(DFL.ToggleField, { label: label, checked: effectiveFlag(key), onChange: (on) => setFlag(key, on) }, key)))] })) : null] }), SP_JSX.jsx(AddGameSection, {})] }));
 }
 
+const TEMP_MIN = 0;
+const TEMP_MAX = 120;
+const PWM_MIN = 0;
+const PWM_MAX = 255;
+const MAX_POINTS = 16;
+const DEFAULT_POINT = { temp: 60, pwm: 128 };
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const pwmToPercent = (pwm) => Math.round((clamp(pwm, PWM_MIN, PWM_MAX) / PWM_MAX) * 100);
+const percentToPwm = (percent) => Math.round((clamp(percent, 0, 100) / 100) * PWM_MAX);
+function parseCurve(text) {
+    if (!text)
+        return [];
+    return text
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => {
+        const [tempPart, pwmPart] = item.split(":");
+        return { temp: parseInt(tempPart, 10), pwm: parseInt(pwmPart, 10) };
+    })
+        .filter((point) => Number.isFinite(point.temp) && Number.isFinite(point.pwm))
+        .sort((a, b) => a.temp - b.temp);
+}
+function formatCurve(points) {
+    return [...points]
+        .sort((a, b) => a.temp - b.temp)
+        .map((point) => `${Math.round(point.temp)}:${Math.round(point.pwm)}`)
+        .join(",");
+}
+/** What the daemon will do at a given temperature (linear between points, flat outside). */
+function interpolate(points, temp) {
+    const sorted = [...points].sort((a, b) => a.temp - b.temp);
+    if (!sorted.length)
+        return 0;
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    if (temp <= first.temp)
+        return first.pwm;
+    if (temp >= last.temp)
+        return last.pwm;
+    for (let i = 0; i < sorted.length - 1; i += 1) {
+        const a = sorted[i];
+        const b = sorted[i + 1];
+        if (temp >= a.temp && temp <= b.temp) {
+            const t = b.temp === a.temp ? 0 : (temp - a.temp) / (b.temp - a.temp);
+            return a.pwm + t * (b.pwm - a.pwm);
+        }
+    }
+    return last.pwm;
+}
+/** Curve file names: lowercase letters, digits, underscores; must start with a letter. */
+function slugifyCurveName(value) {
+    const slug = value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .replace(/^[^a-z]+/, "")
+        .slice(0, 32);
+    return slug;
+}
+
+const WIDTH = 280;
+const HEIGHT = 150;
+const PAD_LEFT = 26;
+const PAD_RIGHT = 8;
+const PAD_TOP = 10;
+const PAD_BOTTOM = 16;
+const PLOT_W = WIDTH - PAD_LEFT - PAD_RIGHT;
+const PLOT_H = HEIGHT - PAD_TOP - PAD_BOTTOM;
+const TEMP_TICKS = [0, 20, 40, 60, 80, 100, 120];
+const PWM_TICK_PERCENTS = [0, 25, 50, 75, 100];
+const DPAD_TEMP_STEP = 1;
+const DPAD_PWM_STEP = 5;
+const xForTemp = (temp) => PAD_LEFT + ((clamp(temp, TEMP_MIN, TEMP_MAX) - TEMP_MIN) / (TEMP_MAX - TEMP_MIN)) * PLOT_W;
+const yForPwm = (pwm) => PAD_TOP + (1 - (clamp(pwm, PWM_MIN, PWM_MAX) - PWM_MIN) / (PWM_MAX - PWM_MIN)) * PLOT_H;
+function FanCurveGraph({ points, onChange, currentTemp, selectedIndex, onSelect }) {
+    const editable = !!onChange;
+    const svgRef = SP_REACT.useRef(null);
+    const dragRef = SP_REACT.useRef(null);
+    const [livePoints, setLivePoints] = SP_REACT.useState(null);
+    const [padActive, setPadActive] = SP_REACT.useState(false);
+    const shown = livePoints ?? points;
+    const sorted = SP_REACT.useMemo(() => [...shown].sort((a, b) => a.temp - b.temp), [shown]);
+    if (!sorted.length)
+        return null;
+    const selected = clamp(selectedIndex ?? 0, 0, points.length - 1);
+    const eventToPoint = (e) => {
+        const svg = svgRef.current;
+        if (!svg)
+            return null;
+        const rect = svg.getBoundingClientRect();
+        const fracX = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+        const fracY = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+        const temp = Math.round(TEMP_MIN + clamp((fracX * WIDTH - PAD_LEFT) / PLOT_W, 0, 1) * (TEMP_MAX - TEMP_MIN));
+        const pwm = Math.round(PWM_MAX - clamp((fracY * HEIGHT - PAD_TOP) / PLOT_H, 0, 1) * (PWM_MAX - PWM_MIN));
+        return { temp, pwm };
+    };
+    const onPointerDown = (index) => (e) => {
+        if (!editable)
+            return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        dragRef.current = { points: points.map((p) => ({ ...p })), index };
+        onSelect?.(index);
+        setLivePoints(points.map((p) => ({ ...p })));
+    };
+    const onPointerMove = (e) => {
+        const drag = dragRef.current;
+        if (!drag)
+            return;
+        const next = eventToPoint(e);
+        if (!next)
+            return;
+        drag.points[drag.index] = next;
+        setLivePoints([...drag.points]);
+    };
+    const endDrag = (e) => {
+        const drag = dragRef.current;
+        if (!drag)
+            return;
+        dragRef.current = null;
+        setLivePoints(null);
+        onChange?.(drag.points);
+        try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+        catch {
+            // already released
+        }
+    };
+    const movePoint = (deltaTemp, deltaPwm) => {
+        if (!editable || !points.length)
+            return;
+        const ordered = [...points].sort((a, b) => a.temp - b.temp);
+        const current = ordered[selected];
+        const lower = selected > 0 ? ordered[selected - 1].temp + 1 : TEMP_MIN;
+        const upper = selected < ordered.length - 1 ? ordered[selected + 1].temp - 1 : TEMP_MAX;
+        const nextTemp = clamp(current.temp + deltaTemp, Math.max(TEMP_MIN, lower), Math.min(TEMP_MAX, upper));
+        const nextPwm = clamp(current.pwm + deltaPwm, PWM_MIN, PWM_MAX);
+        if (nextTemp === current.temp && nextPwm === current.pwm)
+            return;
+        onChange?.(ordered.map((point, i) => (i === selected ? { temp: nextTemp, pwm: nextPwm } : point)));
+    };
+    const onButtonDown = (e) => {
+        switch (e.detail.button) {
+            case DFL.GamepadButton.BUMPER_LEFT:
+                onSelect?.((selected - 1 + points.length) % points.length);
+                break;
+            case DFL.GamepadButton.BUMPER_RIGHT:
+                onSelect?.((selected + 1) % points.length);
+                break;
+            default: return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    const onDirection = (e) => {
+        switch (e.detail.button) {
+            case DFL.GamepadButton.DIR_UP:
+                movePoint(0, DPAD_PWM_STEP);
+                break;
+            case DFL.GamepadButton.DIR_DOWN:
+                movePoint(0, -DPAD_PWM_STEP);
+                break;
+            case DFL.GamepadButton.DIR_RIGHT:
+                movePoint(DPAD_TEMP_STEP, 0);
+                break;
+            case DFL.GamepadButton.DIR_LEFT:
+                movePoint(-DPAD_TEMP_STEP, 0);
+                break;
+            default: return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const pathD = [
+        `M ${PAD_LEFT} ${yForPwm(first.pwm)}`,
+        `L ${xForTemp(first.temp)} ${yForPwm(first.pwm)}`,
+        ...sorted.slice(1).map((p) => `L ${xForTemp(p.temp)} ${yForPwm(p.pwm)}`),
+        `L ${PAD_LEFT + PLOT_W} ${yForPwm(last.pwm)}`,
+    ].join(" ");
+    const hasTemp = typeof currentTemp === "number" && Number.isFinite(currentTemp);
+    const tempX = hasTemp ? xForTemp(currentTemp) : 0;
+    const tempY = hasTemp ? yForPwm(interpolate(sorted, currentTemp)) : 0;
+    const svg = (SP_JSX.jsxs("svg", { ref: svgRef, viewBox: `0 0 ${WIDTH} ${HEIGHT}`, style: { width: "100%", height: "auto", display: "block", touchAction: "none", userSelect: "none" }, children: [SP_JSX.jsx("rect", { x: PAD_LEFT, y: PAD_TOP, width: PLOT_W, height: PLOT_H, fill: "rgba(255,255,255,0.04)", stroke: "rgba(255,255,255,0.15)" }), PWM_TICK_PERCENTS.map((percent) => (SP_JSX.jsxs("g", { children: [SP_JSX.jsx("line", { x1: PAD_LEFT, x2: PAD_LEFT + PLOT_W, y1: yForPwm(percentToPwm(percent)), y2: yForPwm(percentToPwm(percent)), stroke: "rgba(255,255,255,0.08)" }), SP_JSX.jsx("text", { x: PAD_LEFT - 4, y: yForPwm(percentToPwm(percent)) + 3, fontSize: "7", textAnchor: "end", fill: "rgba(255,255,255,0.55)", children: `${percent}%` })] }, `pwm-${percent}`))), TEMP_TICKS.map((temp) => (SP_JSX.jsxs("g", { children: [SP_JSX.jsx("line", { x1: xForTemp(temp), x2: xForTemp(temp), y1: PAD_TOP, y2: PAD_TOP + PLOT_H, stroke: "rgba(255,255,255,0.06)" }), SP_JSX.jsx("text", { x: xForTemp(temp), y: HEIGHT - 4, fontSize: "7", textAnchor: "middle", fill: "rgba(255,255,255,0.55)", children: temp })] }, `temp-${temp}`))), SP_JSX.jsx("path", { d: pathD, fill: "none", stroke: "#5cc8ff", strokeWidth: 2 }), hasTemp ? (SP_JSX.jsxs("g", { pointerEvents: "none", children: [SP_JSX.jsx("circle", { cx: tempX, cy: tempY, r: 7, fill: "rgba(255,255,255,0.18)" }), SP_JSX.jsx("circle", { cx: tempX, cy: tempY, r: 3.5, fill: "#ffffff", stroke: "#0D141C", strokeWidth: 1.5 }), SP_JSX.jsx("text", { x: clamp(tempX, PAD_LEFT + 14, PAD_LEFT + PLOT_W - 14), y: tempY - 10 < PAD_TOP ? tempY + 15 : tempY - 10, fontSize: "7", textAnchor: "middle", fill: "#ffffff", children: `${currentTemp}°C` })] })) : null, sorted.map((point, index) => {
+                const isActive = editable && (livePoints ? dragRef.current?.index === index : padActive && index === selected);
+                const cx = xForTemp(point.temp);
+                const cy = yForPwm(point.pwm);
+                return (SP_JSX.jsxs("g", { children: [editable ? (SP_JSX.jsx("circle", { cx: cx, cy: cy, r: 14, fill: "transparent", onPointerDown: onPointerDown(index), onPointerMove: onPointerMove, onPointerUp: endDrag, onPointerCancel: endDrag, style: { cursor: "grab", touchAction: "none" } })) : null, SP_JSX.jsx("circle", { cx: cx, cy: cy, r: isActive ? 6 : 4.5, fill: isActive ? "#ffd166" : "#5cc8ff", stroke: "#0D141C", strokeWidth: 1.5, pointerEvents: "none" }), isActive ? (SP_JSX.jsx("text", { x: cx, y: cy - 12 < PAD_TOP ? cy + 14 : cy - 12, fontSize: "8", textAnchor: "middle", fill: "#ffd166", children: `${point.temp}°C / ${pwmToPercent(point.pwm)}%` })) : null] }, `point-${index}`));
+            })] }));
+    if (!editable)
+        return SP_JSX.jsx("div", { className: "pk-fan-graph", children: svg });
+    return (SP_JSX.jsxs(DFL.Focusable, { className: padActive ? "pk-fan-graph pk-fan-graph-editing" : "pk-fan-graph", focusClassName: "pk-fan-graph-focused", onActivate: () => setPadActive(true), onOKButton: () => setPadActive(true), onCancelButton: padActive ? () => setPadActive(false) : undefined, onButtonDown: padActive ? onButtonDown : undefined, onGamepadDirection: padActive ? onDirection : undefined, onGamepadBlur: padActive ? () => setPadActive(false) : undefined, onOKActionDescription: padActive ? undefined : "Move Points", onCancelActionDescription: padActive ? "Done" : undefined, children: [svg, padActive ? (SP_JSX.jsx("div", { className: "pk-fan-hint", children: `D-pad moves point ${selected + 1} of ${points.length} · LB/RB picks a point · B when done` })) : null] }));
+}
+
+function FanCurveModal({ name, curve, existing, onSaved, closeModal }) {
+    const factory = curve.factory;
+    const [label, setLabel] = SP_REACT.useState(factory ? `${curve.label} (custom)` : curve.label);
+    const [points, setPoints] = SP_REACT.useState(() => parseCurve(curve.curve));
+    const [selected, setSelected] = SP_REACT.useState(0);
+    const [busy, setBusy] = SP_REACT.useState(false);
+    const [error, setError] = SP_REACT.useState("");
+    const [confirmDelete, setConfirmDelete] = SP_REACT.useState(false);
+    const [temp, setTemp] = SP_REACT.useState(null);
+    SP_REACT.useEffect(() => {
+        let cancelled = false;
+        const poll = async () => {
+            try {
+                const status = await getFanStatus();
+                if (!cancelled)
+                    setTemp(status.temp);
+            }
+            catch {
+                // status is decorative
+            }
+        };
+        poll();
+        const timer = window.setInterval(poll, 2000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, []);
+    const targetName = factory ? slugifyCurveName(label) : name;
+    const nameTaken = factory && (!!existing[targetName]?.factory || (!!existing[targetName] && targetName !== name));
+    const sorted = [...points].sort((a, b) => a.temp - b.temp);
+    const index = clamp(selected, 0, sorted.length - 1);
+    const point = sorted[index];
+    const commit = (next) => setPoints([...next].sort((a, b) => a.temp - b.temp));
+    const setPoint = (key, value) => {
+        if (!point)
+            return;
+        let next = value;
+        if (key === "temp") {
+            const lower = index > 0 ? sorted[index - 1].temp + 1 : TEMP_MIN;
+            const upper = index < sorted.length - 1 ? sorted[index + 1].temp - 1 : TEMP_MAX;
+            next = clamp(value, lower, upper);
+        }
+        commit(sorted.map((p, i) => (i === index ? { ...p, [key]: next } : p)));
+    };
+    const addPoint = () => {
+        if (sorted.length >= MAX_POINTS)
+            return;
+        const used = new Set(sorted.map((p) => p.temp));
+        // Slot the new point halfway to the next one when there is room, else at the default.
+        let t = point && index < sorted.length - 1 ? Math.round((point.temp + sorted[index + 1].temp) / 2) : DEFAULT_POINT.temp;
+        while (used.has(t) && t < TEMP_MAX)
+            t += 1;
+        if (used.has(t))
+            return;
+        const pwm = point ? point.pwm : DEFAULT_POINT.pwm;
+        const next = [...sorted, { temp: t, pwm }].sort((a, b) => a.temp - b.temp);
+        commit(next);
+        setSelected(next.findIndex((p) => p.temp === t));
+    };
+    const removePoint = () => {
+        if (sorted.length <= 1)
+            return;
+        commit(sorted.filter((_, i) => i !== index));
+        setSelected(Math.max(0, index - 1));
+    };
+    const save = async () => {
+        if (busy)
+            return;
+        setBusy(true);
+        setError("");
+        try {
+            const next = await saveFanCurve(targetName, label, formatCurve(sorted));
+            onSaved(next);
+            closeModal?.();
+        }
+        catch (e) {
+            setError(String(e));
+            setBusy(false);
+        }
+    };
+    const remove = async () => {
+        if (busy)
+            return;
+        setBusy(true);
+        try {
+            const next = await deleteFanCurve(name);
+            onSaved(next);
+            closeModal?.();
+        }
+        catch (e) {
+            setError(String(e));
+            setBusy(false);
+        }
+    };
+    const canSave = sorted.length > 0 && !!targetName && !nameTaken && !busy;
+    return (SP_JSX.jsxs(DFL.ModalRoot, { bAllowFullSize: true, onCancel: () => closeModal?.(), children: [SP_JSX.jsx("style", { children: styles }), SP_JSX.jsxs(DFL.DialogBody, { className: "pocknix-control-tabs-modal", children: [SP_JSX.jsx("h2", { className: "pk-fan-title", children: factory ? `Customize "${curve.label}"` : `Edit "${curve.label}"` }), SP_JSX.jsxs(DFL.PanelSection, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Field, { label: "Name", childrenLayout: "below", childrenContainerWidth: "max", children: SP_JSX.jsx(DFL.TextField, { value: label, disabled: busy, onChange: (event) => setLabel(event.target.value) }) }) }), factory ? SP_JSX.jsx("div", { className: "pocknix-note", children: "Built-in curves stay as they are; this saves a new curve and switches to it." }) : null, nameTaken ? SP_JSX.jsx("div", { className: "pk-fan-error", children: "A curve with that name already exists." }) : null] }), SP_JSX.jsx(FanCurveGraph, { points: sorted, onChange: commit, currentTemp: temp, selectedIndex: index, onSelect: setSelected }), point ? (SP_JSX.jsxs(DFL.PanelSection, { title: `POINT ${index + 1} OF ${sorted.length}`, children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "Temperature", value: point.temp, min: TEMP_MIN, max: TEMP_MAX, step: 1, showValue: true, valueSuffix: "\u00B0C", onChange: (v) => setPoint("temp", v) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "Fan speed", value: pwmToPercent(point.pwm), min: 0, max: 100, step: 5, showValue: true, valueSuffix: "%", onChange: (v) => setPoint("pwm", percentToPwm(v)) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: () => setSelected((index + 1) % sorted.length), disabled: sorted.length < 2, children: "Next point" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: addPoint, disabled: sorted.length >= MAX_POINTS, children: "Add point" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: removePoint, disabled: sorted.length <= 1, children: "Remove this point" }) })] })) : null, SP_JSX.jsxs("div", { className: "pocknix-note", children: ["Speed is 0 to 100% of the fan's full speed (", PWM_MAX, " PWM). Below the first point the fan holds the first speed; above the last point it holds the last."] }), error ? SP_JSX.jsx("div", { className: "pk-fan-error", children: error }) : null] }), SP_JSX.jsxs(DFL.DialogFooter, { children: [!factory ? (confirmDelete ? (SP_JSX.jsx(DFL.DialogButton, { onClick: remove, disabled: busy, children: "Really delete" })) : (SP_JSX.jsx(DFL.DialogButton, { onClick: () => setConfirmDelete(true), disabled: busy, children: "Delete curve" }))) : null, SP_JSX.jsx(DFL.DialogButton, { onClick: () => closeModal?.(), disabled: busy, children: "Cancel" }), SP_JSX.jsx(DFL.DialogButton, { onClick: save, disabled: !canSave, children: busy ? "Saving..." : factory ? "Save as new curve" : "Save" })] })] }));
+}
+
 // Modes the stick-LED daemon understands (pocknix-stick-ledsd reads /var/lib/pocknix/led-mode).
 const ledEffectOptions = [
     { data: "off", label: "Off" },
@@ -459,12 +785,8 @@ const powerOptions = [
     { data: "balanced", label: "Balanced (~80% clocks)" },
     { data: "performance", label: "Performance (uncapped)" },
 ];
-const fanOptions = [
-    { data: "quiet", label: "Quiet" },
-    { data: "moderate", label: "Moderate" },
-    { data: "performance", label: "Performance" },
-    { data: "max", label: "Max (always 100%)" },
-];
+// Built-in curves first (the backend lists them in that order), then the user's own.
+const fanOptions = (config) => Object.entries(config.fanCurves || {}).map(([name, curve]) => ({ data: name, label: curve.factory ? curve.label : `${curve.label} (custom)` }));
 const lavdOptions = [
     { data: "autopilot", label: "Autopilot" },
     { data: "performance", label: "Performance" },
@@ -500,7 +822,7 @@ function Power({ config, setConfig, reload }) {
     const applyMode = async (setter, mode) => {
         try {
             const next = await setter(mode);
-            setConfig((current) => (current ? { ...current, fanMode: next.fanMode, powerMode: next.powerMode, lavdMode: next.lavdMode } : current));
+            setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves, powerMode: next.powerMode, lavdMode: next.lavdMode } : current));
         }
         catch (error) {
             reload();
@@ -508,7 +830,34 @@ function Power({ config, setConfig, reload }) {
     };
     // Rainbow ignores the color; off shows nothing — only offer the palette when it matters.
     const ledColorRelevant = config.ledMode === "static" || config.ledMode === "breathe";
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit (experimental)", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions, onChange: (mode) => applyMode(setFanMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICK LEDS", children: [SP_JSX.jsx(SelectEdit, { label: "Effect", value: config.ledMode, options: ledEffectOptions, onChange: (mode) => applyLedMode(mode) }), ledColorRelevant && (SP_JSX.jsx(ColorPalette, { colors: ledColorPresets, value: config.ledColor, onChange: (hex) => applyLed(hex) }))] })] }));
+    // Live fan readout while the tab is open (the daemon drives the fan from the same hottest zone).
+    const [fan, setFan] = SP_REACT.useState(null);
+    SP_REACT.useEffect(() => {
+        let cancelled = false;
+        const poll = async () => {
+            try {
+                const status = await getFanStatus();
+                if (!cancelled)
+                    setFan(status);
+            }
+            catch {
+                // decorative
+            }
+        };
+        poll();
+        const timer = window.setInterval(poll, 2000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, []);
+    const activeCurve = config.fanCurves?.[config.fanMode] || config.fanCurves?.quiet;
+    const openEditor = () => {
+        if (!activeCurve)
+            return;
+        DFL.showModal(SP_JSX.jsx(FanCurveModal, { name: config.fanMode, curve: activeCurve, existing: config.fanCurves, onSaved: (next) => setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves } : current)) }));
+    };
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit (experimental)", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "FAN", children: [SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions(config), onChange: (mode) => applyMode(setFanMode, mode) }), activeCurve ? SP_JSX.jsx(FanCurveGraph, { points: parseCurve(activeCurve.curve), currentTemp: fan?.temp ?? null }) : null, SP_JSX.jsx("div", { className: "pocknix-note", children: fan && fan.temp !== null && fan.percent !== null ? `Now: ${fan.temp}°C, fan at ${fan.percent}%` : "Fan readout unavailable" }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: openEditor, disabled: !activeCurve, children: activeCurve?.factory ? "Customize this curve..." : "Edit this curve..." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICK LEDS", children: [SP_JSX.jsx(SelectEdit, { label: "Effect", value: config.ledMode, options: ledEffectOptions, onChange: (mode) => applyLedMode(mode) }), ledColorRelevant && (SP_JSX.jsx(ColorPalette, { colors: ledColorPresets, value: config.ledColor, onChange: (hex) => applyLed(hex) }))] })] }));
 }
 
 function cardSummary(card) {

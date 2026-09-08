@@ -1,6 +1,7 @@
 import asyncio
 
 from pocknix_control.config import build_config
+from pocknix_control.fan_curves import delete_curve, fan_status, save_curve
 from pocknix_control.modes import set_fan_mode, set_lavd_mode, set_power_mode, set_charge_limit, set_led_color, set_led_mode
 from pocknix_control.sdcard import detect_sdcard, format_sdcard
 from pocknix_control.tweaks import save_tweaks
@@ -21,6 +22,19 @@ class Plugin:
     async def set_fan_mode(self, mode):
         await asyncio.to_thread(set_fan_mode, mode)
         return await self.get_config()
+
+    async def save_fan_curve(self, name, label, curve):
+        # Saves (or overwrites) a user curve and makes it the active one.
+        saved = await asyncio.to_thread(save_curve, name, label, curve)
+        await asyncio.to_thread(set_fan_mode, saved)
+        return await asyncio.to_thread(build_config)
+
+    async def delete_fan_curve(self, name):
+        await asyncio.to_thread(delete_curve, name)
+        return await asyncio.to_thread(build_config)
+
+    async def fan_status(self):
+        return await asyncio.to_thread(fan_status)
 
     async def set_power_mode(self, mode):
         await asyncio.to_thread(set_power_mode, mode)

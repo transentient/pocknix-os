@@ -28,8 +28,22 @@ export interface GameRef {
   nonSteam?: boolean;
 }
 
+export interface FanCurve {
+  label: string;
+  /** "tempC:pwm,tempC:pwm,..." sorted by temperature, pwm 0-255 */
+  curve: string;
+  factory: boolean;
+}
+
+export interface FanStatus {
+  temp: number | null;
+  pwm: number | null;
+  percent: number | null;
+}
+
 export interface Config {
   fanMode: string;
+  fanCurves: Record<string, FanCurve>;
   powerMode: string;
   chargeLimit: number;
   ledColor: string;

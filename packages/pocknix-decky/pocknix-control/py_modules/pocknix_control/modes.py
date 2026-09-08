@@ -8,8 +8,7 @@ FAN_MODE_FILE = Path("/var/lib/pocknix/fan-mode")
 LAVD_MODE_FILE = Path("/var/lib/pocknix/lavd-mode")
 POWER_MODE_FILE = Path("/var/lib/pocknix/power-mode")
 
-FAN_MODES = ("quiet", "moderate", "performance", "max")
-FAN_DEFAULT = "quiet"
+FAN_DEFAULT = "quiet"   # curve names: built-in + user curves, see fan_curves.py
 LAVD_MODES = ("autopilot", "performance")
 LAVD_DEFAULT = "autopilot"
 POWER_MODES = ("eco", "balanced", "performance")
@@ -25,7 +24,8 @@ def _read_mode(path, allowed, default):
 
 
 def fan_mode():
-    return _read_mode(FAN_MODE_FILE, FAN_MODES, FAN_DEFAULT)
+    from .fan_curves import valid_names
+    return _read_mode(FAN_MODE_FILE, valid_names(), FAN_DEFAULT)
 
 
 def lavd_mode():
@@ -46,8 +46,9 @@ def set_power_mode(mode):
 
 
 def set_fan_mode(mode):
-    if mode not in FAN_MODES:
-        raise ValueError(f"unknown fan mode: {mode!r}")
+    from .fan_curves import valid_names
+    if mode not in valid_names():
+        raise ValueError(f"unknown fan curve: {mode!r}")
     # pocknix-fancontrol re-reads this file every curve tick (~3s); no restart needed.
     atomically_write(FAN_MODE_FILE, mode + "\n", 0o644)
 

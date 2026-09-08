@@ -1,8 +1,11 @@
 import { call } from "@decky/api";
-import type { Config, SdcardInfo, Tweaks, UpdateInfo, UpdateStatus } from "./types";
+import type { Config, FanStatus, SdcardInfo, Tweaks, UpdateInfo, UpdateStatus } from "./types";
 
 export const getConfig = () => call<[], Config>("get_config");
 export const setFanMode = (mode: string) => call<[string], Config>("set_fan_mode", mode);
+export const saveFanCurve = (name: string, label: string, curve: string) => call<[string, string, string], Config>("save_fan_curve", name, label, curve);
+export const deleteFanCurve = (name: string) => call<[string], Config>("delete_fan_curve", name);
+export const getFanStatus = () => call<[], FanStatus>("fan_status");
 export const setPowerMode = (mode: string) => call<[string], Config>("set_power_mode", mode);
 export const setChargeLimit = (pct: number) => call<[number], Config>("set_charge_limit", pct);
 export const setLedColor = (hex: string) => call<[string], Config>("set_led_color", hex);

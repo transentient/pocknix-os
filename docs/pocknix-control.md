@@ -64,7 +64,19 @@ Pocknix Control provides the same feature natively in game mode instead:
 
 ## Power
 
-- **Fan Curve**: **Quiet**, **Moderate**, or **Performance**. Applies live, no restart.
+- **Fan Curve** (its own **Fan** section): pick **Quiet**, **Moderate**, **Performance**, **Max
+  (always 100%)**, or one of your own curves. Applies live, no restart. The graph shows the
+  selected curve with a marker at the current temperature, and the line under it reads the
+  live temperature and fan speed. A curve is a set of points (temperature, fan speed); between
+  points the fan speed is interpolated, below the first point it holds the first speed, above the
+  last it holds the last. The fan follows the hottest CPU or GPU sensor, smoothed, and speeds up
+  quickly but slows down gradually so it does not hunt.
+- **Customize this curve** / **Edit this curve** opens the editor. Built-in curves cannot be
+  changed; customizing one saves a copy under a new name and switches to it. In the editor: drag
+  points on the touchscreen, or focus the graph and press A, then move the highlighted point
+  with the d-pad and switch points with LB/RB. The sliders below edit the same point. Add,
+  remove, and delete are there too. Your curves are stored in `/etc/pocknix/fan-curves/` and can
+  also be selected from a terminal with `pocknix-fan-mode <name>` (`pocknix-fan-mode list`).
 - **CPU Scheduler**: **Autopilot** (the `scx_lavd` default - adapts to load on the fly) or
   **Performance** (keeps the CPU aggressive at the cost of battery and heat).
 
