@@ -18,7 +18,7 @@ export function FanCurveModal({ name, curve, existing, onSaved, closeModal }: {
   closeModal?: () => void;
 }) {
   const factory = curve.factory;
-  const [label, setLabel] = useState(factory ? `${curve.label} (custom)` : curve.label);
+  const [label, setLabel] = useState(factory ? `My ${curve.label.replace(/ \(.*\)$/, "")}` : curve.label);
   const [points, setPoints] = useState<CurvePoint[]>(() => parseCurve(curve.curve));
   const [selected, setSelected] = useState(0);
   const [busy, setBusy] = useState(false);

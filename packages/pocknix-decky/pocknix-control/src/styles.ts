@@ -32,6 +32,10 @@ export const styles = `
         border-radius: 6px;
         border: 2px solid transparent;
       }
+      .pocknix-control-tabs-modal .pk-fan-graph {
+        max-width: 480px;
+        margin: 4px auto;
+      }
       .pk-fan-graph-focused {
         border-color: rgba(255,255,255,0.6);
       }

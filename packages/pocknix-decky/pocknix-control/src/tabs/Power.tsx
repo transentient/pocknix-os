@@ -39,7 +39,7 @@ const powerOptions = [
 ];
 // Built-in curves first (the backend lists them in that order), then the user's own.
 const fanOptions = (config: Config) =>
-  Object.entries(config.fanCurves || {}).map(([name, curve]) => ({ data: name, label: curve.factory ? curve.label : `${curve.label} (custom)` }));
+  Object.entries(config.fanCurves || {}).map(([name, curve]) => ({ data: name, label: curve.label }));
 const lavdOptions = [
   { data: "autopilot", label: "Autopilot" },
   { data: "performance", label: "Performance" },

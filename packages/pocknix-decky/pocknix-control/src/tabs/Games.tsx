@@ -114,7 +114,7 @@ export function Games({ config, setConfig }: { config: Config; setConfig: Dispat
             <SelectEdit label="Audio Buffer" value={audioValue} options={audioLatencyOptions} onChange={(id) => patchSettings({ audioLatency: id })} />
             <ToggleField
               label="Frame Insertion (LSFG)"
-              description="Doubles presented fps by interpolation. Needs Lossless Scaling installed from Steam. Adds input latency; routes the game through host Vulkan."
+              description="Doubles presented fps by interpolation. Needs Lossless Scaling installed from Steam. Adds a little input latency."
               checked={lsfgEnabled}
               onChange={(on) => patchSettings({ lsfg: { ...lsfgSettings, enabled: on } })}
             />

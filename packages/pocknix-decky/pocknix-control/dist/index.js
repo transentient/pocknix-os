@@ -220,6 +220,10 @@ const styles = `
         border-radius: 6px;
         border: 2px solid transparent;
       }
+      .pocknix-control-tabs-modal .pk-fan-graph {
+        max-width: 480px;
+        margin: 4px auto;
+      }
       .pk-fan-graph-focused {
         border-color: rgba(255,255,255,0.6);
       }
@@ -457,7 +461,7 @@ function Games({ config, setConfig }) {
             next[key] = wanted;
         patchSettings({ fexFlags: next });
     };
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "GAME TWEAKS", children: [SP_JSX.jsx(SelectEdit, { label: "Game", value: game?.appid || "", options: editTargetOptions(config), onChange: setSelectedGame }), SP_JSX.jsx("div", { className: "pocknix-note", children: "Changes apply on next game launch" }), !editingDefault ? SP_JSX.jsx(DFL.ToggleField, { label: "Use Per-Game Settings", checked: perGameEnabled, onChange: setPerGameEnabled }) : null, editingDefault || perGameEnabled ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(SelectEdit, { label: "FEX Preset", value: fexValue, options: fexOptions, onChange: (id) => patchSettings({ fexProfile: id, fexFlags: {} }) }), SP_JSX.jsx(SelectEdit, { label: "Audio Buffer", value: audioValue, options: audioLatencyOptions, onChange: (id) => patchSettings({ audioLatency: id }) }), SP_JSX.jsx(DFL.ToggleField, { label: "Frame Insertion (LSFG)", description: "Doubles presented fps by interpolation. Needs Lossless Scaling installed from Steam. Adds input latency; routes the game through host Vulkan.", checked: lsfgEnabled, onChange: (on) => patchSettings({ lsfg: { ...lsfgSettings, enabled: on } }) }), lsfgEnabled ? (SP_JSX.jsx(SelectEdit, { label: "Insertion Multiplier", value: lsfgMultiplier, options: lsfgMultiplierOptions, onChange: (m) => patchSettings({ lsfg: { ...lsfgSettings, enabled: true, multiplier: String(m) } }) })) : null, SP_JSX.jsxs("div", { className: "pocknix-note", children: ["Advanced FEX flags", Object.keys(flagOverrides).length ? " (modified)" : ""] }), fexFlagDefs.map(({ key, label }) => (SP_JSX.jsx(DFL.ToggleField, { label: label, checked: effectiveFlag(key), onChange: (on) => setFlag(key, on) }, key)))] })) : null] }), SP_JSX.jsx(AddGameSection, {})] }));
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "GAME TWEAKS", children: [SP_JSX.jsx(SelectEdit, { label: "Game", value: game?.appid || "", options: editTargetOptions(config), onChange: setSelectedGame }), SP_JSX.jsx("div", { className: "pocknix-note", children: "Changes apply on next game launch" }), !editingDefault ? SP_JSX.jsx(DFL.ToggleField, { label: "Use Per-Game Settings", checked: perGameEnabled, onChange: setPerGameEnabled }) : null, editingDefault || perGameEnabled ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(SelectEdit, { label: "FEX Preset", value: fexValue, options: fexOptions, onChange: (id) => patchSettings({ fexProfile: id, fexFlags: {} }) }), SP_JSX.jsx(SelectEdit, { label: "Audio Buffer", value: audioValue, options: audioLatencyOptions, onChange: (id) => patchSettings({ audioLatency: id }) }), SP_JSX.jsx(DFL.ToggleField, { label: "Frame Insertion (LSFG)", description: "Doubles presented fps by interpolation. Needs Lossless Scaling installed from Steam. Adds a little input latency.", checked: lsfgEnabled, onChange: (on) => patchSettings({ lsfg: { ...lsfgSettings, enabled: on } }) }), lsfgEnabled ? (SP_JSX.jsx(SelectEdit, { label: "Insertion Multiplier", value: lsfgMultiplier, options: lsfgMultiplierOptions, onChange: (m) => patchSettings({ lsfg: { ...lsfgSettings, enabled: true, multiplier: String(m) } }) })) : null, SP_JSX.jsxs("div", { className: "pocknix-note", children: ["Advanced FEX flags", Object.keys(flagOverrides).length ? " (modified)" : ""] }), fexFlagDefs.map(({ key, label }) => (SP_JSX.jsx(DFL.ToggleField, { label: label, checked: effectiveFlag(key), onChange: (on) => setFlag(key, on) }, key)))] })) : null] }), SP_JSX.jsx(AddGameSection, {})] }));
 }
 
 const TEMP_MIN = 0;
@@ -659,7 +663,7 @@ function FanCurveGraph({ points, onChange, currentTemp, selectedIndex, onSelect 
 
 function FanCurveModal({ name, curve, existing, onSaved, closeModal }) {
     const factory = curve.factory;
-    const [label, setLabel] = SP_REACT.useState(factory ? `${curve.label} (custom)` : curve.label);
+    const [label, setLabel] = SP_REACT.useState(factory ? `My ${curve.label.replace(/ \(.*\)$/, "")}` : curve.label);
     const [points, setPoints] = SP_REACT.useState(() => parseCurve(curve.curve));
     const [selected, setSelected] = SP_REACT.useState(0);
     const [busy, setBusy] = SP_REACT.useState(false);
@@ -786,7 +790,7 @@ const powerOptions = [
     { data: "performance", label: "Performance (uncapped)" },
 ];
 // Built-in curves first (the backend lists them in that order), then the user's own.
-const fanOptions = (config) => Object.entries(config.fanCurves || {}).map(([name, curve]) => ({ data: name, label: curve.factory ? curve.label : `${curve.label} (custom)` }));
+const fanOptions = (config) => Object.entries(config.fanCurves || {}).map(([name, curve]) => ({ data: name, label: curve.label }));
 const lavdOptions = [
     { data: "autopilot", label: "Autopilot" },
     { data: "performance", label: "Performance" },
