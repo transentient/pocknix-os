@@ -55,15 +55,16 @@ factory_curve() {
 }
 
 # Resolve the active curve: built-in name, else a user curve file, else quiet.
+# Prints "<name> <points>" (runs in a subshell, so it cannot set variables for the caller).
 active_curve() {
   m="$(cat "${MODE_FILE}" 2>/dev/null | head -1 | tr -d '[:space:]')"
   case "${m}" in ""|*[!a-z0-9_]*) m=quiet ;; esac
-  if c="$(factory_curve "${m}")"; then ACTIVE="${m}"; echo "${c}"; return; fi
+  if c="$(factory_curve "${m}")"; then echo "${m} ${c}"; return; fi
   if [ -r "${CURVE_DIR}/${m}.curve" ]; then
     c="$(sed -n 2p "${CURVE_DIR}/${m}.curve" | tr -d '[:space:]')"
-    case "${c}" in *[0-9]:[0-9]*) ACTIVE="${m}"; echo "${c}"; return ;; esac
+    case "${c}" in *[0-9]:[0-9]*) echo "${m} ${c}"; return ;; esac
   fi
-  ACTIVE="quiet (fallback from '${m}')"; factory_curve quiet
+  echo "quiet(fallback-from-${m}) $(factory_curve quiet)"
 }
 
 # Take manual PWM control; restore automatic on exit.
@@ -75,7 +76,7 @@ case "${LAST}" in ''|*[!0-9]*) LAST=0 ;; esac
 SMOOTH=""
 ANNOUNCED=""
 while :; do
-  CURVE="$(active_curve)"
+  set -- $(active_curve); ACTIVE="$1"; CURVE="$2"
   if [ "${ACTIVE}" != "${ANNOUNCED}" ]; then
     echo "pocknix-fancontrol: curve '${ACTIVE}' = ${CURVE}"
     ANNOUNCED="${ACTIVE}"

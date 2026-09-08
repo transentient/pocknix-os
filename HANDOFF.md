@@ -35,6 +35,23 @@
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
   the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
 
+### 09-08: CUSTOM FAN CURVES SHIPPED TO THE DEVICE (Cliff's ask: "ArmadaOS has one, people wanted it")
+- Commit bfd662c (+ fixup): overlay pocknix-fancontrol rewritten as a curve engine (points
+  "tempC:pwm", linear interpolation, EMA on the hottest cpu/gpu zone, ramp +40/-8 per 3 s tick,
+  re-asserts pwm1/enable every tick = fixes the post-resume fan-at-0), pocknix-fan-mode accepts
+  user curves + `list`; plugin pocknix-decky-16: fan_curves.py backend, FAN section (dropdown
+  of built-in + user curves, SVG graph with live temperature marker, "Now: 62C, fan 30%"
+  readout), fullscreen editor modal (touch drag, d-pad on the focused graph, LB/RB point
+  select, sliders, add/remove/delete, "Save as new curve" for built-ins). User curves =
+  /etc/pocknix/fan-curves/<name>.curve (label line + points line). Design credit ArmadaOS
+  armada-control (GPL-2.0-or-later) in file headers. docs/pocknix-control.md updated.
+- Deployed live 18:07: daemon + helper installed, decky-16 pacman -U + decky-sync + loader
+  restart (the loader logs a harmless NameError traceback from its own crash handler on
+  restart; plugin loads). First daemon version died on `set -u` (ACTIVE set in a subshell) -
+  fixed. Backend end-to-end tested on the device (save -> daemon adopts curve -> delete ->
+  falls back to quiet). UI needs Cliff's eyes. Built-in curves unchanged in speeds/temps.
+- NOT in an RC yet: the overlay daemon change needs a respin (RC e) and decky-16 is in localrepo.
+
 ### EVENING 09-07: two Cliff reports (18:30)
 1. **Sleeping with the USB-C hub attached is UNSAFE.** 16:46 sleep on the hub (31 %, Charging) never
    woke: next journal record is a cold boot (Cliff held power). 18:15 deliberate repeat on the hub:
