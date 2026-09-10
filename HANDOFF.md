@@ -55,7 +55,8 @@
   contiguous 30 x 4K-block (120 KB) region inside
   /var/cache/pacman/pkg/linux-firmware-qcom-20251111-1-any.pkg.tar.zst (stale data on the card,
   not zeros = the card silently dropped that write). Rewriting the 64 MiB window with dd
-  seek/skip took; window re-read matches. Second full cmp running for the rest. **This card is
+  seek/skip took; window re-read matches. Second full cmp 18:06-18:22: zero differing bytes
+  over all 15,245,246,464 -> **card = RC 20260910 byte-exact, ready for the Odin.** **This card is
   end-of-life: 4-6 MB/s and now a silent write drop. Fine for this walkthrough (the bad spot is
   a cache file) but get a proper A2 card before any published-image test, and budget ~1 h per
   flash on this reader.** Lesson (Cliff, rightly annoyed): announce the duration of a
