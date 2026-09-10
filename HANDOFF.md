@@ -35,6 +35,31 @@
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
   the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
 
+### 09-11: STOCK ANDROID RESTORED VIA EDL FROM FUSOR (QPST refused to install on BONESAW)
+- QPST 2.7.496 installer dies with Error 1722 at its bundled MSXML6 step on Cliff's Windows 11
+  (compat mode + MSXML6 SP2 did not help). Switched to the open-source **bkerler/edl** client on
+  fusor (venv + git clone; PyPI has no package; keystone build takes ~10 min). Wrapper committed
+  as tools/edl-flash.sh (`check` = Sahara + printgpt, read-only; `flash` = all six rawprogram +
+  patch XMLs with the package loader xbl_s_devprg_ns.melf, --memory=ufs). Firmware set unpacked
+  to ~/odin3-backups/edl-20251206/Odin3_20251206 (6.1 GB, 104 files; do NOT put it on /tmp,
+  that is a 16 GB tmpfs).
+- EDL entry (AYN tutorial): device off, USB to fusor, hold power + vol+ + vol- until lsusb shows
+  05c6:9008; then LET GO (tell the human!). **`sudo modprobe -r qcserial usb_wwan` first** - the
+  kernel serial driver grabbing the port dropped the first session mid-GPT.
+- Flash 00:50-00:53, exit 0, no errors; 130 write bars complete; patches for all 6 LUNs sent.
+  Read-back verification: LUN0 GPT = stock layout (userdata full size, ROCKNIX/HOLODOR_ROOT
+  gone); xbl_a, xbl_b, abl_a, boot_a, vbmeta_a byte-identical to the package files. The
+  recipe skips devinfo/modemst/fsg/fsc (blank filenames) so the bootloader stays UNLOCKED and
+  modem NV is kept; persist is rewritten (MAC may change -> router reservation .32).
+- First boot: RED AVB "device is corrupt / may not work properly" BEFORE the AYN logo, then
+  boots into the Android setup wizard. Provisional reading: unlocked bootloader + rollback
+  (device previously ran the newer July build, Dec-2025 images are older) => warning, not a
+  block. **Never lock the bootloader in this state.** OTA in progress (Cliff) - expect the
+  screen to turn orange once the build is current. Android boots fully after a complete,
+  consistent flash = the August "post-AVB init failure" was the partial-flash aftermath.
+- Note for the EDL client: the wrapper's qcserial step, the melf loader, and the venv path
+  are the whole recipe; QFIL never needed. Lesson (Cliff): say when to release buttons.
+
 ### 09-10: RC 20260910 (= RC e) BUILT + SPOT-CHECKED; repo pushed; pre-EDL rescue done
 - Cliff: "pretty happy with how the device has been behaving"; EDL stock restore + INSTALL.md
   walkthrough is next (Phase 2). Pre-flash: device-only state rescued to
