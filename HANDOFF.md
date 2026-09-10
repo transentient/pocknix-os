@@ -62,7 +62,13 @@
   BEFORE pulling the cable (pulling early restarts it).
 - Android init crash in the log = a forked child of init (pid != 1), not fatal; com.odin.settings
   (AYN settings app) crash-loops 8x at early boot on this build. Neither is our problem.
-- Next: setup (skip Google, skip OTA), USB debugging on, JACK TEST, then Holodor install.
+- **03:20 CLOSE: Android checklist COMPLETE.** Jack test PASSED (Cliff, headphones take the
+  audio). Device: stock Dec-2025 Android, set up, slot a, orange, no accounts, no screen lock,
+  frp blank, no FRP lock this boot, USB debugging authorised for fusor (adb serial 6809ee9e).
+  fusor: /etc/udev/rules.d/51-android-edl.rules (18d1 + 05c6 -> group wheel + uaccess) so adb
+  works without the GDM seat owning the node; a stuck "unauthorized" needs a cable replug.
+  NEXT: Holodor install from RC 20260910 per INSTALL.md (walk it as a fresh user, resolve the
+  [VERIFY] markers). Reminder: the device idle-suspends; hold an inhibitor before unattended work.
 
 ### 09-11 02:35 STATE - stock Android up on slot a, adb authorised, checklist mostly done
 - Device booted stock after run5 (Cliff: pulsing AYN logo loop, power tap -> red screen, then it
