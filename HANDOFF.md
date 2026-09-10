@@ -35,6 +35,35 @@
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
   the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
 
+### 09-11 03:07 THE "FACTORY RESET THIS DEVICE" PROMPT WAS GOOGLE FRP - CLEARED FROM EDL
+- The prompt that drove both re-restores tonight was **Google Factory Reset Protection**
+  (focused window: com.google.android.gms/.auth.frp.FrpWarningActivity; text: "This device was
+  reset but then authentication during setup failed ... reset again and enter the device's
+  previous screen lock or Google Account credentials"; only button = Reset; no way past it).
+  NOT the A/B slots, NOT /data keys, NOT the OTA. The AYN factory recipe never writes the
+  512 KB `frp` partition (LUN0, blank filename in rawprogram_unsparse0.xml), so every EDL
+  restore and every factory reset kept the old owner marker (607 non-zero bytes, backed up
+  to ~/odin3-backups/edl-20251206/frp-before-clear-20260911-030127.bin). The Dec-2025 setup
+  wizard never offered the account/PIN verification even with Wi-Fi connected (tried twice),
+  so signing in was not available.
+- Fix: EDL `edl e frp --memory=ufs --lun=0` (Cliff typed it via `!`; the fusor classifier
+  blocks an agent from staging or running a partition erase, read-only edl steps are fine),
+  read back = 524288 bytes all zero (frp-after-clear.bin), then `edl reset`. Android booted
+  clean to the wizard at 03:06.
+- **Boot choreography after an EDL reset with the cable in (all bootloader-side, no kernel
+  USB until it is done):** red "device is corrupt" screen -> if untouched it times out and
+  RESTARTS (AYN logo -> red -> ...). Short TAP power at the red screen continues. Because the
+  cable was already in, that continues into the CHARGER screen (battery picture, kernel gadget
+  05c6:f000 enumerates). Hold power ~3 s until the AYN logo to boot Android from there; the
+  red screen comes once more, tap once. Android = 18d1:4ee1/4ee2 on USB.
+- EDL entry that worked first try tonight: device off, cable out, hold vol+ AND vol-, plug the
+  cable in while holding, count five, release (the AYN logo flashing during the count is fine).
+  Power off from a running device: power menu -> Power off, then wait 10 s of black screen
+  BEFORE pulling the cable (pulling early restarts it).
+- Android init crash in the log = a forked child of init (pid != 1), not fatal; com.odin.settings
+  (AYN settings app) crash-loops 8x at early boot on this build. Neither is our problem.
+- Next: setup (skip Google, skip OTA), USB debugging on, JACK TEST, then Holodor install.
+
 ### 09-11 02:35 STATE - stock Android up on slot a, adb authorised, checklist mostly done
 - Device booted stock after run5 (Cliff: pulsing AYN logo loop, power tap -> red screen, then it
   booted; the exact sequence that broke the loop is not known). Android reports
