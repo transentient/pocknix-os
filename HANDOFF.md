@@ -35,6 +35,30 @@
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
   the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
 
+### 09-11 01:57 STATE - READ FIRST (Cliff ended the session angry: "your timing is very bad")
+- **Device = stock Dec-2025 Android, freshly EDL-restored a SECOND time at 01:53-01:56 (run5:
+  130 writes, 0 USB errors, exit 0).** Not yet booted after it. Boot = unplug USB, hold power;
+  short-TAP power at the red AVB screen (it is a "press to continue" pause, a long hold turns the
+  device off - this cost an hour of confusion); setup wizard follows. **DO NOT TAKE THE OTA.**
+- What went wrong after the first (good) restore: the OTA applied as a Virtual A/B snapshot to
+  slot b; slot b never booted (bootloader menu, retry 7->6, then red screen and back to the
+  menu). I cancelled the snapshot + set_active a; Android on slot a then hit "authentication
+  failed, factory reset" every boot (/data key vs metadata out of step). Stock recovery wipe
+  gave one boot then the same dialog. The stock ABL has NO fastboot `erase` ("unknown command"),
+  so the fix was the EDL restore again. A mid-flash attempt (run3, 73/127 writes) was aborted by
+  a power-key hard reset while Cliff was still holding buttons -> boot loop (half-written LUN4)
+  until run5 completed. Why slot b would not boot after the OTA: UNKNOWN, uninvestigated.
+- **EDL entry that finally worked without the power key:** device off, unplug USB, hold vol+ AND
+  vol-, plug the cable in (USB insertion powers it on), release the moment lsusb shows 05c6:9008.
+  Holding power past ~10 s hard-resets the chip and kills the EDL session. Always
+  `sudo modprobe -r qcserial usb_wwan` first. Then `~/edl-flash.sh flash` as a systemd-run unit.
+  Bootloader menu = hold vol-down + press power from off (works; the "USB bounce" does not).
+- **Human factors, non-negotiable next time:** state the exact release moment BEFORE asking for
+  any button hold; never make Cliff hold buttons while a tool call runs; one instruction per
+  message; no speculative "should" about what the device will do.
+- Still open from the Android checklist: jack test, build string, wlan_gng line (adb never got
+  authorised: the "Allow USB debugging" dialog kept getting displaced by the reset prompt).
+
 ### 09-11: STOCK ANDROID RESTORED VIA EDL FROM FUSOR (QPST refused to install on BONESAW)
 - QPST 2.7.496 installer dies with Error 1722 at its bundled MSXML6 step on Cliff's Windows 11
   (compat mode + MSXML6 SP2 did not help). Switched to the open-source **bkerler/edl** client on
