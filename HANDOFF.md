@@ -35,6 +35,22 @@
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
   the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
 
+### 09-10: RC 20260910 (= RC e) BUILT + SPOT-CHECKED; repo pushed; pre-EDL rescue done
+- Cliff: "pretty happy with how the device has been behaving"; EDL stock restore + INSTALL.md
+  walkthrough is next (Phase 2). Pre-flash: device-only state rescued to
+  ~/odin3-backups/device-rescue-20260910/ (telemetry/drain/charge logs, wifi profiles, pocknix
+  state, game-tweaks, Steam userdata, Cyberpunk/VS/Balatro saves; SHA256SUMS); ABL backups in
+  odin3-abl-backup/ re-verified (abl_b.img == stock_abl_b.img); EDL package present; diag hooks
+  gone; repo pushed (bce932e).
+- **RC 20260910** = build/image/sm8750/holodor-odin3-20260910-seedless.img.zst (7.73 GiB,
+  sha256 dceac9bd…, sidecar; raw 48a39f5b…; log build/respin-20260910.log). Spot-check ALL
+  GREEN: kernel-25, bsp-common-20, bsp-sm8750-17, desktop-9, decky-17 (fan curves + downloads
+  switch in dist + py_modules), steam-41, mesa-next-5 pair, fex-rootfs-3; overlay fancontrol =
+  curve engine, download-inhibit = policy version; units power-mode/flathub/download-inhibit/
+  fancontrol/powerd enabled; cmdline s2idle, md5 OK; iwd/UPower baked; only pocknix-sleep hook;
+  no Steam tree, empty passwords, no wifi profiles, sshd off, Asia/Tokyo. Supersedes 20260907.
+  This is the walkthrough image: flash it to the SD with ~/flash-rc.sh.
+
 ### 09-09: "STAY AWAKE FOR DOWNLOADS" SWITCH (bsp-common-20 + decky-17, deployed live 08:19)
 - Cliff learned the download sleep-guard has existed since bsp-common-16 (08-31, ours, not
   upstream) and asked for a switch, default on. Power tab now has a DOWNLOADS section:
