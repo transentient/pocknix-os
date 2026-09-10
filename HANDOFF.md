@@ -50,6 +50,16 @@
   fancontrol/powerd enabled; cmdline s2idle, md5 OK; iwd/UPower baked; only pocknix-sleep hook;
   no Steam tree, empty passwords, no wifi profiles, sshd off, Asia/Tokyo. Supersedes 20260907.
   This is the walkthrough image: flash it to the SD with ~/flash-rc.sh.
+- **SD flash 09-10 (32 GB dashcam card, USB2 reader): 44 min write at 5.8 MB/s + 15 min
+  readback, then VERIFY FAILED.** Full cmp: first difference at byte 13,808,500,737 = a single
+  contiguous 30 x 4K-block (120 KB) region inside
+  /var/cache/pacman/pkg/linux-firmware-qcom-20251111-1-any.pkg.tar.zst (stale data on the card,
+  not zeros = the card silently dropped that write). Rewriting the 64 MiB window with dd
+  seek/skip took; window re-read matches. Second full cmp running for the rest. **This card is
+  end-of-life: 4-6 MB/s and now a silent write drop. Fine for this walkthrough (the bad spot is
+  a cache file) but get a proper A2 card before any published-image test, and budget ~1 h per
+  flash on this reader.** Lesson (Cliff, rightly annoyed): announce the duration of a
+  long hardware step when the step is decided, so it can run overnight.
 
 ### 09-09: "STAY AWAKE FOR DOWNLOADS" SWITCH (bsp-common-20 + decky-17, deployed live 08:19)
 - Cliff learned the download sleep-guard has existed since bsp-common-16 (08-31, ours, not
