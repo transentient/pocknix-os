@@ -1,6 +1,114 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-07 16:00 JST - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-11 03:30 JST - READ THIS FIRST (written by Claude Fable 5.1)
+
+### Where we are
+- **Odin 3 = stock Dec-2025 Android, CLEAN and READY for the Holodor install.** Set up (no Google
+  account, no screen lock, OTA declined), slot a, verifiedbootstate orange, bootloader unlocked,
+  `frp` partition blank, USB debugging authorised for fusor (adb serial 6809ee9e), plugged into
+  fusor USB (bus 1-2). Build Odin3_V1.0.0.107_20251206, Android 15, patch 2025-06-05.
+- **Phase-2 Android checklist COMPLETE 2026-09-11:** jack test PASSED; wlan fw in stock =
+  WLAN.GNG.1.0-04065 = ours (no cnss2 lift); build string captured; Android boots fully after a
+  complete EDL restore. Only "does the OTA bring newer wlan fw" is unanswered and stays so.
+- **RC to install = 20260910** (build/image/sm8750/holodor-odin3-20260910-seedless.img.zst; SD card
+  written and verified byte-exact per commit c2d2ec1). Repo: commits 4ffeb0e..c43efb1 tonight
+  (handoff only + .gitignore); NOT pushed unless Cliff did.
+- **EDL tooling is durable now:** client venv at ~/edlenv (moved out of a session tmpfs scratchpad;
+  `~/edlenv/bin/edl --help` works), wrapper tools/edl-flash.sh (check|flash), firmware at
+  ~/odin3-backups/edl-20251206/Odin3_20251206, all logs + frp backups in ~/odin3-backups/edl-20251206/.
+- fusor: new /etc/udev/rules.d/51-android-edl.rules (18d1 + 05c6 -> MODE 0660 GROUP wheel +
+  uaccess); noted in ~/projects/linux_boxes/fusor/NOTES.md.
+
+### What happened 2026-09-11 01:57-03:20 (this session)
+- Reconstructed the device state from the EDL logs and fusor's kernel USB history (journalctl -k):
+  run5 flash (01:53-01:56) was complete and clean; the device was still in EDL; `edl reset` got it
+  out. Killed a stray `edl` client (00:29) and the stray forked Claude session (01:49, background
+  pty) that had been answering Cliff late.
+- Diagnosed the "Factory reset this device" lockout as **Google FRP** (adb `dumpsys window` ->
+  com.google.android.gms/.auth.frp.FrpWarningActivity + screenshot), backed up frp (607 non-zero
+  bytes), Cliff erased it via `! sudo ~/edlenv/bin/edl e frp --memory=ufs --lun=0 --loader=...`,
+  readback all-zero, `edl reset`, Android booted to the already-set-up system.
+- Read build string / boot props / wlan fw over adb; Cliff did the jack test. Details in the
+  dated 09-11 sections below.
+
+### WHAT WE WERE WRONG ABOUT tonight - do NOT re-derive these
+- **WRONG: "the reset prompt = /data key vs metadata out of step after the OTA" (01:57 handoff).**
+  It was FRP. The OTA did not cause the lockout; the reset dialog appears on ANY fresh setup while
+  frp is populated. Do NOT re-flash the device over that prompt ever again. (Slot b not booting
+  after the OTA is a SEPARATE, still-unexplained fact.)
+- **WRONG: "connect Wi-Fi in the wizard and it will ask for the old account/PIN".** Tried with
+  Wi-Fi connected; the Dec-2025 wizard never offers the check. Only the frp erase works.
+- **WRONG: "the wizard moves on by itself after Wi-Fi".** It does not; you go back and advance
+  manually. Skipping the OTA screen returns you to the Wi-Fi screen; advance again.
+- **WRONG: "at the red screen, wait ~10 s and it continues".** Untouched it RESTARTS (bootloader
+  loop, no kernel USB ever appears). A short power TAP continues. Both earlier "pulsing AYN"
+  loops were this.
+- **WRONG (Fable, 02:20): "the device may just be slow to come back after an EDL reset".** It was
+  sitting in the red-screen restart loop; after `edl reset` ALWAYS tell Cliff to tap power at
+  the red screen.
+- **WRONG (Opus 4.8 turn, ~02:50): "the FRP dialog is dismissable, use the device behind it".**
+  It is modal, Reset is the only button. Cliff's report was correct.
+- **Misread: an init crash in `logcat -b crash`** = a forked child of init (pid != 1), not a
+  fatal init death. com.odin.settings crash-looping 8x at early boot is AYN's app, not ours.
+- **Not a fault: the battery picture after the red-screen tap** = Android charger mode because
+  the cable was in at power-on. Hold power ~3 s to the AYN logo to boot Android.
+
+### TRAPS
+- NEVER lock the bootloader (rollback/AVB state; red screen at every boot as it is).
+- DO NOT TAKE THE OTA (slot b never booted after it 2026-09-11 01:xx; cancelling the snapshot
+  then led into the FRP maze). Decline it in the wizard and in Settings.
+- Do not add a Google account or a screen lock to stock Android: that re-populates frp and the
+  next reset locks the device again. The frp backup (frp-before-clear-20260911-030127.bin) is
+  forensic only; never write it back.
+- Holding power > ~10 s hard-resets the chip (kills EDL sessions, restarts a shutting-down
+  device). Pulling the cable within ~10 s of "Power off" restarts the device.
+- `sudo modprobe -r qcserial usb_wwan` before any EDL work; the kernel driver grabs 9008.
+- The classifier blocks an agent staging OR running a partition erase/raw write (even a guarded
+  script with `edl e` in it). Read-only edl (printgpt, r, reset) is fine. Cliff types the
+  one write line with `!`.
+- adb "no permissions" = the GDM greeter owns the seat ACL (fixed by the udev rule); adb
+  "unauthorized" with no prompt on the device = unplug/replug the cable.
+- The stock ABL has no fastboot `erase`; slot counters are not readable from a user build
+  (`fastboot getvar all` from the bootloader menu is the read-only way if ever needed).
+- `edl_config.json` is dropped in the cwd by the client (gitignored).
+- Human factors (Cliff, non-negotiable): one instruction per message; the release moment is a
+  COUNT ("count five"), never "when I say"; never make Cliff hold buttons while a tool call
+  runs; say what the screen will show and what USB will show; label readings as readings.
+  Fusor's USB history is the truth: 05c6:9008 EDL, 05c6:f000 kernel up (charger or early boot),
+  18d1:4ee1 Android, 18d1:4ee2 Android+adb, 18d1:d00d bootloader fastboot, 18d1:d001 fastbootd.
+
+### NEXT (in order)
+1. **Holodor install from RC 20260910 per INSTALL.md, walked as a fresh user** (the SD card is
+   already written and verified). Resolve the [VERIFY] markers as you go: Android menu names are
+   now observable over adb/screenshot (Settings > About device > tap Build number x7 > System >
+   Developer options; "USB debugging"; OEM unlocking - the bootloader is ALREADY unlocked), boot
+   order with the SD inserted, the ROCKNIX ABL release URL + files, the non-ssh terminal path.
+   Hold a sleep inhibitor on the device before unattended work (it idle-suspends).
+2. After install-to-internal: test the restore path (restore_backup_abl.sh -> stock ABL -> Android
+   boots; with frp blank it will NOT lock). odin3-abl-backup/ was re-verified 09-10.
+3. Fold tonight's findings into INSTALL.md / docs: the FRP note (users who restore stock must
+   expect the FRP prompt if they had a Google account; remove the account BEFORE installing
+   Holodor), the red-screen tap, charger-mode hold, EDL entry recipe. Cliff's voice; no em-dashes.
+4. Release mechanics after the walkthrough (publish-image.sh, password flow, archive.org, docs
+   audit, public flip). Cliff pushes the repo.
+5. Optional/deferred: `fastboot getvar all` from the bootloader menu to read slot-successful /
+   retry counters (explains the 7->6 retry seen on slot b); why slot b would not boot after the
+   OTA; whether AYN's OTA carries newer wlan fw.
+
+### Open questions
+- Why the bootloader shows the red "device is corrupt" text while the OS reports orange. Reading:
+  rollback index from the newer July build vs the Dec images, tolerated because unlocked. Unproven.
+- Why slot b would not boot after the OTA (Virtual A/B snapshot). Uninvestigated. Do not take the
+  OTA to find out.
+- Whether the "pulsing AYN" loop has a timeout that eventually continues on its own (Cliff saw
+  it "boot itself out" once, 02:38) or always needs the tap. Always tap; it costs nothing.
+
+— written 2026-09-11 03:30 JST by **Claude Fable 5.1** (this session 01:57-03:30: state
+reconstruction, FRP diagnosis + fix, Android checklist closed; one mid-session reply at ~02:50
+was produced by Claude Opus 4.8 after a /model toggle, and that reply's "dismiss the dialog"
+suggestion was wrong, see above)
+
+## PREVIOUS STATE 2026-09-07 16:00 JST (superseded by the 2026-09-11 block above; still accurate for the repo/RC facts) (written by Claude Fable 5.1)
 
 ### Where we are
 - **Cliff's calls today (09-07):** RCs are release candidates, as many as needed, he releases when it
