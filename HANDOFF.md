@@ -35,6 +35,27 @@
   packages/mesa-next/patches-staged/. fex-rootfs back to pkgrel 3. `make packages` now reproduces
   the shipped stack. Mesa pin bumps: one per month, one variable, harness first, post-release.
 
+### 09-11 02:35 STATE - stock Android up on slot a, adb authorised, checklist mostly done
+- Device booted stock after run5 (Cliff: pulsing AYN logo loop, power tap -> red screen, then it
+  booted; the exact sequence that broke the loop is not known). Android reports
+  ro.boot.verifiedbootstate=orange (bootloader unlocked, AVB passed), slot_suffix=_a,
+  bootreason=reboot,factory_reset (first-boot userdata wipe). The "corrupt" screen the bootloader
+  shows does not match the orange the OS reports; unexplained, low priority.
+- **Build string:** Odin3_V1.0.0.107_20251206_171443_user, fingerprint
+  qti/sun/sun:15/AQ3A.250728.001/eng.Odin3.20251206.170137:user/dev-keys, Android 15, security
+  patch 2025-06-05, built Dec 6 2025 17:01 HKT.
+- **wlan_gng: MATCHES OURS.** dumpsys wifi: FW:1.0.0.0.4065.1 HW:PEACH_V2
+  WLAN.GNG.1.0-04065-QCAGNGSWPL_V1.0_V2.0_SILICONZ-1, driver 5.2.1.123. No cnss2 file lift needed
+  for the Dec-2025 build. (ver_info.txt itself is not readable by the adb shell user; dumpsys wifi
+  is the route.) Whether the OTA carries newer wlan fw stays unknown: the OTA is NOT to be taken.
+- Slot success/retry counters are not readable from a user build over adb (no bootctl). If wanted:
+  `fastboot getvar all` from the bootloader menu (read-only) shows slot-successful/retry-count.
+- Housekeeping: the EDL venv now lives at ~/edlenv (copied out of the session tmpfs scratchpad,
+  shebangs rewritten; `edl --help` runs) = the default path in tools/edl-flash.sh. A stray `edl`
+  client from the 00:29 session was killed. `edl_config.json` is a file the client writes in its
+  cwd; gitignored.
+- Open: jack test (Cliff, in progress).
+
 ### 09-11 01:57 STATE - READ FIRST (Cliff ended the session angry: "your timing is very bad")
 - **Device = stock Dec-2025 Android, freshly EDL-restored a SECOND time at 01:53-01:56 (run5:
   130 writes, 0 USB errors, exit 0).** Not yet booted after it. Boot = unplug USB, hold power;
