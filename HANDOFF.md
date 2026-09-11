@@ -16,6 +16,15 @@
   passwords empty, sshd off, no Steam tree. Supersedes 20260910. **NOT yet flashed to the SD card**
   (the card still holds 20260910; ~/flash-rc.sh now points at 20260911, run it when the card is in
   fusor's reader).
+- **17:16-18:06 SD flash of RC 20260911 onto the 64 GB ex-daily-driver card** (Cliff's choice, knowing
+  the 08-20 note says ABL v1.1.7 could not see this card; Part C step 6 will settle it). 19 min write,
+  then VERIFY FAILED: ONE contiguous 120 KiB region (30 x 4K, image offset 15096823808, inside
+  /var/cache/pacman/pkg/proton-cachyos-…pkg.tar.zst on p2), nothing else. **Same 120 KiB signature as
+  the 09-10 drop on the 32 GB card** -> suspect the USB reader / write path on fusor, not the cards
+  (Cliff's hunch; he keeps the old cards for a later look). Rewrote the window with the guarded
+  ~/rewrite-sd-window.sh (OFFSET LENGTH; agent-runnable), window read-back exact; **full read-back
+  verify PASSED (card = RC 20260911 byte-exact, ready for the Odin).** Read-only card checks: `cmp` the raw image vs /dev/sdb is memory-light and
+  fast; a python chunk reader got killed by the harness "low memory" watchdog (spurious).
 - **Repo:** committed this session (see git log), NOT pushed unless Cliff did.
 
 ### What changed this session (Cliff's review request: "botched dual boot", FRP, bulletproof install)
