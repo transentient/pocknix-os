@@ -23,6 +23,8 @@ polkit.addRule(function(action, subject) {
     if (action.id == "org.freedesktop.policykit.exec" &&
         (action.lookup("program") == "/usr/local/bin/pocknix-install-internal" ||
          action.lookup("program") == "/usr/local/bin/pocknix-uninstall-internal" ||
+         action.lookup("program") == "/usr/local/bin/pocknix-clear-frp" ||          // 512 KiB zero write, self-guarded
+         action.lookup("program") == "/usr/local/bin/pocknix-restore-stock-abl" ||  // validated + read-back-verified
          action.lookup("program") == "/usr/local/bin/pocknix-update")) {
         return polkit.Result.YES;
     }

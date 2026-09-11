@@ -83,6 +83,26 @@ populate_arm_efi_boot() {
   cp "${KOUT}/dtbs/"*.dtb "${mnt}/boot/grub/"
 }
 
+# qcom-abl boot partition contents beyond /KERNEL: the ROCKNIX ABL folder
+# (signed ELF + the Android-side backup/flash/restore scripts), shipped in the
+# rootfs by pocknix-bootloader-${SOC} at /usr/share/bootloader/rocknix_abl —
+# the same place ROCKNIX keeps it, so kernel/${SOC}/bootloader/update.sh
+# refreshes /flash from it on updates. The user reads the folder off the SD
+# from Android to flash the bootloader; it is the only way a fresh user gets
+# the scripts (the ROCKNIX GitHub release holds ELFs only). Required on
+# sm8750; absent on sm8550 (its ABL predates the folder) so only warn there.
+populate_qcom_abl_boot() {
+  local mnt="$1" bl="${ROOTFS_DIR}/usr/share/bootloader/rocknix_abl"
+  if [ ! -d "${bl}" ]; then
+    [ "${SOC}" = "sm8750" ] && die "qcom-abl: ${bl#${ROOTFS_DIR}} missing from the rootfs — is pocknix-bootloader-${SOC} built and installed? (make packages PKG=pocknix-bootloader-${SOC} + make build)"
+    warn "no ${bl#${ROOTFS_DIR}} in the rootfs — SD boot FAT ships without the ROCKNIX ABL folder"
+    return 0
+  fi
+  mkdir -p "${mnt}/rocknix_abl"
+  cp "${bl}"/* "${mnt}/rocknix_abl/"
+  log "SD boot FAT: rocknix_abl/ ($(ls "${mnt}/rocknix_abl" | wc -l) files, ABL $(sha256sum "${mnt}/rocknix_abl/abl_signed-${SOC^^}.elf" 2>/dev/null | cut -c1-12))"
+}
+
 firstboot_config() {
   local root="$1"
   log "configuring first boot (root login, fstab, ssh, network, hostname)"
@@ -402,6 +422,7 @@ main() {
   cp "${KERNEL_IMG}" "${MNT}/KERNEL"
   ( cd "${MNT}" && md5sum KERNEL > KERNEL.md5 )
   [ "${BOOTLOADER}" = "arm-efi" ] && populate_arm_efi_boot "${MNT}"
+  [ "${BOOTLOADER}" = "qcom-abl" ] && populate_qcom_abl_boot "${MNT}"
   sync; umount "${MNT}"
   # root partition: the rootfs
   mount "${LOOP}p2" "${MNT}"

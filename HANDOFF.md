@@ -1,6 +1,91 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-11 03:30 JST - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-11 16:30 JST - READ THIS FIRST (written by Claude Fable 5.1)
+
+### Where we are
+- **Device:** unchanged from the 03:30 block: stock Dec-2025 Android on slot a, clean, no accounts,
+  no screen lock, frp blank, OTA declined, adb authorised (serial 6809ee9e), on fusor USB. Nothing
+  was written to the device this session (adb reads + screenshots only; the "Odin settings" app was
+  opened for menu-name capture).
+- **RC to install = 20260911** (build/image/sm8750/holodor-odin3-20260911-seedless.img.zst, 7.74 GiB,
+  sha256 2db43dcf…, sidecar; log build/respin-20260911.log; recipe = build-image RESUME+SKIP_PKGPHASE+
+  SEEDLESS -> build-sd-image SEEDLESS+RELEASE SD_TIMEZONE=Asia/Tokyo -> zstd -12, all with
+  DEVICE=sm8750). Loop-mount spot-check ALL GREEN (scratch spotcheck.sh): SD FAT carries
+  rocknix_abl/ (8 files, ABL v1.1.7 sha 79e82279… = release), every changed overlay file byte-equal
+  to the repo, pocknix-bootloader-sm8750-1.1.7-1 + pocknix-device-sm8750-0.2.0-2 installed, root/deck
+  passwords empty, sshd off, no Steam tree. Supersedes 20260910. **NOT yet flashed to the SD card**
+  (the card still holds 20260910; ~/flash-rc.sh now points at 20260911, run it when the card is in
+  fusor's reader).
+- **Repo:** committed this session (see git log), NOT pushed unless Cliff did.
+
+### What changed this session (Cliff's review request: "botched dual boot", FRP, bulletproof install)
+Review + decisions: docs/review-2026-09-11-dual-boot.md (Cliff said yes to all four recommendations).
+1. **pocknix-bootloader-sm8750** (new package): ROCKNIX ABL v1.1.7 ELF (vendored, sha verified) +
+   backup_abl.sh / flash_abl.sh / restore_backup_abl.sh / disable_android_updates.sh /
+   enable_android_updates.sh / README.txt -> /usr/share/bootloader/rocknix_abl; build-sd-image copies
+   it onto the SD boot FAT for qcom-abl (dies on sm8750 if missing). The GitHub release tarball has NO
+   scripts, and the old INSTALL.md A.1 was unfollowable. Our backup_abl.sh also copies the two images
+   to the SD card (/mnt/media_rw/*/rocknix_abl/) so the backup survives the userdata wipe.
+2. **pocknix-clear-frp** (new): --check prints frp=clean|populated|absent (exit 0/3/4); --yes zeroes
+   /dev/disk/by-partlabel/frp (sda8, 512 KiB) and read-back verifies. This is the software fix for the
+   09-11 "Factory reset this device" lockout, from Linux instead of EDL.
+3. **pocknix-restore-stock-abl** (new): finds abl_a/abl_b backups (--from, /flash/rocknix_abl,
+   /var/lib/holodor/abl-backup, internal ROCKNIX FAT abl-backup/), validates (size == partition, ELF
+   magic, NOT byte-equal to the shipped ROCKNIX ELF), clears frp first, dd's both slots, cmp read-back.
+   Loop-device tested on fusor: good backup accepted, ROCKNIX-padded backup refused, short file
+   refused, write + read-back OK, exit 0.
+4. **pocknix-install-internal / -uninstall-internal:** --clear-frp/--keep-frp (interactive prompt;
+   --yes clears); --detect adds frp= and abl_backup=; installer copies the SD's backup to
+   <internal FAT>/abl-backup and /var/lib/holodor/abl-backup (+SHA256SUMS); abort text no longer
+   mentions fastboot erase (the stock ABL has none).
+5. **pocknix-installer-gui = "Holodor Installer"** (desktop entry renamed): SD menu = Install / Fix
+   Android setup lock / Restore stock bootloader; occupied menu = Reinstall / Remove / Fix lock /
+   Restore; FRP consent dialog (default clear) before every userdata wipe; restore is a separate
+   deliberate step AFTER the user has booted Android once. polkit rule allows the two new CLIs.
+6. **INSTALL.md rewritten** (SD flashed FIRST, bootloader kit read off the card in Android, verified
+   menu path Settings > Odin settings > Run script as Root, Part A "remove Google account + decline
+   OTA", GUI install path, Part F "going back" with the three EDL rules and the frp erase line,
+   dark-gap warning, new troubleshooting + known limitations). README install summary aligned.
+   docs/install-to-internal.md: POCKNIX_ROOT -> HOLODOR_ROOT, pointed at the GUI.
+   README's "Android preserved" check mark is still there: it is UNPROVEN until walkthrough step 4.
+
+### TRAPS (new this session)
+- `make packages` needs `DEVICE=sm8750` in the env or it builds in the sm8550 chroot and skips every
+  sm8750 package ("no packages built"). makepkg local sources must be flat in the package dir
+  (a `subdir/file` source fails "not found in the build directory"). Add options=('!strip') to any
+  package carrying a signed ELF (makepkg's strip errors on it; bytes were unchanged, verified).
+- A bash `trap cleanup EXIT` whose last command is a failed `[ -n "" ] && …` makes a SUCCESSFUL script
+  exit 1 (caught by the loop test; the GUI would have reported "Restore failed"). End trap
+  functions with `return 0`.
+- Feeding a heredoc'd python script whose replacement text contains a bare `EOF` line terminates the
+  outer heredoc; the rest runs as shell (a `read -rp` then hangs the tool call). Write patch scripts to
+  a file instead.
+- `pocknix-clear-frp --check` exits 3 when populated: under `set -euo pipefail` wrap it
+  `{ … || true; } | sed` in callers.
+
+### NEXT (in order) - the walkthrough, and what it must PROVE
+0. Cliff puts the SD card in fusor's reader -> `~/flash-rc.sh` (guarded, agent-runnable) -> byte-verify.
+1. Part A-C as a fresh user from INSTALL.md: Android reads the card (does vold mount our GPT/FAT p1?
+   ROCKNIX relies on it, unverified on the Odin 3), Files app copy, Run script as Root backup_abl.sh,
+   **the two images land on the SD card too** (the /mnt/media_rw/* glob line is untested on the
+   runner), flash_abl.sh, Volume Down menu, model, System Stats card test, disable_android_updates.sh
+   (untested: does `pm disable` work from the runner's root shell?).
+2. Part D: SD boot, first boot, Steam.
+3. Part E through the GUI: --detect must report frp=clean + abl_backup=found; install; abl-backup
+   copies present on internal FAT + /var/lib/holodor.
+4. **Android boots from the ABL menu after the internal install. NEVER PROVEN on this device.** Gate
+   for the README claim.
+5. Boot order with the SD left in (the old [VERIFY]).
+6. Add a Google account in Android, then GUI "Remove Holodor": FRP dialog appears, clear, Android
+   sets up clean. The test that matters most for users.
+7. "Restore stock bootloader" from the SD: Android boots on the stock ABL; then flash_abl.sh again
+   from Android to get the menu back (or leave stock if we are done).
+8. Fold results into INSTALL.md (Cliff's voice sweep), fix the README row, release mechanics.
+Hold a sleep inhibitor on the device before unattended work.
+
+— written 2026-09-11 16:30 JST by **Claude Fable 5.1**
+
+## PREVIOUS STATE 2026-09-11 03:30 JST (superseded by the 16:30 block above; device facts still accurate)
 
 ### Where we are
 - **Odin 3 = stock Dec-2025 Android, CLEAN and READY for the Holodor install.** Set up (no Google

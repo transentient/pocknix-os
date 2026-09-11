@@ -38,9 +38,11 @@ side.
 
 ## Install
 
-See **[INSTALL.md](INSTALL.md)**. Summary: one-time ROCKNIX bootloader setup (with
-mandatory backup), flash the image to a compatible SD card, boot; optionally install
-to internal storage afterward.
+See **[INSTALL.md](INSTALL.md)**. Summary: flash the image to an SD card, do the
+one-time ROCKNIX bootloader setup from the files on that card (with a mandatory
+backup), boot; then install to internal storage alongside Android with the Holodor
+Installer app. Everything needed is in the one image download. Going back to
+Android, or to a fully stock device, is covered there too.
 
 ## Building from source
 

@@ -39,7 +39,7 @@ esac
 DEVICE="${DEVICE:-${POCKNIX_INTERNAL_DISK:-/dev/sda}}"
 BOOT_NAME="${POCKNIX_BOOT_GPT_NAME:-ROCKNIX}"     # GPT name of the boot FAT  (pocknix-install-internal)
 ROOT_NAME="${POCKNIX_ROOT_LABEL:-POCKNIX_ROOT}"   # GPT name of the ext4 root
-DISABLE_BOOT=0 ; ENABLE_BOOT=0 ; DRY_RUN=0 ; ASSUME_YES=0
+DISABLE_BOOT=0 ; ENABLE_BOOT=0 ; DRY_RUN=0 ; ASSUME_YES=0 ; FRP_MODE=""   # clear | keep | "" (ask; --yes clears)
 
 say()  { echo -e "[\033[1;34mpocknix-uninstall\033[0m] $*"; }
 die()  { echo -e "[\033[1;31mERROR\033[0m] $*" >&2; exit 1; }
@@ -52,7 +52,9 @@ while [ $# -gt 0 ]; do
     --dry-run)      DRY_RUN=1 ;;
     --yes|-y)       ASSUME_YES=1 ;;
     --device)       DEVICE="$2"; shift ;;
-    *) die "unknown arg: $1 (use --disable-boot | --enable-boot | --dry-run | --yes | --device DEV)" ;;
+    --clear-frp)    FRP_MODE=clear ;;
+    --keep-frp)     FRP_MODE=keep ;;
+    *) die "unknown arg: $1 (use --disable-boot | --enable-boot | --dry-run | --yes | --device DEV | --clear-frp | --keep-frp)" ;;
   esac
   shift
 done
@@ -169,12 +171,26 @@ for n in "$UD_NUM" "$BOOT_NUM" "$ROOT_NUM"; do
 done
 [ "$UD_START" -gt 0 ] && [ "$END" -gt "$UD_START" ] || die "could not compute userdata boundaries"
 
+FRP="$(pocknix-clear-frp --check 2>/dev/null | sed -n 's/^frp=//p' || true)"
 say "Plan on $DEVICE:"
 say "  remove ${ROOT_NAME:+$ROOT_NAME #$ROOT_NUM}  ${BOOT_NAME:+$BOOT_NAME #$BOOT_NUM}"
 say "  grow  userdata #$UD_NUM  ->  ${UD_START}MiB .. ${END}MiB  (reclaims the pocknix space)"
 say "  Android will reformat userdata on its next boot (its contents are wiped)."
+say "  Android factory-reset-protection marker (frp): ${FRP:-unknown}"
 if [ "$ASSUME_YES" != 1 ] && [ "$DRY_RUN" != 1 ]; then
   read -rp "Proceed? [y/N]: " c; [[ $c =~ ^[Yy]$ ]] || die "aborted"
+fi
+# frp: the wipe below factory-resets Android; a populated marker then locks it out at setup
+# (AYN's wizard cannot take the old account). Clear it with consent; --yes clears.
+if [ "$FRP" = populated ] && [ "$DRY_RUN" != 1 ]; then
+  if [ -z "$FRP_MODE" ]; then
+    if [ "$ASSUME_YES" = 1 ]; then FRP_MODE=clear; else
+      echo "  Android's factory-reset-protection marker is set (Google account / screen lock). Left in place,"
+      echo "  Android locks at its next setup with no way past. Clearing it writes zeros to the frp partition."
+      read -rp "  Clear it? [Y/n]: " c; case "$c" in n|N|no|NO) FRP_MODE=keep ;; *) FRP_MODE=clear ;; esac
+    fi
+  fi
+  if [ "$FRP_MODE" = clear ]; then pocknix-clear-frp --yes || die "could not clear frp — stopping before touching the disk"; fi
 fi
 
 if [ -n "$ROOT_NUM" ]; then run parted -s "$DEVICE" rm "$ROOT_NUM"; fi
