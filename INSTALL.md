@@ -1,8 +1,11 @@
-# Installing Holodor on the AYN Odin 3
+# Installing Holodor
 
-Holodor turns your AYN Odin 3 into a SteamOS-style handheld - Valve's own Holo Core
-system, the ROCKNIX kernel, and a Steam Big Picture session that boots in seconds.
-Android stays on the device; you choose what boots.
+These instructions are for the **AYN Odin 3**, the only device Holodor supports today.
+Other devices will get their own sections when they are supported.
+
+Holodor turns the Odin 3 into a SteamOS-style handheld: Valve's own Holo Core system,
+the ROCKNIX kernel, and a Steam Big Picture session that boots in seconds. Android stays
+on the device; you choose what boots.
 
 There are two ways to run it:
 
@@ -12,65 +15,46 @@ There are two ways to run it:
   Fast, and Android stays bootable from the boot menu. Android is factory reset once,
   during the install.
 
-Both ways need a one-time bootloader step (Part C). Read every part before starting.
-Do not skip the backup in Part C.
+Both ways need the one-time boot menu setup in Part II. Read every part before starting.
+Do not skip the backup step.
 
-**One download.** Everything you need is in the Holodor image: the bootloader files
-are on the SD card once you have flashed it.
+**One download.** Everything you need is in the Holodor image. The bootloader files are
+on the SD card once you have written it.
 
 ---
 
-## What you need
+## What you will need
 
 - An **AYN Odin 3** (any storage size) on stock Android
 - A **microSD card, 32 GB minimum** (64 GB or more if you will install games to it)
   - The bootloader is picky about SD cards. Older, plain cards (for example SanDisk
     Ultra) work; many fast modern cards (high-end UHS-I or A2) are invisible to it.
-    Part C step 6 tells you whether yours works. If it does not, use a different card;
+    Part II step 8 tells you whether yours works. If it does not, use a different card;
     the card itself is fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
-- The **Holodor image** from the Releases page
+- The **Holodor image** from the Releases page (one file, `holodor-*.img.zst`)
 
 ---
 
-## Part A - Prepare Android (5 minutes)
+## Part I - Download the image and write it to the SD card
 
-Do these on the Odin 3 before anything else.
+1. Download the Holodor image from the Releases page.
 
-1. **Remove your Google account and any screen lock.** Settings > Passwords, passkeys
-   & accounts > your Google account > Remove account. Then Settings > Security >
-   Screen lock > None. You can add them back after Holodor is installed.
+2. On your PC, write it to the card:
+   - Linux or Mac: `zstd -d holodor-*.img.zst` then
+     `sudo dd if=holodor-*.img of=/dev/sdX bs=4M conv=fsync status=progress`
+     (check /dev/sdX three times: this erases the target disk)
+   - Windows: decompress, then flash the .img with **Rufus** or **balenaEtcher**.
 
-   Why: Android keeps a hidden "this device belongs to someone" marker while an
-   account or lock exists. After a factory reset, Android then asks for the old
-   account, and the Odin 3's setup screen cannot accept it, so Android locks itself
-   out. Holodor's installer detects this marker and offers to clear it, but the
-   cleanest start is to remove the account first.
+   If your tool offers to verify the write, let it. Cards can drop data during a long
+   write and still report success.
 
-2. **Decline Android system updates.** If Android offers an update, do not install it.
-   An Android update on a dual-boot device replaces the bootloader on one side and
-   broke Android on our test device. Part C step 7 turns the update app off for good.
+3. When it is done, your PC shows a small partition on the card. It contains a folder
+   called `rocknix_abl`. That folder is the bootloader kit for Part II; leave it there.
 
 ---
 
-## Part B - Flash the Holodor image to the SD card
-
-On your PC, write the image to the card:
-
-- Linux or Mac: `zstd -d holodor-*.img.zst` then
-  `sudo dd if=holodor-*.img of=/dev/sdX bs=4M conv=fsync status=progress`
-  (check /dev/sdX three times: this erases the target disk)
-- Windows: decompress, then flash the .img with **Rufus** or **balenaEtcher**.
-
-If your tool offers to verify the write, let it. Cards can drop data during a long
-write and still report success.
-
-After flashing, your PC shows a small partition on the card with a `rocknix_abl` folder
-in it. That folder is the bootloader kit for Part C.
-
----
-
-## Part C - One-time bootloader setup (ROCKNIX ABL)
+## Part II - Prepare Android and set up the boot menu (one time)
 
 The Odin 3 ships with a bootloader that only boots Android. ROCKNIX publishes a
 replacement bootloader ("ABL") that adds a boot menu: Android, or Linux from the SD card
@@ -80,14 +64,28 @@ only the two small `abl` partitions, and you back those up first.
 **What you will have at the end:** a boot menu when you hold Volume Down at power on, a
 backup of your original bootloader on the SD card, and Android exactly as it was.
 
-1. **Put the SD card in the Odin 3** and boot Android. Android may show a notification
-   about the new SD card; choose to use it as portable storage if asked.
+1. **Remove your Google account and any screen lock.** In Android: Settings >
+   Passwords, passkeys & accounts > your Google account > Remove account. Then Settings
+   > Security > Screen lock > None. You can add them back after Holodor is installed.
 
-2. **Copy the bootloader folder to internal storage.** Open the **Files** app, open the
+   Why: Android keeps a hidden "this device belongs to someone" marker while an
+   account or lock exists. After a factory reset, Android then asks for the old
+   account, and the Odin 3's setup screen cannot accept it, so Android locks itself
+   out. Holodor's installer detects this marker and offers to clear it, but the
+   cleanest start is to remove the account first.
+
+2. **Decline Android system updates.** If Android offers an update, do not install it.
+   An Android update on a dual-boot device replaces the bootloader on one side and
+   broke Android on our test device. Step 9 turns the update app off for good.
+
+3. **Put the SD card in the Odin 3** with Android running. Android may show a
+   notification about the new card; choose to use it as portable storage if asked.
+
+4. **Copy the bootloader folder to internal storage.** Open the **Files** app, open the
    SD card, and copy the whole `rocknix_abl` folder to the top level of the internal
    storage, so that `Internal storage/rocknix_abl/backup_abl.sh` exists.
 
-3. **Back up your bootloader.** Open **Settings > Odin settings** (it is near the bottom
+5. **Back up your bootloader.** Open **Settings > Odin settings** (it is near the bottom
    of the Settings list, under "Google"), scroll to the bottom, and tap **Run script as
    Root**. Pick `Internal storage/rocknix_abl/backup_abl.sh` and run it.
 
@@ -104,33 +102,33 @@ backup of your original bootloader on the SD card, and Android exactly as it was
    - "Enter setup wizard" sits a few rows above "Run script as Root". Do not tap it; it
      restarts Android into the first-time setup.
 
-4. **Flash the ROCKNIX bootloader.** Same menu, run `flash_abl.sh`. Again, trust the
+6. **Flash the ROCKNIX bootloader.** Same menu, run `flash_abl.sh`. Again, trust the
    outcome, not the success message.
 
-5. **Check it took.** Power off (Power menu > Power off, then wait ten seconds). Hold
+7. **Check it took.** Power off (Power menu > Power off, then wait ten seconds). Hold
    **Volume Down** and press Power. You should land in a text boot menu. If plain
-   Android starts instead, the flash did not take: repeat step 4.
+   Android starts instead, the flash did not take: repeat step 6.
 
    The Volume Down trick only works from a powered-off device. From running Android
    it is just a normal reboot.
 
-6. **Set up the menu and test your card.** In the boot menu set the **device model** to
+8. **Set up the menu and test your card.** In the boot menu set the **device model** to
    **AYN Odin 3**, and open **System Stats**. If it shows an SD card, your card works.
-   If it says no card is inserted, the bootloader cannot see this card: repeat Part B
+   If it says no card is inserted, the bootloader cannot see this card: repeat Part I
    with a different (usually older or slower) card. Android can read every card, so
-   Part C worked; only the boot part needs the other card.
+   the steps above worked; only booting needs the other card.
 
-7. **Turn off Android updates (recommended).** Boot Android (boot mode Android in the
+9. **Turn off Android updates (recommended).** Boot Android (boot mode Android in the
    menu), and run `disable_android_updates.sh` the same way as the other scripts. This
-   disables AYN's update app; `enable_android_updates.sh` turns it back on. See Part A
+   disables AYN's update app; `enable_android_updates.sh` turns it back on. See step 2
    for why.
 
 **Going back to plain Android at any time:** boot menu > boot mode > Android. Android is
-unchanged; only the menu is new. Removing the menu entirely is described in Part F.
+unchanged; only the menu is new. Removing the menu entirely is described in Part V.
 
 ---
 
-## Part D - First boot from the SD card
+## Part III - First boot from the SD card
 
 Boot menu (hold Volume Down at power on) > boot mode **Linux** > Start.
 
@@ -194,7 +192,7 @@ starts working; until then, turning it on has no effect.
 
 ---
 
-## Part E - Install to internal storage (recommended)
+## Part IV - Install to internal storage (recommended)
 
 Running from internal storage is faster than any SD card. The installer shrinks
 Android's data partition and installs Holodor beside it. **Android survives but is
@@ -206,16 +204,17 @@ from the boot menu. The bootloader and every other Android partition are not tou
    **Holodor Installer** (application menu > System).
 3. Choose **Install Holodor to internal storage**. Pick how much space Android keeps
    (32 GB is a sensible minimum). If Android still carries a Google account marker,
-   the installer explains it and offers to clear it; say yes (see Part A for why).
+   the installer explains it and offers to clear it; say yes (see Part II step 1 for
+   why).
 4. Confirm. The copy takes 20 to 30 minutes. Do not power off.
 5. Power off, **remove the SD card**, power on. Holodor now boots from internal storage.
    Keep the SD card: it is your rescue system, and the installer app on it is how you
    remove Holodor or restore the stock bootloader later.
 
 **Booting Android afterwards:** hold Volume Down at power on, boot mode Android. Android
-will run its first-time setup again. Do not install Android updates (Part A).
+will run its first-time setup again. Do not install Android updates (Part II step 2).
 
-The installer keeps your bootloader backup from Part C in three places: on the SD card,
+The installer keeps your bootloader backup from Part II in three places: on the SD card,
 inside the internal install, and on the internal boot partition.
 
 Prefer a terminal? `sudo pocknix-install-internal --dry-run` prints the plan;
@@ -223,7 +222,7 @@ Prefer a terminal? `sudo pocknix-install-internal --dry-run` prints the plan;
 
 ---
 
-## Part F - Going back to Android, or to a stock device
+## Part V - Going back to Android, or to a stock device
 
 Three levels, from least to most:
 
@@ -239,7 +238,7 @@ Three levels, from least to most:
    works before going to level 3.
 
 3. **Restore the stock bootloader.** Boot the SD card, open Holodor Installer, choose
-   **Restore stock bootloader**. It finds your backup from Part C, checks that it really
+   **Restore stock bootloader**. It finds your backup from Part II, checks that it really
    is a stock bootloader, clears the Google account marker so Android cannot lock you
    out, writes both slots and reads them back. After this the device boots straight
    into Android; the boot menu and Holodor are gone until you run `flash_abl.sh` from
@@ -272,13 +271,14 @@ affected.
   see. Use an older or slower card. (The card is fine for other uses.)
 - **"ERROR: Payload not found" when setting device model** - same cause: the
   bootloader cannot read the card the payload lives on.
-- **"DEVICE MODEL NOT SET" after a bootloader update** - set it again (Part C step 6).
+- **"DEVICE MODEL NOT SET" after a bootloader update** - set it again (Part II step 8).
 - **Android shows "Factory reset this device" and only a Reset button** - the Google
   account marker survived a reset. Boot the SD card, open Holodor Installer, choose
   **Fix Android setup lock**, then boot Android again.
 - **Red "device is corrupt" screen that keeps restarting** - normal on an unlocked
   bootloader. A short tap of the power button continues; leaving it alone restarts it.
-- **Black screen for a minute or two on first boot** - it is working. See Part D step 1.
+- **Black screen for a minute or two on first boot** - it is working. See Part III
+  step 1.
 - **Stuck at Steam sign-in with a spinning QR code** on first boot - wait 2 to 3
   minutes (clock sync plus client update). If it persists past 10 minutes, hold power
   15 seconds and boot again; the second attempt is clean.
@@ -306,7 +306,7 @@ affected.
 - The battery **charge limit** setting is experimental: the hardware does not always
   honor it, and the device may charge to 100% anyway.
 - With Holodor on internal storage, a ROCKNIX SD card will not boot: the bootloader
-  finds Holodor's internal boot partition first. Remove Holodor (Part F, level 2) to
+  finds Holodor's internal boot partition first. Remove Holodor (Part V, level 2) to
   try ROCKNIX from a card.
 - The boot menu's SD card support is narrower than Android's. A card that Android
   reads fine may still be invisible to the boot menu.
