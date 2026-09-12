@@ -1,8 +1,8 @@
 # Holodor
 
-**A streamlined, SteamOS-compatible Linux distribution for the AYN Odin 3.** 
+**A SteamOS Linux distribution for the AYN Odin 3 and other aarch64 handhelds.** 
 
-Holodor combines Valve's Holo Core (the official SteamOS aarch64 userland) with the ROCKNIX mainline kernel, carefully integrating them to run smoothly on Qualcomm hardware. This allows you to boot your Odin 3 directly into Steam Big Picture mode while preserving your Android installation on the side.
+Holodor combines Valve's Holo Core (the official SteamOS aarch64 userland) with the ROCKNIX mainline kernel, carefully integrating them to run smoothly on Qualcomm hardware. This allows you to boot your Odin 3 directly into Steam Big Picture mode! You can also while keep your Android installation on the side.
 
 *The name is a blend of Holo Core, Odin, and a nod to a certain gentle giant who held the door.*
 
@@ -34,7 +34,7 @@ Holodor combines Valve's Holo Core (the official SteamOS aarch64 userland) with 
 
 Please refer to **[INSTALL.md](INSTALL.md)** for detailed instructions. 
 
-**Summary:** You will perform a one-time ROCKNIX bootloader setup (which includes a mandatory backup), flash the image to a compatible SD card, and boot the device. You may optionally install Holodor to your internal storage afterward.
+**Summary:** You will flash the image to a compatible SD card, perform a one-time ROCKNIX bootloader setup (which includes a mandatory backup), and boot the device. You may optionally install Holodor to your internal storage afterward.
 
 ## Building from Source
 
