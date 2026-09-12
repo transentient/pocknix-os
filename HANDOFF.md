@@ -27,6 +27,13 @@
   fast; a python chunk reader got killed by the harness "low memory" watchdog (spurious).
 - **Repo:** committed this session (see git log), NOT pushed unless Cliff did.
 
+### Closed 2026-09-13 (Cliff): "game runs slow ~1 min after a wake" was NOT a Holodor bug
+The 09-05 note (the one open wake item in the 09-07 block) was Vampire Survivors' own game-speed
+setting: the game offers normal / fast / faster, and Cliff had bumped the button by accident.
+Sleep and wake have no open items. The suspend-mid-game controller bug is fixed at the kernel
+layer (rsinput UART frame reassembly, kernel-22); INSTALL.md's stale "may disconnect the
+controller" limitation bullet is still to be deleted by Cliff during his doc pass.
+
 ### What changed this session (Cliff's review request: "botched dual boot", FRP, bulletproof install)
 Review + decisions: docs/review-2026-09-11-dual-boot.md (Cliff said yes to all four recommendations).
 1. **pocknix-bootloader-sm8750** (new package): ROCKNIX ABL v1.1.7 ELF (vendored, sha verified) +
