@@ -10,7 +10,11 @@ Holodor combines Valve's Holo Core (the official SteamOS aarch64 userland) with 
 
 ## Holodor and ArmadaOS
 
-<!-- Section pending: an honest comparison is being researched (2026-09-13). -->
+[ArmadaOS](https://armadaos.dev/) is the established SteamOS-style Linux for Snapdragon handhelds. It supports around a dozen devices, ships a new build most weeks, has more than a dozen contributors and a Discord community in the thousands, and includes things Holodor does not: an in-game store for emulators and plugins, Waydroid, Distrobox, experimental HDR, and dual-screen support. If you want the most tested option with people to ask, install Armada.
+
+Holodor is a one-device, one-maintainer project. It differs in a few specific ways. The base system is Valve's Holo Core, the official SteamOS ARM userland, rather than a Fedora rebuild. Updates are plain signed pacman packages. Standby drain on the Odin 3 is measured at about 0.4 percent per hour. The installer handles the Google account lock that can follow a factory reset, and can restore the stock bootloader from Linux. Both projects build on ROCKNIX and share most of the graphics stack, so expect them to converge over time.
+
+The full comparison, with sources, is in [docs/armada-comparison-2026-09-13.md](docs/armada-comparison-2026-09-13.md).
 
 ## About the use of generative AI coding tools
 
