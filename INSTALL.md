@@ -1,203 +1,110 @@
 # Installing Holodor on the AYN Odin 3
 
-Holodor turns your AYN Odin 3 into a SteamOS-style handheld - Valve's own Holo Core
-system, the ROCKNIX kernel, and a Steam Big Picture session that boots in seconds.
-Android stays on the device; you choose what boots.
+Holodor transforms your AYN Odin 3 into a SteamOS-compatible handheld. By combining Valve's Holo Core system and the ROCKNIX kernel, it provides a seamless Steam Big Picture experience that boots up in seconds. Your existing Android installation remains completely intact on the device, allowing you to choose which operating system you'd like to use at startup.
 
-**Fair warning**: this involves flashing a bootloader payload to your device. The
-procedure preserves Android and is reversible, but read every step BEFORE starting,
-and DO NOT SKIP THE BACKUP STEP.
+**Important Note:** This process requires flashing a bootloader payload to your device. While the procedure preserves your Android setup and is fully reversible, please read all instructions carefully before beginning, and please ensure you do not skip the backup step.
 
 ---
 
-## What you need
+## What You Will Need
 
-- An **AYN Odin 3** (any storage size) on stock Android
-- A **microSD card, 32 GB minimum** (64 GB+ recommended if you'll install games to it)
-  - ⚠️ **The bootloader is extremely picky about SD cards.** Older, boring cards
-    (e.g. SanDisk Ultra class) work; many fast modern cards (high-end UHS-I/A2) are
-    simply invisible to it. TEST YOUR CARD FIRST (Part B, step 1) before spending
-    20 minutes flashing an image to a card the device can't boot.
-- A **PC** (Linux/Mac/Windows) with an SD reader, to flash the image
-- The **Holodor image** (see Releases) and the **ROCKNIX ABL package** (link in
-  Releases notes)
+*   An **AYN Odin 3** (any storage capacity) running stock Android.
+*   A **microSD card, 32 GB minimum** (64 GB or larger is recommended if you plan to install games on it).
+    *   ⚠️ **SD Card Compatibility:** The bootloader can be selective regarding SD cards. Older, standard cards (like the SanDisk Ultra class) typically work well, whereas some newer, high-speed cards (such as high-end UHS-I/A2) may not be recognized. Please test your card first (see Part B, Step 1) to avoid spending time flashing an image to an incompatible card.
+*   A **PC** (Linux, macOS, or Windows) equipped with an SD card reader to flash the image.
+*   The **Holodor image** (available in the Releases section) and the **ROCKNIX ABL package** (linked in the release notes).
 
 ---
 
-## Part A - One-time bootloader setup (ROCKNIX ABL)
+## Part A - One-Time Bootloader Setup (ROCKNIX ABL)
 
-The Odin 3 ships with a bootloader that only boots Android. ROCKNIX publishes a
-replacement bootloader payload ("ABL") that adds a boot menu: Android or Linux-from-SD.
-Flashing it does NOT unlock, wipe, or modify Android - it replaces only the small
-`abl` bootloader partitions, and you will back those up first.
+By default, the Odin 3 bootloader only boots Android. The ROCKNIX team provides a replacement bootloader payload (ABL) that introduces a boot menu, allowing you to choose between Android or booting Linux from an SD card. This process does not unlock, wipe, or modify your Android installation. It merely replaces the small `abl` bootloader partitions, which we will safely back up first.
 
-**A.1 - Get the files onto the device.** Download the ROCKNIX ABL release for the
-Odin 3 (SM8750) and copy its folder to your device's internal storage so the files
-sit at: `/sdcard/rocknix_abl/SM8750/` - it must contain `backup_abl.sh`,
-`flash_abl.sh`, `restore_backup_abl.sh`, and the signed ABL image. [VERIFY: exact
-release URL + file list on dry run]
+**A.1 - Transfer the files to your device.** Download the ROCKNIX ABL release for the Odin 3 (SM8750). Copy the extracted folder to your device's internal storage exactly at `/sdcard/rocknix_abl/SM8750/`. Ensure this folder contains `backup_abl.sh`, `flash_abl.sh`, `restore_backup_abl.sh`, and the signed ABL image. *(Note: Please verify the exact release URL and file list during your preparation).*
 
-**A.2 - BACK UP YOUR BOOTLOADER.** In Android: **Settings → Handheld Settings →
-Run Script as Root** [VERIFY: exact menu names], select `backup_abl.sh`, run it.
-- ⚠️ The script runner ALWAYS reports success, even when it did nothing. VERIFY the
-  backup exists: check that `/sdcard/rocknix_abl/SM8750/` now contains `abl_a.img`
-  and `abl_b.img` (about 1 MB each).
-- **Copy those two files to your PC as well.** There is NO published stock Odin 3
-  bootloader anywhere - these files are your only way back to a clean stock state.
-  Treat them like your passport.
-- ⚠️ Do NOT edit any of these scripts. The runner executes them one line at a time -
-  edits that look harmless will silently break them.
+**A.2 - Back up your bootloader.** On your Odin 3 in Android, navigate to **Settings -> Handheld Settings -> Run Script as Root** *(please verify the exact menu names on your device)*. Select `backup_abl.sh` and run it.
+*   ⚠️ *Crucial Verification:* The script runner will report success even if the operation fails. You must manually verify the backup by checking that `/sdcard/rocknix_abl/SM8750/` now contains both `abl_a.img` and `abl_b.img` (each should be approximately 1 MB).
+*   **Transfer these backup files to your PC.** There are no officially published stock bootloaders for the Odin 3 available online. These files are your only method for restoring the device to its original factory state, so please keep them safe.
+*   ⚠️ Please do not edit any of these script files. The system runner executes them line-by-line, and even minor edits can silently break their functionality.
 
-**A.3 - Flash the ROCKNIX ABL.** Same menu, run `flash_abl.sh`. Again verify by
-outcome, not by the success message: reboot while holding **Volume-Down** - you
-should land in a text boot menu (the ROCKNIX ABL). If you get plain Android, the
-flash didn't take; re-run.
+**A.3 - Flash the ROCKNIX ABL.** From the same menu, run `flash_abl.sh`. As before, verify the outcome manually: reboot your device while holding the **Volume-Down** button. You should be greeted by a text-based boot menu (the ROCKNIX ABL). If the device boots directly into regular Android, the flash was unsuccessful, and you should run the script again.
 
-**A.4 - Configure the boot menu** (one time): in the ABL menu, set **device model:
-AYN Odin 3**, and leave boot mode on Android for now. "System Stats" in this menu
-is also your SD card compatibility tester.
+**A.4 - Configure the boot menu** (one time only). In the ABL menu, set the **device model** to **AYN Odin 3**. Leave the boot mode set to Android for the time being. You can also use the "System Stats" option in this menu to verify your SD card compatibility.
 
-**Going back to Android at any time**: ABL menu → boot mode → Android. Full undo of
-everything: run `restore_backup_abl.sh` the same way you ran the others.
+**Returning to Android:** At any time, you can return to Android by navigating to the ABL menu -> boot mode -> Android. To completely reverse this installation, run the `restore_backup_abl.sh` script using the same method outlined in A.2.
 
 ---
 
-## Part B - Flash the Holodor image to SD
+## Part B - Flash the Holodor Image to SD
 
-**B.1 - Test your card FIRST.** Put the (still-empty) card in the Odin 3, boot to
-the ABL menu (hold Volume-Down), open System Stats. If it shows an SD card: good.
-If it says no card: the bootloader can't see that card - use a different (usually
-older/slower) one. Do not bother flashing a card that fails this test.
+**B.1 - Test your card first.** Insert your (still-empty) microSD card into the Odin 3. Boot to the ABL menu (by holding Volume-Down) and open System Stats. If it displays your SD card, you are good to proceed. If it says no card is inserted, the bootloader cannot read it, and you will need to try a different (usually older or slower) card.
 
-**B.2 - Flash.** On your PC, write the image to the card:
-- Linux/Mac: `zstd -d holodor-*.img.zst` then
-  `sudo dd if=holodor-*.img of=/dev/sdX bs=4M conv=fsync status=progress`
-  (triple-check /dev/sdX - this destroys the target disk!)
-- Windows: decompress, then flash the .img with **Rufus** or **balenaEtcher**.
+**B.2 - Flash the image.** On your PC, write the Holodor image to the compatible SD card:
+*   **Linux/Mac:** Use `zstd -d holodor-*.img.zst` and then `sudo dd if=holodor-*.img of=/dev/sdX bs=4M conv=fsync status=progress`. *(Please double-check your /dev/sdX path - selecting the wrong drive will erase your data!)*
+*   **Windows:** Decompress the file, then flash the `.img` using **Rufus** or **balenaEtcher**.
 
-**B.3 - Boot it.** Card into the Odin 3 → power on holding **Volume-Down** → boot
-mode **Linux** → Start.
+**B.3 - Boot the system.** Insert the flashed card into the Odin 3. Power on the device while holding **Volume-Down**, change the boot mode to **Linux**, and select Start.
 
 ---
 
-## Part C - First boot: what to expect
+## Part C - First Boot: What to Expect
 
-1. A brief boot splash. First boot takes a little longer: the system expands itself
-   to fill your SD card automatically.
-2. **Holodor downloads Steam on first boot** (about 350 MB - the image doesn't
-   include it). A status screen tells you what's happening. It needs Wi-Fi, and
-   there's no on-screen keyboard yet at this point, so give it your network one of
-   these ways:
-   - **The wifi.txt way (recommended):** before first boot - or whenever the screen
-     asks - put the SD card in your computer and create a file called `wifi.txt` on
-     the small partition (the one your computer can see), containing:
+1.  **Boot Splash:** You will see a brief boot splash screen. The very first boot takes slightly longer because the system automatically expands its partitions to fill your SD card.
+2.  **Steam Download:** Holodor does not ship with Steam pre-installed to ensure you always start with the most current client. On first boot, it will automatically download the official Steam client (about 350 MB). Because there is no on-screen keyboard available yet, you will need to provide Wi-Fi access using one of the following methods:
+    *   **The wifi.txt method (recommended):** Before your first boot (or whenever prompted on-screen), insert the SD card into your computer. On the small partition visible to your PC, create a plain text file named `wifi.txt` containing the following lines:
+        ```text
+        ssid=YourNetworkName
+        password=YourWifiPassword
+        country=US
+        ```
+        *(Note: The `country` code is optional, but many 5 GHz networks require it to connect.)* Insert the card back into the Odin and power it on. Once successfully connected, the system will rename the file to `wifi.txt.imported`. If there is an issue, an error log will be generated at `wifi-import-error.txt`.
+    *   **USB alternative:** Plug in a USB keyboard or dock and use a wired connection or terminal.
+    
+    *Please anticipate a brief wait.* The download itself is relatively small, but the setup process writes thousands of small files. The speed of this step depends entirely on your SD card - it may take a few minutes on a fast card, or up to 30-60 minutes on a slower one. The status screen will keep you updated. It is safe to interrupt this process; if powered off, it will simply resume on the next boot.
+3.  **Network Setup:** Once Steam is downloaded, you will be prompted to select your Wi-Fi network (if you didn't use the `wifi.txt` method) before landing in the standard Steam setup.
+4.  **Sign in to Steam.** ⚠️ Immediately after signing in, Steam will quietly download and apply an update in the background. Until this process finishes, the user interface may feel sluggish, menus might lag, and you may occasionally see a "connection problem" message while the storage drive works heavily. On slower SD cards, this can last 10-20 minutes. Please be patient and let it finish. Once the background update completes, the interface will return to its normal, responsive state.
+5.  **You're ready!** You are now in Big Picture mode. Controls, sound, and rumble are configured out of the box. The thumbstick RGB rings are disabled by default; you can enable them by navigating to **Quick Access -> Decky -> Pocknix Control**.
 
-     ```
-     ssid=YourNetworkName
-     password=YourWifiPassword
-     country=US
-     ```
-
-     (`country` is your two-letter country code; optional, but 5 GHz networks won't
-     connect without it.) Put the card back and power on. After it works, the file
-     is renamed `wifi.txt.imported`; if something's wrong with it, the reason is
-     written to `wifi-import-error.txt` on the same partition.
-   - Or plug in a **USB keyboard/dock** and use a wired connection or a terminal.
-
-   The download is safe to interrupt - powering off mid-download just resumes on
-   the next boot.
-
-   **Expect a wait here, especially on slower cards.** Holodor's image doesn't
-   include Steam - on first boot it downloads the official client from Valve and
-   lets it set itself up, so the image ships no Valve software and you always
-   start with a current client. (ArmadaOS takes the other approach and bakes
-   Steam into its image, which makes its first boot faster.) The download itself
-   is about 350 MB, but the setup step after it writes thousands of small files,
-   and its speed depends almost entirely on your SD card: a few minutes on a
-   fast card, possibly 30-60 minutes on a slow one. The status screen always
-   says what it's doing - if it says it's working, it is.
-3. Once Steam is downloaded you'll be asked to pick your **Wi-Fi network** (already
-   connected if you used wifi.txt) and then land in Steam's setup.
-4. **Sign in to Steam.** ⚠️ Right after sign-in, Steam downloads and applies an
-   update to itself in the background, and until that finishes the interface is
-   genuinely unpleasant: menus lag, button presses respond late, you may see a
-   spinner or a "connection problem" message once or twice, and the storage
-   grinds constantly. On a slow SD card this can last 10-20 minutes. Nothing is
-   broken, and it only happens around the first sign-in - let it finish, and
-   once the grinding stops the interface snaps back to normal.
-5. You're in Big Picture. Controls, sound, and rumble work out of the box. The
-   thumbstick RGB rings are off by default - turn them on in **Quick Access →
-   Decky → Pocknix Control** if you want them. Enjoy.
-
-**Sleep works**: short-press power to suspend (measured standby drain: well under
-1%/hour). Fan curves and power profiles (Eco/Balanced/Performance) live in
-**Quick Access → Decky → Pocknix Control → Power**. The battery charge limit
-setting there is **experimental** - the device may charge past the limit.
-
-**Frame insertion**: the **Frame Insertion (LSFG)** toggle in **Pocknix Control → Games**
-uses the model from **Lossless Scaling**, a paid Steam app (about 175 MB). Holodor does
-not ship it. Buy it on Steam, install it on the device like any game, and the toggle
-starts working; until then, turning it on has no effect.
+**Additional Features:**
+*   **Sleep Mode:** A short press of the power button will suspend the device (measured standby drain is under 1% per hour). 
+*   **Power Management:** Fan curves and power profiles (Eco, Balanced, Performance) can be found in **Quick Access -> Decky -> Pocknix Control -> Power**. Please note that the battery charge limit setting is currently **experimental** and the device may occasionally charge past the specified limit.
+*   **Frame Insertion:** The **Frame Insertion (LSFG)** toggle in **Pocknix Control -> Games** utilizes the model from **Lossless Scaling**, which is a paid application on Steam (approximately 175 MB). Holodor does not include this software. Once you purchase and install Lossless Scaling via Steam, the toggle will become functional.
 
 ---
 
-## Part D - Optional: install to internal storage
+## Part D - Optional: Install to Internal Storage
 
-Running from internal UFS storage is faster than any SD card. The installer shrinks
-Android's data partition and installs Holodor beside it - **Android survives but is
-FACTORY RESET** (its apps/data are wiped; the OS remains bootable from the ABL menu).
-Your Android bootloader backup from A.2 remains your deep-recovery option.
+Running Holodor from the internal UFS storage is noticeably faster than running it from an SD card. The installation script will gracefully shrink your Android data partition to make room for Holodor. **Your Android installation is preserved, but it will undergo a factory reset** (apps and data will be wiped, but the OS remains fully bootable from the ABL menu). Your bootloader backup from step A.2 remains your ultimate recovery option.
 
-1. Boot Holodor from SD, connect Wi-Fi.
-2. Switch to Desktop Mode or SSH in [VERIFY: document the exact path for
-   non-SSH users], open a terminal, and run: `sudo pocknix-install-internal`
-3. Choose how much space Android keeps (32 GB is a sensible minimum). Type `INSTALL`
-   when prompted. The copy takes ~20–30 minutes.
-4. Power off, REMOVE THE SD CARD, power on. Holodor now boots from internal storage.
-   Keep the SD card - it remains a bootable rescue system. [VERIFY: boot order with
-   SD inserted]
+1.  Boot Holodor from the SD card and ensure Wi-Fi is connected.
+2.  Switch to Desktop Mode or SSH into the device *(please refer to documentation for the exact terminal path if not using SSH)*. Open a terminal and run: `sudo pocknix-install-internal`
+3.  Choose how much space you would like to reserve for Android (32 GB is a sensible minimum). Type `INSTALL` when prompted. The copy process will take approximately 20-30 minutes.
+4.  Power off the device, remove the SD card, and power it back on. Holodor will now boot directly from your internal storage. Keep your prepared SD card in a safe place, as it serves as a bootable rescue system. *(Note: Please verify the boot order behavior when the SD card is re-inserted).*
 
 ---
 
 ## Troubleshooting
 
-- **ABL menu says "SD card not inserted"** - your card is one the bootloader can't
-  see. Use an older/slower card. (The card is fine for other uses.)
-- **"ERROR: Payload not found" when setting device model** - same cause as above:
-  the ABL can't read the card the payload lives on.
-- **Stuck at Steam sign-in with a spinning QR code** on first boot - wait 2–3
-  minutes (clock sync + client update). If it persists past ~10 minutes, hold power
-  15s and boot again; the second attempt is clean.
-- **Wi-Fi shows connected but nothing loads** (yellow dot on the network icon) -
-  toggle Wi-Fi off/on in Settings. Recent builds do this for you automatically
-  after sleep.
-- **A game froze and buttons are dead** - short-press power to sleep, press again to
-  wake; the menu usually recovers. Known issue with the in-game Steam overlay in
-  some titles; opening the game's own pause menu first avoids it.
-- **Something is truly wedged** - hold power 15 seconds; the system boots clean and
-  is designed to recover (filesystem journaling + boot fallbacks).
+*   **ABL menu says "SD card not inserted":** The bootloader cannot read your specific card. Try using an older or slower card. (The initial card is likely perfectly fine for standard storage, just not for booting).
+*   **"ERROR: Payload not found" when setting device model:** This is caused by the same issue as above - the ABL cannot read the card where the payload is located.
+*   **Stuck at Steam sign-in with a spinning QR code on first boot:** Please wait 2-3 minutes for the clock to sync and the client to update. If it persists beyond 10 minutes, hold the power button for 15 seconds to force a reboot; the subsequent attempt should run cleanly.
+*   **Wi-Fi shows connected but nothing loads (yellow dot on network icon):** Simply toggle Wi-Fi off and back on in Settings. Newer software builds attempt to handle this automatically after waking from sleep.
+*   **A game froze and buttons are unresponsive:** Short-press the power button to put the device to sleep, then press it again to wake it up. The menu usually recovers gracefully. This is a known issue with the in-game Steam overlay in certain titles; opening the game's internal pause menu first often prevents this.
+*   **The system is completely frozen:** Hold the power button for 15 seconds to force a shutdown. The system is designed to recover cleanly on the next boot using filesystem journaling and boot fallbacks.
 
-## Known limitations (honesty section)
+## Current Limitations
 
-- Heavy AAA titles currently run around **20–30 fps** - the GPU driver for this
-  chip is young and improving month to month. Upscaling (FSR) and frame
-  generation can make games feel noticeably smoother than the raw number
-  suggests. Indie/2D/light-3D titles run flawlessly at high framerates.
-- Games with kernel anti-cheat (e.g. Elden Ring's EAC) do not run yet.
-- Suspending while a game is running may disconnect the controller in-game (exit to
-  Steam first for reliable in-game suspend).
-- The battery **charge limit** setting is experimental: the hardware doesn't always
-  honor it, and the device may charge to 100% anyway.
+*   Graphically demanding AAA titles generally run at around **20-30 fps**. The GPU driver for this chipset is still in active development and improves regularly. Utilizing upscaling (FSR) and frame generation can make games feel smoother than the raw frame rate suggests. Indie, 2D, and lighter 3D titles perform flawlessly at high frame rates.
+*   Games requiring kernel-level anti-cheat (such as Elden Ring's Easy Anti-Cheat) are not currently supported.
+*   Suspending the device while a game is actively running may cause the controller to disconnect in-game. For the most reliable experience, exit to the main Steam menu before suspending.
+*   The battery **charge limit** setting is experimental. The hardware does not always honor the software limit, and the device may occasionally charge to 100%.
 
 ---
 
-## Appendix: enabling SSH / setting passwords (tinkerers)
+## Appendix: Enabling SSH and Setting Passwords (For Tinkerers)
 
-Release images ship the Steam Deck way: no passwords exist and SSH is off - there is
-nothing to attack until you opt in. To enable remote access:
+For security purposes, release images are configured similarly to a standard Steam Deck: no user passwords exist and SSH remote access is disabled by default. If you wish to enable remote access:
 
-1. Switch to Desktop Mode, open a terminal (Konsole).
-2. `passwd` - set a password for the `deck` user (it will not ask for an old one).
-3. `sudo systemctl enable --now sshd` - SSH is now on, key or password auth as you
-   configure it. (`sudo passwd root` first if you want direct root SSH; better:
-   ssh in as deck and use sudo.)
+1.  Switch to Desktop Mode and open a terminal (Konsole).
+2.  Type `passwd` to set a new password for the `deck` user (you will not be prompted for an old password).
+3.  Type `sudo systemctl enable --now sshd` to start the SSH service. SSH is now active and will use password or key authentication based on your configuration. *(Tip: You can use `sudo passwd root` first if you prefer direct root SSH access, though it is generally safer to log in as the `deck` user and utilize `sudo` when needed).*
