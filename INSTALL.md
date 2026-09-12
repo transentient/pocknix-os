@@ -1,7 +1,5 @@
 # Installing Holodor on the AYN Odin 3
 
-Holodor transforms your AYN Odin 3 into a SteamOS-compatible handheld. By combining Valve's Holo Core system and the ROCKNIX kernel, it provides a seamless Steam Big Picture experience that boots up in seconds. Your existing Android installation remains completely intact on the device, allowing you to choose which operating system you'd like to use at startup.
-
 **Important Note:** This process requires flashing a bootloader payload to your device. While the procedure preserves your Android setup and is fully reversible, please read all instructions carefully before beginning, and please ensure you do not skip the backup step.
 
 ---
