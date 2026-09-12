@@ -194,6 +194,9 @@ these right after the release, in this order.
    headphone-jack work in the early days (not written down at the time; recorded here
    2026-09-13). Controllers were never tried. Needed for the dock setup. Test a
    controller pairing and InputPlumber's handling of it first.
-5. Later, if wanted: Waydroid (docs/waydroid.md is inherited from pocknix; not in the
-   image today), and an in-Game-Mode installer for emulators and Decky plugins (what
-   Armada's "store" is: it sells nothing).
+5. Backlog, no plan: Waydroid (docs/waydroid.md is inherited from pocknix; not in the
+   image). Decided 2026-09-13: not worth it for emulation, since Waydroid renders through
+   the host Mesa and gains nothing over native emulators (PPSSPP is already in the image;
+   the RP5's Adreno 650 has mature Turnip support). Only use case left is Android-only
+   apps, and real Android is one boot-menu choice away. Also backlog: an in-Game-Mode
+   installer for emulators and Decky plugins (what Armada's "store" is; it sells nothing).
