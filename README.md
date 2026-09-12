@@ -41,7 +41,7 @@ Please refer to **[INSTALL.md](INSTALL.md)** for detailed instructions.
 The repository serves as the build system (forked from the pocknix-os harness). You will find `scripts/build-kernel.sh`, `build-packages.sh`, `build-image.sh`, and `build-sd-image.sh`, all of which are documented inline. 
 
 **Requirements:** 
-* A Linux host with `qemu-user binfmt` enabled (including the `C` flag — please see the `docs/` directory for details).
+* A Linux host with `qemu-user binfmt` enabled (including the `C` flag - please see the `docs/` directory for details).
 * Approximately 50 GB of free storage space.
 * Please note that the initial package build may take a significant amount of time.
 
