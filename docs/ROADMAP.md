@@ -172,3 +172,28 @@ loggers, LED/test debris.
 The one watch item that could move the date: the 1006 drain/wake tension (may need
 a real kernel fix, not a revert). The license gate resolved 07-28 (see Phase 6) —
 nothing external blocks the release anymore.
+
+## Phase 7 - After release: HDR, fresh graphics stack, dock and Bluetooth (Cliff, 2026-09-13)
+
+Cliff's call after the Armada comparison (docs/armada-comparison-2026-09-13.md): pivot to
+these right after the release, in this order.
+
+1. **HDR.** Armada lists experimental HDR on the Odin 3 (release notes 20260817 and
+   20260907). Nothing researched on our side yet: what their gamescope and kernel carry
+   for HDR output on this panel, and what Holo Core's gamescope build lacks.
+2. **Kernel and Mesa refresh.** We ship kernel 7.1.3 with the ROCKNIX patch series and
+   Mesa 26.3-devel pinned to one commit; Armada is on 7.2.3 and Mesa 26.2.2. The
+   Linux 7.2 bump was deliberately parked in August (HANDOFF, 08-28 sync notes). Take
+   it as one cycle: kernel first, then Mesa, harness A/B before deploy, per the
+   existing pin rules.
+3. **Dock to a TV.** External display over USB-C (Armada advertises external monitor
+   output in Game Mode, so the kernel path exists upstream). USB host mode is proven on
+   our side (the ethernet hub, 09-07). Open questions: DisplayPort alt mode on this
+   kernel, gamescope output switching, audio over the dock.
+4. **Bluetooth.** Never mentioned in our notes, README, or this roadmap: it has not been
+   tested at all on Holodor. Armada lists Odin 3 Bluetooth since 20260817. Needed for
+   controllers and headphones when docked. Test pairing and a controller first; it may
+   already work.
+5. Later, if wanted: Waydroid (docs/waydroid.md is inherited from pocknix; not in the
+   image today), and an in-Game-Mode installer for emulators and Decky plugins (what
+   Armada's "store" is: it sells nothing).
