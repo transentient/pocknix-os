@@ -190,10 +190,10 @@ these right after the release, in this order.
    output in Game Mode, so the kernel path exists upstream). USB host mode is proven on
    our side (the ethernet hub, 09-07). Open questions: DisplayPort alt mode on this
    kernel, gamescope output switching, audio over the dock.
-4. **Bluetooth.** Never mentioned in our notes, README, or this roadmap: it has not been
-   tested at all on Holodor. Armada lists Odin 3 Bluetooth since 20260817. Needed for
-   controllers and headphones when docked. Test pairing and a controller first; it may
-   already work.
+4. **Bluetooth controllers.** Bluetooth itself works: Cliff paired audio during the
+   headphone-jack work in the early days (not written down at the time; recorded here
+   2026-09-13). Controllers were never tried. Needed for the dock setup. Test a
+   controller pairing and InputPlumber's handling of it first.
 5. Later, if wanted: Waydroid (docs/waydroid.md is inherited from pocknix; not in the
    image today), and an in-Game-Mode installer for emulators and Decky plugins (what
    Armada's "store" is: it sells nothing).
