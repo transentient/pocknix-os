@@ -1,79 +1,65 @@
 # Holodor
 
-**A SteamOS-faithful Linux for the AYN Odin 3.** Valve's Holo Core (the official
-SteamOS aarch64 userland) + the ROCKNIX mainline kernel + the glue to make them love
-a Qualcomm handheld. Boot your Odin 3 into Steam Big Picture; keep Android on the
-side.
+**A streamlined, SteamOS-compatible Linux distribution for the AYN Odin 3.** 
 
-*The name: Holo Core + Odin + a certain gentle giant who held the door.*
+Holodor combines Valve's Holo Core (the official SteamOS aarch64 userland) with the ROCKNIX mainline kernel, carefully integrating them to run smoothly on Qualcomm hardware. This allows you to boot your Odin 3 directly into Steam Big Picture mode while preserving your Android installation on the side.
 
-## What works (hardware-verified, receipts in the commit log)
+*The name is a blend of Holo Core, Odin, and a nod to a certain gentle giant who held the door.*
 
-| | Status |
+## Supported Features (Hardware-Verified)
+
+| Feature | Status |
 |---|---|
-| Steam Big Picture (native ARM64 client) | ✅ boots straight in |
-| x86/x86-64 Windows games (FEX + Proton + DXVK/vkd3d) | ✅ |
-| Controls (buttons, sticks, paddles, deadzones) | ✅ correct out of the box |
-| **Rumble / haptics** | ✅ in-game |
-| **Thumbstick RGB** | ✅ (`pocknix-stick-leds`, and yes it glows) |
-| Audio (speakers) | ✅ |
-| Wi-Fi (with post-sleep self-healing) | ✅ |
-| **Suspend/resume** | ✅ works from anywhere, including inside a running game; under 0.5%/hr measured standby drain |
-| Power profiles (Eco/Balanced/Performance) + fan curves | ✅ in Quick Access |
-| Battery charge limit setting | experimental - the device may charge to 100% anyway |
-| Auto storage expansion, sleep/wake telemetry | ✅ |
-| Optional install to internal UFS (Android preserved, factory-reset) | ✅ |
+| Steam Big Picture (native ARM64 client) | ✅ Boots directly |
+| x86/x86-64 Windows games (FEX + Proton + DXVK/vkd3d) | ✅ Supported |
+| Controls (buttons, sticks, paddles, deadzones) | ✅ Configured out of the box |
+| **Rumble / haptics** | ✅ Functional in-game |
+| **Thumbstick RGB** | ✅ Functional (`pocknix-stick-leds`) |
+| Audio (speakers) | ✅ Supported |
+| Wi-Fi (with post-sleep self-healing) | ✅ Supported |
+| **Suspend/resume** | ✅ Works reliably, even during gameplay; standby drain measured at under 0.5%/hr |
+| Power profiles (Eco/Balanced/Performance) & fan curves | ✅ Available in Quick Access |
+| Battery charge limit setting | Experimental — the device may still charge to 100% |
+| Auto storage expansion, sleep/wake telemetry | ✅ Supported |
+| Optional install to internal UFS | ✅ Supported (Preserves Android; requires a factory reset) |
 
-## Honest limitations
+## Current Limitations
 
-- Heavy AAA titles currently run around **20-30 fps** - the GPU driver for this
-  chip is young and improving month to month. Upscaling (FSR) and frame
-  generation can make games feel noticeably smoother than the raw number
-  suggests. Indie/2D/light-3D titles run flawlessly at high framerates.
-- Kernel anti-cheat titles (EAC/BattlEye) don't run yet - an ecosystem-wide ARM
-  frontier that Valve's Steam Frame work is actively pushing.
-- In-game Steam overlay is glitchy in some heavy titles (workaround inside; fix in
-  progress). Headphone jack: audio plays through it, but plugging headphones in is
-  not detected automatically, so the output has to be switched by hand.
+- Graphically intensive AAA titles typically run at **20-30 fps**. The GPU driver for this chip is still in early development and sees regular improvements. Upscaling (FSR) and frame generation can make gameplay feel noticeably smoother than the raw frame rate suggests. Indie, 2D, and lighter 3D titles run flawlessly at high frame rates.
+- Games requiring kernel-level anti-cheat (such as EAC or BattlEye) are currently unsupported. This is a known challenge across the broader ARM ecosystem that Valve is actively working to address.
+- The in-game Steam overlay may exhibit graphical glitches in some heavier titles. A workaround is included, and a permanent fix is currently in progress. 
+- The headphone jack outputs audio correctly, but automatic detection is not yet functional. You will need to manually switch the audio output when plugging in headphones.
 
-## Install
+## Installation
 
-See **[INSTALL.md](INSTALL.md)**. Summary: one-time ROCKNIX bootloader setup (with
-mandatory backup), flash the image to a compatible SD card, boot; optionally install
-to internal storage afterward.
+Please refer to **[INSTALL.md](INSTALL.md)** for detailed instructions. 
 
-## Building from source
+**Summary:** You will perform a one-time ROCKNIX bootloader setup (which includes a mandatory backup), flash the image to a compatible SD card, and boot the device. You may optionally install Holodor to your internal storage afterward.
 
-The repo is the build system (a fork of the pocknix-os harness): `scripts/build-kernel.sh`,
-`build-packages.sh`, `build-image.sh`, `build-sd-image.sh`, each documented inline.
-You'll want a Linux host with qemu-user binfmt (with the `C` flag - see
-`docs/`), ~50 GB free, and patience for the first package build.
+## Building from Source
+
+The repository serves as the build system (forked from the pocknix-os harness). You will find `scripts/build-kernel.sh`, `build-packages.sh`, `build-image.sh`, and `build-sd-image.sh`, all of which are documented inline. 
+
+**Requirements:** 
+* A Linux host with `qemu-user binfmt` enabled (including the `C` flag — please see the `docs/` directory for details).
+* Approximately 50 GB of free storage space.
+* Please note that the initial package build may take a significant amount of time.
 
 ## Credits
 
-Holodor stands on extraordinary shoulders:
+Holodor was made possible thanks to the foundational work of several outstanding projects and individuals:
 
-- **[ROCKNIX](https://github.com/ROCKNIX)** - the SM8750 kernel bring-up, device
-  trees, firmware curation, and the bootloader path. The foundation.
-- **[Valve](https://store.steampowered.com) & [Collabora](https://www.collabora.com)** -
-  Holo Core, the official SteamOS aarch64 userland this project is faithful *to*.
-- **[ArmadaOS](https://github.com/armada-os)** - pioneering SteamOS-on-Odin, the
-  haptics bring-up we ported, hard-won suspend fixes, and the design of the fan
-  curve editor.
-- **[batocera.pocket](https://github.com/darkplace/batocera.pocket)** (lukemotion,
-  continuing suckbluefrog's work) - the stick-LED driver, Wi-Fi resilience ideas,
-  and more.
-- **[shuuri-labs/pocknix-os](https://github.com/shuuri-labs/pocknix-os)** - the
-  build harness this repo forks.
-- **Teguh Sobirin** - the Odin 3 audio UCM.
-- The **FEX-Emu**, **Mesa/Turnip**, and **InputPlumber** projects.
-- The AYN Odin 3 Linux community on Discord - intel, testing, and honest complaints.
+- **[ROCKNIX](https://github.com/ROCKNIX)** - For the SM8750 kernel bring-up, device trees, firmware curation, and the bootloader path. 
+- **[Valve](https://store.steampowered.com) & [Collabora](https://www.collabora.com)** - For Holo Core, the official SteamOS aarch64 userland that this project builds upon.
+- **[ArmadaOS](https://github.com/armada-os)** - For pioneering SteamOS-on-Odin, the haptics bring-up, suspend fixes, and the fan curve editor design.
+- **[batocera.pocket](https://github.com/darkplace/batocera.pocket)** (lukemotion, continuing suckbluefrog's work) - For the stick-LED driver and Wi-Fi resilience strategies.
+- **[shuuri-labs/pocknix-os](https://github.com/shuuri-labs/pocknix-os)** - For the original build harness this repository forks.
+- **Teguh Sobirin** - For the Odin 3 audio UCM.
+- The teams behind **FEX-Emu**, **Mesa/Turnip**, and **InputPlumber**.
+- The AYN Odin 3 Linux community on Discord for their testing, insights, and helpful feedback.
 
 ## License
 
-GPL-2.0 (see [LICENSE](LICENSE)), the same license as the projects above. Art assets by
-**ssalmon** (CC-BY 4.0).
+This project is licensed under GPL-2.0 (see [LICENSE](LICENSE)), matching the licenses of the foundational projects listed above. Art assets by **ssalmon** are licensed under CC-BY 4.0.
 
-*Not affiliated with Valve, AYN, or anyone else. Steam is a trademark of Valve Corp.
-This project will factory-reset Android if you install internally, and while every
-step is designed to be reversible, you flash at your own risk.*
+*Disclaimer: This project is not affiliated with Valve, AYN, or any other corporation. Steam is a registered trademark of Valve Corporation. Installing to internal storage will factory-reset your Android partition. While all steps are designed to be reversible, please proceed at your own risk.*
