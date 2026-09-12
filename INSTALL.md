@@ -8,7 +8,7 @@
 
 *   An **AYN Odin 3** (any storage capacity) running stock Android.
 *   A **microSD card, 32 GB minimum** (64 GB or larger is recommended if you plan to install games on it).
-    *   ⚠️ **SD Card Compatibility:** The bootloader can be selective regarding SD cards. Older, standard cards (like the SanDisk Ultra class) typically work well, whereas some newer, high-speed cards (such as high-end UHS-I/A2) may not be recognized. Please test your card first (see Part B, Step 1) to avoid spending time flashing an image to an incompatible card.
+    *   ⚠️ **SD Card Compatibility:** In my experience, the bootloader can be selective regarding SD cards. Older, standard cards (like the SanDisk Ultra class) typically work well, whereas some newer, high-speed cards (such as high-end UHS-I/A2) may not be recognized. Please test your card first (see Part B, Step 1) to avoid spending time flashing an image to an incompatible card.
 *   A **PC** (Linux, macOS, or Windows) equipped with an SD card reader to flash the image.
 *   The **Holodor image** (available in the Releases section) and the **ROCKNIX ABL package** (linked in the release notes).
 
