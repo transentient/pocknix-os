@@ -32,13 +32,18 @@ on the SD card once you have written it.
     Part II step 8 tells you whether yours works. If it does not, use a different card;
     the card itself is fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
-- The **Holodor image** from the Releases page (one file, `holodor-*.img.zst`)
+- The **Holodor image**: one file, `holodor-odin3-<date>-seedless.img.zst`, from
+  https://archive.org/details/holodor-odin3 (not yet published; the first release will
+  appear there). Next to it is a `.sha256` file; check the download against it before
+  writing the card.
 
 ---
 
 ## Part I - Download the image and write it to the SD card
 
-1. Download the Holodor image from the Releases page.
+1. Download the Holodor image (see "What you will need" for the address). Check its
+   checksum: on Linux or Mac, `sha256sum -c holodor-*.img.zst.sha256`; on Windows,
+   `certutil -hashfile holodor-<date>-seedless.img.zst SHA256` and compare by eye.
 
 2. On your PC, write it to the card:
    - Linux or Mac: `zstd -d holodor-*.img.zst` then
