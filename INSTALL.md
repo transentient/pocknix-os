@@ -18,6 +18,12 @@ There are two ways to run it:
 Both ways need the one-time boot menu setup in Part II. Read every part before starting.
 Do not skip the backup step.
 
+**Expect the first hour to be rough.** Holodor does not ship with Steam. On first boot it
+downloads the Steam client, and right after you sign in Steam updates itself again. Until
+that finishes, menus lag, button presses respond late, and the storage grinds, especially
+on an SD card. Nothing is wrong. It happens once. Part III says what to expect step by
+step.
+
 **One download.** Everything you need is in the Holodor image. The bootloader files are
 on the SD card once you have written it.
 
