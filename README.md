@@ -18,7 +18,15 @@ The full comparison, with sources, is in [docs/armada-comparison-2026-09-13.md](
 
 ## About the use of generative AI coding tools
 
-<!-- Cliff writes this section. -->
+I made extensive use of Claude Code and Gemini in this project. I get it if you hate generative AI, go in peace. But you should know that it's entirely ubiquitous in computing already, especially when it comes to things like putting together a linux distro. 
+
+The words you are reading now are written by me, the developer of this project. Some of the docs and such are likely Claudish. 
+
+Interesting story: at one point when I was chatbotting with the LLM I said "Could we add some boot animation or something to make holodor special?" No lie, the LLM said, "That's your call but let me suggest that you do the art yourself or find a human artist to do it for you. I could make something for you but it would just be slop. Nobody wants to see that. Art is something that humans are optimized for and I am just an LLM."
+
+We're at a weird moment in history right now for real. There are a lot of very diverse and very strong opinions on generative AI and I feel the need to be clear on where I personally stand on this. I am a professional software developer of 20 years and did network engineering for a decade before that. I never asked for LLM tools. But I simply have had to get comfortable using them or go unemployed, and I got mouths to feed. You know there is this sci fi concept of the multiverse that has been very popular the last couple of years...well personally as someone who has been involved in tech since the early 90s I don't think there are many "alternate timelines" where some billionaires didn't eventually decide to help themselves to All the Data and use it to train models using more and more compute bought with more and more borrowed money. It's just the obvious culmination of the whole silicon valley thing. So here we are, putting all of our eggs in one basket, betting the entire world economy and throwing epic amounts of carbon into the atmosphere. But these things are already extremely dangerous, and there isn't really any going back. If Anthropic and OpenAI had to shut down tomorrow, you'd still have potential bad actors around the world training local models to hack things, and the only way to counter that is to use models to seal security holes and actively counter the attackers. So as far as computing goes, we're cooked. It's a slop show from here until the next singularity. If we're lucky and we do our jobs it will be high quality slop that won't rise up and kill us all off. 
+
+On the other hand I hope I live to see the use of these things in creative pursuits fall out of favor and die off. I am also concerned about people who think they are having relationships with the random strings of text. And I sure hope the young people figure out how to actually learn things, boy howdy do I hope that. 
 
 ## Supported Features (Hardware-Verified)
 
