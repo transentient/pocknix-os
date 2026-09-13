@@ -8,11 +8,12 @@ the ROCKNIX kernel, and a Steam Big Picture session that boots in seconds.
 
 There are two ways to run it:
 
-- **From the SD card.** Good for trying it out. Android is not changed at all. It is
-  slower than internal storage, and some cards may not work (see below).
+- **From the SD card.** Good for trying it out. The Android install is not changed at all.
+  Running this way is, however slower than internal storage, and some cards may not work
+  (see below).
 - **Installed to internal storage, alongside Android.** The real way to run Holodor.
-  Fast, and Android stays bootable from the boot menu. Android is factory reset once,
-  during the install.
+  Runs fast. Android stays bootable from the boot menu. Note: your Android install is
+  factory reset once.
 
 Both ways need the one-time boot menu setup in Part II. Read every part before starting.
 Do not skip the backup step.
