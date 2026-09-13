@@ -1,6 +1,142 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-11 16:30 JST - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-14 01:30 JST - READ THIS FIRST (written by Claude Fable 5.1)
+
+### Where we are (state, not journey)
+- **RC 20260913 IS PUBLISHED and download-verified:**
+  https://holodor.bonesaw.com/holodor-odin3-20260913-seedless.img.zst (3,457,691,388 bytes, 3.22 GiB,
+  sha256 3c077cea…) + the .sha256 sidecar next to it. Verified like a user: full download through the
+  hostname in 62 s at 55 MB/s, `sha256sum -c` OK. Built from repo HEAD content (spot-check green:
+  every changed file byte-equal, bootloader package installed, cache dir empty, passwords empty,
+  sshd off, no Steam tree). The source repo and holodor-releases (OTA) are STILL PRIVATE; the
+  download URL is public but unlinked from anywhere except our docs.
+- **Hosting = Cloudflare R2**, bucket `holodor-images`, custom domain holodor.bonesaw.com on Cliff's
+  bonesaw.com zone (DNS moved to Cloudflare demi/nash.ns.cloudflare.com on 09-13; registration stays
+  at Squarespace, lock on). rclone remote `[r2]` in Cliff's ~/.config/rclone/rclone.conf (bucket-
+  scoped Object Read & Write token; `no_check_bucket = true` is REQUIRED). rclone = official static
+  binary at /usr/local/bin/rclone (fusor's pacman db was stale; swap for `pacman -S rclone` after the
+  next -Syu). Publish command: `DEVICE=sm8750 POCKNIX_IMAGE_FILE=<path to .zst> bash scripts/publish-image.sh`
+  (uploads the exact file + sidecar; checks the sidecar first). config/pocknix.conf carries the
+  remote and URL. Cost: inside the free tier, egress free.
+- **Device (Odin 3):** stock Dec-2025 Android on slot a, clean, no accounts, frp blank, OTA declined,
+  adb authorised, on fusor USB. **The 64 GB card in the Odin holds RC 20260911 (7.74 GiB, pre-cache-
+  purge), byte-verified 09-11.** Functionally identical to 20260913 except the absent pacman cache.
+  Cliff intends to download 20260913 from the public URL and flash it on his own PC "like a user
+  would"; nothing on the device has been touched since 09-11.
+- **Walkthrough NOT STARTED. Cliff drives it** (memory: feedback-walkthrough-cliff-drives): he reads
+  INSTALL.md and acts; the agent logs findings and reads device state only on request. Cliff reworks
+  ALL public prose through Gemini himself; agents change structure and substance only.
+- **Repo:** everything committed and pushed (HEAD bc0e106 at 01:00 JST 09-14; Cliff also edits
+  README.md directly on GitHub, so `git pull --no-rebase` BEFORE every push).
+- **Docs state:** README = Snapdragon-handhelds framing (Odin 3 = today's device, RP5 next), first-
+  hour-is-rough warning up front, "Isn't ArmadaOS the SteamOS for Android handhelds?" section (yes,
+  it is the main one; Holo Core base = genuineness not fps; two wins: 0.4%/h standby, FRP + stock-ABL
+  handling), Cliff's own "About the use of generative AI coding tools" section (his words; agents did
+  capitalisation only), Building from Source explains the qemu-user binfmt requirement with real
+  commands. INSTALL.md = Parts I-V (I download+write SD, II prepare Android + boot menu from the
+  rocknix_abl folder on the card, III first boot, IV internal install via the GUI, V going back incl.
+  the three EDL rules), live download links, first-hour warning. Sourced Armada comparison in
+  docs/armada-comparison-2026-09-13.md. ROADMAP Phase 7 = post-release (HDR, kernel+Mesa refresh,
+  dock to TV, Bluetooth controllers (BT audio itself works, Cliff tested early), containerised build,
+  Waydroid backlog).
+
+### What we did 2026-09-12 .. 09-14 (after the 09-11 16:30 block)
+- 09-12: Cliff stopped me feeding device steps: the walkthrough is HIS. Memory written.
+- 09-13: docs merge (Cliff's Gemini-reworded README on GitHub was 6 commits behind my local doc
+  restructure; merged, his wording kept as base). README de-branded; Armada section researched by an
+  agent (57 tool uses, sources in the comparison doc) then reframed to Cliff's Q&A framing; GenAI
+  heading added and Cliff wrote it; ROADMAP Phase 7; Waydroid to backlog after the "would Android
+  emulators run better under Waydroid" question (no: Waydroid renders through the host Mesa, so it
+  gains nothing over native PPSSPP, which the image already ships; RP5's Adreno 650 has mature Turnip).
+- 09-13: hosting decision. GitHub Releases impossible (2 GiB per-file cap; the image was 7.74 GiB;
+  Armada also self-hosts 5.83 GiB on Cloudflare). Found the image carried a 4.53 GiB pacman package
+  cache (two 1 GiB fex-rootfs copies among it); build-sd-image.sh now excludes /var/cache/pacman/pkg
+  -> 3.22 GiB. Cliff chose single-file hosting, then R2 (cost ~0), set up the bucket, token, DNS move
+  and custom domain himself in the dashboard with my steps; I verified each stage from fusor.
+- 09-13 ~17:55: published RC 20260913 at Cliff's request ("do this like a user would").
+- Build/publish plumbing: packages/pocknix-bootloader-sm8750 flat layout + options=('!strip');
+  publish-image.sh POCKNIX_IMAGE_FILE mode; ~/flash-rc.sh points at 20260913 (64 GB guard);
+  ~/rewrite-sd-window.sh OFFSET LENGTH (guarded window rewrite after a silent card write drop).
+
+### What we learned that is not in the code
+- **The SD write drop signature is the reader/USB path, not the cards:** 09-10 (32 GB) and 09-11
+  (64 GB) each dropped exactly ONE contiguous 120 KiB (30 x 4K) region near the end of the write,
+  both inside a pacman-cache file, both fixed by a window rewrite + full read-back. Cliff keeps the
+  old cards for a later look ("nagging feeling it's the reader").
+- Cloudflare in front of R2 answered a Range request with the WHOLE object (HTTP 200) on first fetch;
+  partial-range hash checks mislead. Verify with a full download or via the S3 API (`rclone cat`).
+- fusor DNS: the ISP's IPv6 resolver (enp2s0, 2404:1a8:7f01:b::3) times out sometimes; the router and
+  public resolvers answer. Tailscale is split-DNS (ts.net only, no default route) and is NOT involved;
+  it is needed for bonesaw-001/002 in the shonin project. Leave fusor's DNS alone.
+- Armada facts (2026-09-13, sourced): Fedora bootc base, ~12 devices, 17 contributors, ~1.8k Discord,
+  10 releases Jun-Sep, native s2idle "work in progress", experimental HDR on Odin 3 since 20260817,
+  no FRP/stock-ABL/OTA guidance in their docs, images self-hosted on Cloudflare.
+- The build's qemu-user binfmt requirement is inherited from the pocknix-os harness; Docker would
+  hide it (same binfmt mechanism) not remove it. Cliff: "a job for Docker"; Phase 7 item.
+
+### WHAT WE WERE WRONG ABOUT (do NOT re-derive)
+- **WRONG (Fable, 09-13): "fusor's Tailscale MagicDNS returned SERVFAIL for the new name" as the
+  cause of 'could not resolve host'.** Tailscale is split-DNS here; its SERVFAIL for public names is
+  normal. The real cause was the ISP IPv6 resolver timing out. Corrected in this file; do not touch
+  Tailscale (shonin project depends on it).
+- **WRONG (Fable, 09-13): "the served bytes differ from the local image" from a 1 MiB range hash.**
+  Cloudflare ignored the Range header and sent the whole file; the bucket bytes are exact (S3-API
+  read == local; full download sha OK).
+- **WRONG (Fable, 09-13): quoting Cloudflare dashboard labels from docs as if exact** ("Onboard a
+  domain" = "Add a domain" in the real dashboard; "Create User API token" lives under R2 > Account
+  Details > API Tokens > Manage, NOT the general account token page). Cliff: "you have not been
+  confidence inspiring with cloudflare today." Describe what a screen is FOR and ask what he sees.
+- **WRONG (Fable, 09-12): rewriting INSTALL.md wholesale and then feeding Cliff device steps.** The
+  walkthrough is Cliff's doc test in his own voice. Do not repeat.
+- **WRONG (stale docs): "suspending mid-game may disconnect the controller"** (still in INSTALL.md
+  Known limitations). Fixed at the kernel layer (rsinput UART reassembly, kernel-22); Cliff declared
+  sleep/wake solved 09-07; the 09-05 "slow after wake" was Vampire Survivors' own speed toggle. Cliff
+  deletes the bullet during his doc pass.
+- **Ruled out by Cliff: Waydroid for emulation** (backlog), splitting the image into GitHub parts,
+  archive.org as primary host, transferring the domain registration to Cloudflare (DNS only).
+
+### TRAPS
+- `git pull --no-rebase` before every push: Cliff edits README.md on GitHub between sessions.
+- The published URL is live: never overwrite holodor-odin3-20260913-seedless.img.zst in the bucket;
+  a new RC gets a new dated name (CDN caching; public filenames must never change bytes).
+- Docs: NO em dashes in README.md / INSTALL.md (check `grep -c $'\u2014'`); ROADMAP/HANDOFF are
+  internal and still have them.
+- Heredocs: a bare `EOF` line inside replacement text kills the outer heredoc; write patch scripts to
+  files. `pkill -f` self-matches (struck again 09-11). `make packages` needs DEVICE=sm8750.
+- fusor's pacman database is stale (404s on install); do not `-Sy` a single package; either `-Syu`
+  the whole box deliberately or use an upstream static binary as done for rclone.
+- The card reader drops one 120 KiB window per big write: always full read-back verify
+  (~/flash-rc.sh does), fix with ~/rewrite-sd-window.sh, re-verify.
+
+### NEXT (in order)
+1. **Cliff's walkthrough of INSTALL.md as a user, from the public download**, on his Windows PC +
+   the Odin. Agent role: answer questions, log every doc finding into docs/review-2026-09-11-dual-boot.md
+   (or a new dated findings file), read device state over adb only when asked. The proof list from
+   the 09-11 16:30 block still stands: (1) Android mounts the card + Files copy, (2) backup_abl.sh puts
+   the two images on the SD card too (the /mnt/media_rw/* line is untested on AYN's runner),
+   (3) disable_android_updates.sh works from the runner, (4) flash + boot menu + card test,
+   (5) first boot + Steam, (6) GUI internal install with frp=clean + abl_backup=found,
+   (7) **Android boots after the internal install (NEVER PROVEN)**, (8) SD-inserted boot order,
+   (9) add a Google account then "Remove Holodor" -> FRP dialog -> Android sets up clean,
+   (10) "Restore stock bootloader" from the SD.
+2. After the walkthrough: Cliff's Gemini prose pass on README/INSTALL; delete the stale controller
+   bullet; decide the README "Android preserved" row from proof (7).
+3. Release mechanics still open (docs/ROADMAP.md Phase 6): repo public flip, holodor-releases (OTA)
+   public flip per docs/pacman-repo.md, announcement. The image host is DONE.
+4. Then Phase 7 (HDR first).
+
+### Open questions
+- Does AYN's Android mount our GPT/FAT SD partition as portable storage? (ROCKNIX relies on it.)
+- Does `pm disable com.odin.fota` work from the "Run script as Root" runner?
+- Will ABL v1.1.7 see the 64 GB card this time? (08-20: invisible.) Part II step 8 decides; the
+  32 GB card is the known-good fallback.
+- Cloudflare Range behaviour: is it only the first (uncached) fetch? Matters for resumed downloads.
+
+— written 2026-09-14 01:30 JST by **Claude Fable 5.1** (session 2026-09-11 13:00 .. 09-14 01:30:
+dual-boot review + tools + RC 20260911/20260913, docs restructure, Armada research, R2 hosting,
+publication)
+
+## PREVIOUS STATE 2026-09-11 16:30 JST (superseded by the 2026-09-14 block above; its sub-sections dated 09-13 are still current facts)
 
 ### Where we are
 - **Device:** unchanged from the 03:30 block: stock Dec-2025 Android on slot a, clean, no accounts,
