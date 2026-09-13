@@ -36,7 +36,14 @@
   delete round trip OK, HTTPS 200 with valid TLS through the hostname. Cost: inside R2's free tier
   (egress free). GitHub Releases ruled out (2 GiB per file); Armada also self-hosts (5.83 GiB on
   Cloudflare). rclone on fusor = official static binary in /usr/local/bin (pacman db was stale;
-  replace with `pacman -S rclone` after the next -Syu). NOTHING UPLOADED YET.
+  replace with `pacman -S rclone` after the next -Syu). (uploaded, see below).
+- **PUBLISHED 2026-09-13 ~17:55 (Cliff: "do this like a user would"):** RC 20260913 + .sha256 are live
+  at https://holodor.bonesaw.com/holodor-odin3-20260913-seedless.img.zst. Verified like a user: full
+  3,457,691,388-byte download through the hostname in 62 s (55 MB/s), `sha256sum -c` OK. Docs link
+  it. Quirks seen: Cloudflare answered a Range request with the whole file (HTTP 200) on first
+  fetch, so partial-range hash checks mislead; the bytes are right (S3-API read == local). fusor's
+  own resolver (Tailscale MagicDNS 100.100.100.100) returned SERVFAIL for the new name while every
+  public resolver answered; use `--resolve` or a public DNS for checks from fusor, users unaffected.
 - **Publish when the walkthrough passes:** `POCKNIX_IMAGE_FILE=build/image/sm8750/holodor-odin3-<date>-seedless.img.zst make publish-image`
   (uploads the exact verified bytes + .sha256; checks the sidecar first). Docs already name the URL
   (marked "not yet published").
