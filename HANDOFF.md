@@ -41,9 +41,11 @@
   at https://holodor.bonesaw.com/holodor-odin3-20260913-seedless.img.zst. Verified like a user: full
   3,457,691,388-byte download through the hostname in 62 s (55 MB/s), `sha256sum -c` OK. Docs link
   it. Quirks seen: Cloudflare answered a Range request with the whole file (HTTP 200) on first
-  fetch, so partial-range hash checks mislead; the bytes are right (S3-API read == local). fusor's
-  own resolver (Tailscale MagicDNS 100.100.100.100) returned SERVFAIL for the new name while every
-  public resolver answered; use `--resolve` or a public DNS for checks from fusor, users unaffected.
+  fetch, so partial-range hash checks mislead; the bytes are right (S3-API read == local). the
+  "could not resolve host" moments on fusor were the ISP's IPv6 DNS server (enp2s0, 2404:1a8:7f01:b::3)
+  timing out; the router and every public resolver answered. NOT Tailscale: it is split-DNS here
+  (ts.net only, no default route), so its SERVFAIL for public names is normal. If it recurs, point
+  the wired connection at the router/public DNS; otherwise leave fusor's DNS alone.
 - **Publish when the walkthrough passes:** `POCKNIX_IMAGE_FILE=build/image/sm8750/holodor-odin3-<date>-seedless.img.zst make publish-image`
   (uploads the exact verified bytes + .sha256; checks the sidecar first). Docs already name the URL
   (marked "not yet published").
