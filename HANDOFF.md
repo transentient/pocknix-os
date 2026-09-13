@@ -7,7 +7,7 @@
   no screen lock, frp blank, OTA declined, adb authorised (serial 6809ee9e), on fusor USB. Nothing
   was written to the device this session (adb reads + screenshots only; the "Odin settings" app was
   opened for menu-name capture).
-- **RC to install = 20260911** (build/image/sm8750/holodor-odin3-20260911-seedless.img.zst, 7.74 GiB,
+- **RC to install = 20260911 on the card; 20260913 is current (see the evening block)** (build/image/sm8750/holodor-odin3-20260911-seedless.img.zst, 7.74 GiB,
   sha256 2db43dcf…, sidecar; log build/respin-20260911.log; recipe = build-image RESUME+SKIP_PKGPHASE+
   SEEDLESS -> build-sd-image SEEDLESS+RELEASE SD_TIMEZONE=Asia/Tokyo -> zstd -12, all with
   DEVICE=sm8750). Loop-mount spot-check ALL GREEN (scratch spotcheck.sh): SD FAT carries
@@ -26,6 +26,31 @@
   verify PASSED (card = RC 20260911 byte-exact, ready for the Odin).** Read-only card checks: `cmp` the raw image vs /dev/sdb is memory-light and
   fast; a python chunk reader got killed by the harness "low memory" watchdog (spurious).
 - **Repo:** committed this session (see git log), NOT pushed unless Cliff did.
+
+### 2026-09-13 evening: RELEASE HOSTING DONE + RC 20260913 (3.22 GiB) BUILT
+- **Download host = https://holodor.bonesaw.com** (Cloudflare R2 bucket `holodor-images`, custom
+  domain on Cliff's bonesaw.com zone; DNS moved from Google/Squarespace nameservers to Cloudflare
+  demi/nash.ns.cloudflare.com, domain had no records so nothing to carry). Verified end to end:
+  rclone remote [r2] in Cliff's ~/.config/rclone/rclone.conf (bucket-scoped Object Read & Write
+  token, `no_check_bucket = true` required or rclone tries CreateBucket and gets 403), write/read/
+  delete round trip OK, HTTPS 200 with valid TLS through the hostname. Cost: inside R2's free tier
+  (egress free). GitHub Releases ruled out (2 GiB per file); Armada also self-hosts (5.83 GiB on
+  Cloudflare). rclone on fusor = official static binary in /usr/local/bin (pacman db was stale;
+  replace with `pacman -S rclone` after the next -Syu). NOTHING UPLOADED YET.
+- **Publish when the walkthrough passes:** `POCKNIX_IMAGE_FILE=build/image/sm8750/holodor-odin3-<date>-seedless.img.zst make publish-image`
+  (uploads the exact verified bytes + .sha256; checks the sidecar first). Docs already name the URL
+  (marked "not yet published").
+- **RC 20260913** = build/image/sm8750/holodor-odin3-20260913-seedless.img.zst, **3.22 GiB** (was
+  7.74: the SD image no longer carries /var/cache/pacman/pkg, 4.5 GiB of installed packages),
+  sha256 3c077cea…, sidecar; log build/respin-20260913.log. Spot-check ALL GREEN, cache dir empty
+  in the image. Same content as 20260911 otherwise. **The 64 GB card in the Odin still holds
+  20260911** (pre-shrink, functionally identical); ~/flash-rc.sh now points at 20260913; reflash
+  before publishing, not needed for the walkthrough itself.
+- Docs pushed today: README de-branded (Snapdragon handhelds; Odin 3 = today's device), "Holodor
+  and ArmadaOS" (honest, sourced: docs/armada-comparison-2026-09-13.md), "About the use of
+  generative AI coding tools" heading (Cliff writes), INSTALL.md restructured as Parts I-V with
+  the SD write first, ROADMAP Phase 7 (HDR, kernel+Mesa, dock, BT controllers; Waydroid backlog).
+  Cliff reworks all public prose through Gemini himself; agents change structure/substance only.
 
 ### Closed 2026-09-13 (Cliff): "game runs slow ~1 min after a wake" was NOT a Holodor bug
 The 09-05 note (the one open wake item in the 09-07 block) was Vampire Survivors' own game-speed
