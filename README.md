@@ -47,7 +47,7 @@ The full comparison, with sources, is in [docs/armada-comparison-2026-09-13.md](
 ## Installation
 
 Please refer to **[INSTALL.md](INSTALL.md)** for detailed instructions. The image will be
-published at https://archive.org/details/holodor-odin3 (not yet live).
+published at https://holodor.bonesaw.com (not yet live).
 
 **Summary:** One download. You write the Holodor image to an SD card, then use the bootloader files that are already on that card to do the one-time boot menu setup from Android (with a mandatory backup of your original bootloader). Boot from the card to try it, then install to internal storage alongside Android with the Holodor Installer app. Going back to Android, or to a fully stock device, is covered in the same guide.
 

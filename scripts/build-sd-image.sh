@@ -427,7 +427,11 @@ main() {
   # root partition: the rootfs
   mount "${LOOP}p2" "${MNT}"
   log "copying rootfs -> root partition (takes a bit)"
-  rsync -aHAX --numeric-ids "${ROOTFS_DIR}/" "${MNT}/"
+  # HOLODOR: leave the pacman package cache out of the shipped image. It carried 4.5 GiB
+  # of already-installed packages (two 1 GiB fex-rootfs copies among them) and was most of
+  # the 7.7 GiB compressed size (measured 2026-09-13: 3.2 GiB without it). Updates come
+  # from the [pocknix] repo, not the cache; nothing on the device reads it.
+  rsync -aHAX --numeric-ids --exclude='/var/cache/pacman/pkg/*' "${ROOTFS_DIR}/" "${MNT}/"
   firstboot_config "${MNT}"
   # Ownership gate: nothing outside /home should be owned by the host build user (uid/gid 1000 =
   # 'alarm' in the rootfs). A stray host-owned path here means a host->rootfs copy leaked ownership

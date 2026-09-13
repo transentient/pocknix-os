@@ -33,8 +33,8 @@ on the SD card once you have written it.
     the card itself is fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
 - The **Holodor image**: one file, `holodor-odin3-<date>-seedless.img.zst`, from
-  https://archive.org/details/holodor-odin3 (not yet published; the first release will
-  appear there). Next to it is a `.sha256` file; check the download against it before
+  https://holodor.bonesaw.com (not yet published; the first release will appear
+  there). Next to it is a `.sha256` file; check the download against it before
   writing the card.
 
 ---

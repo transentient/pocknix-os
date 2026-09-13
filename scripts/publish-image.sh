@@ -20,21 +20,36 @@ source "$(dirname "$0")/lib.sh"
 
 IMG="${IMAGE_DIR}/pocknix-${SOC}-sd.img"
 STAMP="$(date +%Y%m%d)"
-OUT="${IMAGE_DIR}/pocknix-${SOC}-${STAMP}-sd.img.zst"
-
-[ -f "${IMG}" ] || die "no ${IMG} — run 'make sd-image' first"
+# HOLODOR: release candidates are compressed by the respin recipe under the public
+# name holodor-odin3-<date>-seedless.img.zst (+ .sha256). Pass that file as
+# POCKNIX_IMAGE_FILE to upload it as-is (no recompression, same bytes the card was
+# verified against). Without it, the harness default below applies.
+if [ -n "${POCKNIX_IMAGE_FILE:-}" ]; then
+  OUT="${POCKNIX_IMAGE_FILE}"
+  [ -f "${OUT}" ] || die "POCKNIX_IMAGE_FILE=${OUT} does not exist"
+  [ -f "${OUT}.sha256" ] || die "${OUT}.sha256 missing — the respin writes it next to the image"
+  IMG="${OUT}"   # skip the compression branch below
+else
+  OUT="${IMAGE_DIR}/pocknix-${SOC}-${STAMP}-sd.img.zst"
+  [ -f "${IMG}" ] || die "no ${IMG} — run 'make sd-image' first"
+fi
 need_tool zstd
 need_tool sha256sum
 
-if [ ! -f "${OUT}" ] || [ "${IMG}" -nt "${OUT}" ]; then
+if [ -n "${POCKNIX_IMAGE_FILE:-}" ]; then
+  log "publishing prebuilt $(basename "${OUT}") ($(du -h "${OUT}" | cut -f1))"
+elif [ ! -f "${OUT}" ] || [ "${IMG}" -nt "${OUT}" ]; then
   log "compressing $(du -h "${IMG}" | cut -f1) image -> $(basename "${OUT}") (zstd -12, all cores)"
   zstd -T0 -12 --force "${IMG}" -o "${OUT}" || die "zstd failed (root-owned ${IMAGE_DIR}? use sudo -E)"
 else
   log "$(basename "${OUT}") is up to date — skipping compression"
 fi
 
-log "writing sha256"
-( cd "${IMAGE_DIR}" && sha256sum "$(basename "${OUT}")" > "${OUT}.sha256" )
+if [ -z "${POCKNIX_IMAGE_FILE:-}" ]; then
+  log "writing sha256"
+  ( cd "${IMAGE_DIR}" && sha256sum "$(basename "${OUT}")" > "${OUT}.sha256" )
+fi
+( cd "$(dirname "${OUT}")" && sha256sum -c "$(basename "${OUT}").sha256" >/dev/null ) || die "sha256 sidecar does not match ${OUT}"
 ok "prepared: $(basename "${OUT}") ($(du -h "${OUT}" | cut -f1)) + .sha256"
 
 if [ -n "${POCKNIX_IMAGE_RCLONE_REMOTE}" ]; then
