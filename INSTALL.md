@@ -4,16 +4,16 @@ These instructions are for the **AYN Odin 3**, the only device Holodor supports 
 Other devices will get their own sections when they are supported.
 
 Holodor turns the Odin 3 into a SteamOS-style handheld: Valve's own Holo Core system,
-the ROCKNIX kernel, and a Steam Big Picture session that boots in seconds. Android stays
-on the device; you choose what boots.
+the ROCKNIX kernel, and a Steam Big Picture session that boots in seconds. 
 
 There are two ways to run it:
 
-- **From the SD card.** Good for trying it out. Android is not changed at all. It is
-  slower than internal storage, and some cards will not work (see below).
+- **From the SD card.** Good for trying it out. The Android install is not changed at all.
+  Running this way is, however slower than internal storage, and some cards may not work
+  (see below).
 - **Installed to internal storage, alongside Android.** The real way to run Holodor.
-  Fast, and Android stays bootable from the boot menu. Android is factory reset once,
-  during the install.
+  Runs fast. Android stays bootable from the boot menu. Note: your Android install is
+  factory reset once.
 
 Both ways need the one-time boot menu setup in Part II. Read every part before starting.
 Do not skip the backup step.
@@ -36,7 +36,7 @@ on the SD card once you have written it.
   - The bootloader is picky about SD cards. Older, plain cards (for example SanDisk
     Ultra) work; many fast modern cards (high-end UHS-I or A2) are invisible to it.
     Part II step 8 tells you whether yours works. If it does not, use a different card;
-    the card itself is fine for other uses.
+    the card itself is probably fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
 - The **Holodor image**: one file. Current release:
   https://holodor.bonesaw.com/holodor-odin3-20260913-seedless.img.zst (3.2 GB).
