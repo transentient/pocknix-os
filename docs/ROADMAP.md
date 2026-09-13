@@ -194,7 +194,15 @@ these right after the release, in this order.
    headphone-jack work in the early days (not written down at the time; recorded here
    2026-09-13). Controllers were never tried. Needed for the dock setup. Test a
    controller pairing and InputPlumber's handling of it first.
-5. Backlog, no plan: Waydroid (docs/waydroid.md is inherited from pocknix; not in the
+5. **Containerised build.** Cliff (2026-09-13): "a job for Docker or some other container
+   system to create a build jail"; people will ask why they need to set up binfmt by hand.
+   ROCKNIX builds in Docker, Armada is a bootc image built with buildx+qemu. A Dockerfile
+   with the host tools (parted, gptfdisk, dosfstools, e2fsprogs, zstd, rsync, kernel
+   toolchain) plus `docker run --privileged` for loop/mount/chroot would make the README's
+   requirements one line. The qemu-user binfmt registration still has to exist on the
+   host kernel (that is what `tonistiigi/binfmt --install arm64` does). Moderate job: the
+   harness assumes host paths and root. After release.
+6. Backlog, no plan: Waydroid (docs/waydroid.md is inherited from pocknix; not in the
    image). Decided 2026-09-13: not worth it for emulation, since Waydroid renders through
    the host Mesa and gains nothing over native emulators (PPSSPP is already in the image;
    the RP5's Adreno 650 has mature Turnip support). Only use case left is Android-only

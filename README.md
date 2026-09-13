@@ -64,12 +64,16 @@ checksum next to it.
 
 ## Building from Source
 
-The repository serves as the build system (forked from the pocknix-os harness). You will find `scripts/build-kernel.sh`, `build-packages.sh`, `build-image.sh`, and `build-sd-image.sh`, all of which are documented inline.
+The repository is the build system (forked from the pocknix-os harness). The entry points are `make kernel`, `make packages`, `make build` and `make sd-image`; each script under `scripts/` explains itself at the top, and every script checks for the tools it needs and names the missing one.
+
+**Why the odd requirement below:** Holodor is an ARM64 system, and most people build it on an x86 PC. The build therefore runs ARM binaries under `qemu-user`, registered with the kernel through `binfmt_misc`. That is the same mechanism Docker uses when it runs an `arm64` image on an x86 host; there is no way around it short of building on an ARM machine. The `C` flag matters because the build switches users inside the emulated system (`pacman` as root, `makepkg` as a builder user).
 
 **Requirements:**
-* A Linux host with `qemu-user binfmt` enabled (including the `C` flag - please see the `docs/` directory for details).
-* Approximately 50 GB of free storage space.
-* Please note that the initial package build may take a significant amount of time.
+* A Linux host. On Arch: `pacman -S qemu-user-static qemu-user-static-binfmt` and you are done; the registration already carries the `C` flag. On Debian or Ubuntu: `apt install qemu-user-static binfmt-support`, then check that `/proc/sys/fs/binfmt_misc/qemu-aarch64` lists a `C` among its flags.
+* Root for the image steps (they create loop devices, mount, and chroot).
+* Roughly 50 GB of free disk, and patience: the first package build takes hours.
+
+A Dockerfile that packages all of this so the build is one command is on the post-release list (see docs/ROADMAP.md, Phase 7).
 
 ## Credits
 
