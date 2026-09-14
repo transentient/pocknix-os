@@ -39,10 +39,44 @@ on the SD card once you have written it.
     the card itself is probably fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
 - The **Holodor image**: one file. Current release:
-  https://holodor.bonesaw.com/holodor-odin3-20260913-seedless.img.zst (3.2 GB).
+  https://holodor.bonesaw.com/holodor-odin3-20260914-seedless.img.zst (3.2 GB).
   Its checksum file is
-  https://holodor.bonesaw.com/holodor-odin3-20260913-seedless.img.zst.sha256.
+  https://holodor.bonesaw.com/holodor-odin3-20260914-seedless.img.zst.sha256.
   Check the download against it before writing the card.
+
+---
+
+## Already running ArmadaOS or ROCKNIX? Read this first
+
+ArmadaOS and ROCKNIX use the same ROCKNIX bootloader as Holodor. If one of them is on
+your Odin 3, you already have the boot menu, and Holodor fits in next to it or in its
+place. Differences from a stock device:
+
+- **Skip most of Part II.** The bootloader is flashed and the device model is set. Only
+  step 9 (turn off Android updates) still applies if you have not done it.
+- **Bring your bootloader backup with you.** When you flashed the bootloader, the kit
+  wrote your stock bootloader backup to a `rocknix_abl/SM8750` folder on that SD card
+  (and to Android's internal storage, which the Armada or ROCKNIX install then wiped).
+  Before Part II, copy `abl_a.img` and `abl_b.img` from that card, or from your PC,
+  into the `rocknix_abl` folder on the Holodor SD card. Holodor then keeps them on the
+  device, and can put the stock bootloader back from Linux later (Part V). If you skip
+  this, Holodor tells you so at install time, and you can point it at the files later,
+  on a USB drive or a folder you choose.
+- **Trying Holodor from the SD card** is the same as for everyone: Part I, then Part
+  III. If Armada or ROCKNIX is on internal storage, the boot menu decides whether the
+  card or internal storage boots. Hold Volume Down at power on and look at the boot
+  mode setting; choose the SD card. (The exact menu names differ between bootloader
+  versions; ArmadaOS installs version 1.1.8, the Holodor card carries 1.1.7. Do not
+  flash the Holodor card's bootloader over a newer one.)
+- **Replacing Armada or ROCKNIX on internal storage with Holodor** is Part IV. The
+  installer sees the existing install and offers **Replace with Holodor**. It reuses
+  exactly the space the other system had. **Android is not touched**: not resized, not
+  reset, and it keeps its apps. Everything in the Armada or ROCKNIX install is erased,
+  so move any saves you care about first. Going back the other way is the same step in
+  ArmadaOS's own installer; it treats Holodor's partitions the same way.
+- **All three at once** (Android, ArmadaOS and Holodor on internal storage) is not
+  possible today: the boot menu boots one Linux from internal storage. Keep the other
+  one on an SD card, or use Replace to swap which one is internal.
 
 ---
 
@@ -50,8 +84,8 @@ on the SD card once you have written it.
 
 1. Download the Holodor image and its checksum file (the two addresses are in "What
    you will need"). Check the download: on Linux or Mac, put both files in the same
-   folder and run `sha256sum -c holodor-odin3-20260913-seedless.img.zst.sha256`; on
-   Windows, run `certutil -hashfile holodor-odin3-20260913-seedless.img.zst SHA256`
+   folder and run `sha256sum -c holodor-odin3-20260914-seedless.img.zst.sha256`; on
+   Windows, run `certutil -hashfile holodor-odin3-20260914-seedless.img.zst SHA256`
    and compare the result with the text in the checksum file by eye.
 
 2. On your PC, write it to the card:
@@ -213,6 +247,11 @@ Android's data partition and installs Holodor beside it. **Android survives but 
 factory reset**: its apps and data are wiped; the Android system itself stays bootable
 from the boot menu. The bootloader and every other Android partition are not touched.
 
+If a Linux system is already on internal storage (ArmadaOS, ROCKNIX, or an earlier
+Holodor), the installer offers **Replace with Holodor** instead. That erases the other
+system and reuses its space; Android is not resized and not reset. Reinstalling Holodor
+over itself works the same way.
+
 1. Boot Holodor from the SD card and connect Wi-Fi.
 2. Switch to Desktop Mode (Steam menu > Power > Switch to Desktop) and open
    **Holodor Installer** (application menu > System).
@@ -319,9 +358,13 @@ affected.
   Steam first for reliable in-game suspend).
 - The battery **charge limit** setting is experimental: the hardware does not always
   honor it, and the device may charge to 100% anyway.
-- With Holodor on internal storage, a ROCKNIX SD card will not boot: the bootloader
-  finds Holodor's internal boot partition first. Remove Holodor (Part V, level 2) to
-  try ROCKNIX from a card.
+- With Holodor on internal storage, a ROCKNIX or ArmadaOS SD card may not boot: on
+  bootloader 1.1.7 the internal boot partition wins. Newer bootloaders have a boot mode
+  that forces the SD card; check the boot menu. Otherwise the Holodor Installer's
+  **Disable internal boot** step (Part V, level 2) makes the card boot, and can be
+  undone.
+- Only one Linux system can be installed on internal storage at a time (see "Already
+  running ArmadaOS or ROCKNIX?" above).
 - The boot menu's SD card support is narrower than Android's. A card that Android
   reads fine may still be invisible to the boot menu.
 
@@ -338,6 +381,8 @@ nothing to attack until you opt in. To enable remote access:
    configure it. (`sudo passwd root` first if you want direct root SSH; better: ssh in
    as deck and use sudo.)
 
-Command-line equivalents of the installer app: `pocknix-install-internal`,
-`pocknix-uninstall-internal`, `pocknix-clear-frp`, `pocknix-restore-stock-abl`. Each
-prints its plan with `--dry-run` or `--check` before changing anything.
+Command-line equivalents of the installer app: `pocknix-install-internal` (add
+`--replace` to take over an existing Linux install without touching Android),
+`pocknix-uninstall-internal`, `pocknix-clear-frp`, `pocknix-restore-stock-abl` (add
+`--from DIR` to use a backup in any folder). Each prints its plan with `--dry-run`,
+`--check` or `--find` before changing anything.

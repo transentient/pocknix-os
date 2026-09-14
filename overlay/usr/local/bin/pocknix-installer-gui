@@ -9,7 +9,10 @@
 # pattern as the SD-format helper). Branches on where we're booted from:
 #   SD boot, nothing installed   -> menu: install (Android-size picker -> FRP consent -> confirm ->
 #                                   busy -> poweroff) | fix Android setup lock | restore stock bootloader
-#   SD boot, Holodor installed   -> menu: reinstall | remove & give storage back | fix lock | restore stock
+#   SD boot, Holodor installed   -> menu: reinstall (replace in place, Android untouched) | remove &
+#                                   give storage back | fix lock | restore stock
+#   SD boot, ArmadaOS/ROCKNIX/other Linux installed -> replace it with Holodor (Android untouched,
+#                                   not reset: the space after userdata is reused as is) | fix lock | restore
 #   internal boot                -> removal stage 1 (--disable-boot); finish from the SD with this app
 #
 # Two rules from docs/review-2026-09-11-dual-boot.md shape the flows:
@@ -91,11 +94,23 @@ fix_lock_flow() {
 # --- stock bootloader restore (deliberate, last, separate) --------------------------------------
 restore_stock_flow() {
   local found dir reasons
+  local from=() pick
   found=$(pkexec "$RESTORE_CLI" --find 2>>"$LOG" || true)
   dir=$(val "$found" backup_dir)
   if [ -z "$dir" ] || [ "$dir" = none ]; then
     reasons=$(sed -n 's/^reason=/• /p' <<<"$found" | head -4 | sed 's/$/<br\/>/' | tr -d '\n')
-    gui_die "<b>No usable stock bootloader backup found.</b><br/><br/>Holodor looks on the SD card (rocknix_abl/abl_a.img and abl_b.img, written there by backup_abl.sh), in the internal install, and in the internal boot partition.<br/><br/>${reasons:-}<br/>If you still have the two files on your PC, copy them into the rocknix_abl folder on the SD card and try again. If you ran backup_abl.sh only after flashing, your backup is the ROCKNIX bootloader, not stock, and cannot be used."
+    kdialog --title "$TITLE" --yes-label "Browse for it" --no-label "Cancel" --warningyesno \
+      "<b>No usable stock bootloader backup found.</b><br/><br/>Holodor looks on the SD card (rocknix_abl/abl_a.img and abl_b.img, also in a rocknix_abl/SM8750 subfolder as the ArmadaOS and ROCKNIX kits write it), in the internal install, in the internal boot partition, and on any plugged-in USB drive.<br/><br/>${reasons:-}<br/>If the two files are on your PC or on an ArmadaOS/ROCKNIX card, copy them into the rocknix_abl folder on this SD card, or onto a USB drive, and try again. You can also point Holodor at the folder now. A backup taken after a bootloader flash is the ROCKNIX bootloader, not stock, and is refused." \
+      || return
+    pick=$(kdialog --title "$TITLE" --getexistingdirectory /run/media 2>/dev/null || true)
+    [ -n "$pick" ] || return
+    found=$(pkexec "$RESTORE_CLI" --find --from "$pick" 2>>"$LOG" || true)
+    dir=$(val "$found" backup_dir)
+    if [ -z "$dir" ] || [ "$dir" = none ]; then
+      reasons=$(sed -n 's/^reason=/• /p' <<<"$found" | head -4 | sed 's/$/<br\/>/' | tr -d '\n')
+      gui_die "<b>No usable stock bootloader backup in that folder.</b><br/><br/>${reasons:-}"
+    fi
+    from=(--from "$dir")
   fi
   case "$(findmnt -no SOURCE / 2>/dev/null || true)" in
     "$DEVICE"*)
@@ -106,7 +121,7 @@ restore_stock_flow() {
   kdialog --title "$TITLE" --yes-label "Restore stock bootloader" --no-label "Cancel" --warningyesno \
     "<b>Put the stock AYN bootloader back?</b><br/><br/>Backup found: <tt>${dir}</tt><br/>abl_a $(val "$found" abl_a_sha256)…  abl_b $(val "$found" abl_b_sha256)…<br/><br/>This replaces the ROCKNIX boot menu on both slots. Afterwards the device boots <b>straight into Android</b>; Holodor (SD or internal) cannot boot until you run flash_abl.sh from Android again.<br/><br/>Do this only after you have booted Android once and seen it work. Android's factory-reset-protection marker is cleared first, so Android cannot lock you out with the menu gone.<br/><br/>Each write is checked by reading it back." \
     || return
-  run_busy "Restoring the stock bootloader…" "$RESTORE_CLI" --yes \
+  run_busy "Restoring the stock bootloader…" "$RESTORE_CLI" --yes "${from[@]}" \
     || gui_die "Restore failed (details in ${LOG}).<br/><br/>Do not power off yet: run this again. If it keeps failing, boot Android and run flash_abl.sh from the rocknix_abl folder to keep the ROCKNIX menu."
   offer_poweroff "<b>Stock bootloader restored</b> on both slots and verified.<br/><br/>Power off, take the SD card out, power on: Android starts. (On an unlocked bootloader a red \"device is corrupt\" screen may appear; if it restarts by itself, a short tap of the power button continues.)"
 }
@@ -132,7 +147,7 @@ install_flow() {
 
   bk=""
   [ "$(val "$info" abl_backup)" = found ] \
-    || bk="<br/><br/>⚠️ <b>No stock bootloader backup was found on the SD card.</b> The install still works, but the copy you made on your PC is then your only way back to a stock bootloader. To keep one on the device, cancel, run backup_abl.sh from Android with this SD card inserted, then come back."
+    || bk="<br/><br/>⚠️ <b>No stock bootloader backup was found on the SD card.</b> The install still works, but the copy you made on your PC (or the one in rocknix_abl/SM8750 on your ArmadaOS or ROCKNIX card) is then your only way back to a stock bootloader. To keep one on the device, cancel, copy abl_a.img and abl_b.img into the rocknix_abl folder on this SD card (or run backup_abl.sh from Android with this card inserted), then come back."
   kdialog --title "$TITLE" --warningcontinuecancel \
     "<b>Install Holodor to internal storage, alongside Android?</b><br/><br/>This <b>factory-resets Android</b>: installed Android apps and their data are lost (the Android system itself is kept and stays bootable from the boot menu). The SD card is not touched.<br/><br/>Nothing before the Android data partition is modified, so the bootloader stays safe.${bk}" \
     || exit 0
@@ -150,6 +165,26 @@ install_flow() {
       "$INSTALL_CLI" --yes --userdata-gib "$ud" $frp \
     || gui_die "Install failed (details in ${LOG}).<br/><br/>If internal storage was modified, do NOT boot it — boot this SD card again and re-run this installer to finish. The SD card is untouched and Android is not needed."
   offer_poweroff "<b>Install complete.</b><br/><br/>Power off, remove the SD card, then power on — Holodor boots from internal storage. Keep the SD card: it is your rescue system.<br/><br/>Android is still there: hold Volume Down while powering on and choose boot mode Android."
+}
+
+# Replace whatever Linux install sits after Android's userdata with the system running now.
+# Android is neither resized nor wiped, so there is nothing to ask about frp. Used for a Holodor
+# reinstall and for moving from ArmadaOS / ROCKNIX / another distro to Holodor.
+replace_flow() {
+  local info="$1" what="$2" names gib bk
+  names=$(val "$info" tail_names); gib=$(val "$info" tail_gib)
+  [ "$(val "$info" replace_ok)" = 1 ] \
+    || gui_die "<b>The space used by ${what} is too small for Holodor</b> (${gib} GB after Android).<br/><br/>Remove that install from the bootloader menu first (its uninstall option gives the space back to Android), then install Holodor fresh and choose a smaller size for Android."
+  bk=""
+  [ "$(val "$info" abl_backup)" = found ] \
+    || bk="<br/><br/>⚠️ <b>No stock bootloader backup was found on the SD card.</b> Holodor can still be installed, but keep the backup you made when you first flashed the bootloader (on your PC, or in rocknix_abl/SM8750 on your ArmadaOS or ROCKNIX card). Copy abl_a.img and abl_b.img into the rocknix_abl folder on this SD card to keep one on the device."
+  kdialog --title "$TITLE" --yes-label "Replace with Holodor" --no-label "Cancel" --warningyesno \
+    "<b>Replace ${what} with Holodor?</b><br/><br/>Internal storage has <b>${what}</b> after Android (${names}, ${gib} GB). Holodor takes over exactly that space.<br/><br/>Everything in ${what} is erased: its settings, games and saves. <b>Android is not touched</b>: it is not resized and not reset, and it stays bootable from the boot menu. The bootloader stays as it is.${bk}" \
+    || exit 0
+  run_busy "Replacing ${what} with Holodor — do not power off…" \
+      "$INSTALL_CLI" --yes --replace \
+    || gui_die "Install failed (details in ${LOG}).<br/><br/>If internal storage was modified, do NOT boot it — boot this SD card again and re-run this installer to finish. The SD card is untouched and Android is not needed."
+  offer_poweroff "<b>Install complete.</b><br/><br/>Power off, remove the SD card, then power on — Holodor boots from internal storage. Keep the SD card: it is your rescue system.<br/><br/>Android is still there, exactly as it was: hold Volume Down while powering on and choose boot mode Android."
 }
 
 remove_flow() {
@@ -193,19 +228,12 @@ manage_flow() {
 
   choice=$(kdialog --title "$TITLE" --menu \
     "<b>Holodor is installed on internal storage.</b><br/>Android: <b>${android} GB</b> &nbsp;&nbsp; Holodor: <b>${pocknix} GB</b>" \
-    reinstall "Reinstall: replace it with the system running now (Android is factory-reset again)" \
+    reinstall "Reinstall: replace it with the system running now (Android is not touched)" \
     remove "Remove Holodor: erase it and give the whole disk back to Android" \
     fixlock "Fix Android setup lock" \
     restore "Restore stock bootloader (after Android is confirmed working)") || exit 0
   case "$choice" in
-    reinstall)
-       local frp; frp=$(frp_flag "$info")
-       # shellcheck disable=SC2086
-       run_busy "Removing the old install…" "$UNINSTALL_CLI" --yes $frp \
-         || gui_die "Could not remove the old install (details in ${LOG})."
-       info=$(pkexec "$INSTALL_CLI" --detect 2>>"$LOG") || gui_die "Could not re-inspect internal storage after removal (details in ${LOG})."
-       [ "$(val "$info" mode)" = fresh ] || gui_die "Internal storage is not in a fresh state after removal (details in ${LOG})."
-       install_flow "$info" ;;
+    reinstall) replace_flow "$info" "the existing Holodor install" ;;
     remove)  remove_flow "$info"; after_remove_msg ;;
     fixlock) fix_lock_flow ;;
     restore) restore_stock_flow ;;
@@ -243,6 +271,23 @@ case "$(val "$info" mode)" in
     esac ;;
   occupied) manage_flow "$info" ;;
   toosmall) gui_die "Internal storage is too small: Holodor needs about $(val "$info" needed_gib) GB and Android's data partition is only $(val "$info" android_current_gib) GB." ;;
-  foreign)  gui_die "Internal storage has a Linux install this tool did not create (e.g. ROCKNIX).<br/><br/>Remove it first (bootloader menu → <b>Uninstall ROCKNIX</b>, or manually with parted), then relaunch." ;;
+  foreign)
+    case "$(val "$info" tail_kind)" in
+      armada)  what="ArmadaOS" ;;
+      rocknix) what="ROCKNIX" ;;
+      free)    what="unused space (an earlier install was removed or interrupted)" ;;
+      *)       what="another Linux system" ;;
+    esac
+    [ "$(val "$info" tail_kind)" = unknown ] && [ -z "$(val "$info" tail_names)" ] \
+      && gui_die "Internal storage does not look like an Odin 3 with Android (no single userdata partition). Nothing was changed. Details in ${LOG}."
+    choice=$(kdialog --title "$TITLE" --menu "<b>Internal storage has ${what}</b> ($(val "$info" tail_gib) GB after Android).<br/>Holodor is running from the SD card. What would you like to do?" \
+      replace "Put Holodor there, replacing ${what} (Android is not touched)" \
+      fixlock "Fix Android setup lock (\"Factory reset this device\" screen)" \
+      restore "Restore the stock bootloader (leave everything else)") || exit 0
+    case "$choice" in
+      replace) replace_flow "$info" "$what" ;;
+      fixlock) fix_lock_flow ;;
+      restore) restore_stock_flow ;;
+    esac ;;
   *)        gui_die "Unexpected internal-storage state (details in ${LOG})." ;;
 esac

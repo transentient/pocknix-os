@@ -30,7 +30,25 @@ pocknix-install-internal
 
 # 3. power off, REMOVE THE SD CARD, power on → it boots internal.
 ```
-Flags: `--dry-run`, `--yes`/`-y`, `--userdata-gib N`, `--device /dev/sdX` (default `/dev/sda`).
+Flags: `--dry-run`, `--yes`/`-y`, `--userdata-gib N`, `--replace`, `--device /dev/sdX` (default `/dev/sda`).
+
+### Replace an existing Linux install (ArmadaOS, ROCKNIX, or an older Holodor)
+
+If anything sits after Android's `userdata` (ArmadaOS leaves `ARMADA` + `ARMADA_BOOT` +
+`ARMADA_ROOT`, ROCKNIX leaves `ROCKNIX` + `STORAGE`, we leave `ROCKNIX` + `HOLODOR_ROOT`), the
+fresh install refuses. `--replace` does what armada-installer does in the same situation: erase
+every partition after `userdata` and put Holodor in exactly that space. `userdata` is neither
+resized nor wiped, so Android keeps its apps and data and the frp question does not arise.
+`--userdata-gib` is rejected with `--replace` (a replace never resizes Android).
+
+```bash
+pocknix-install-internal --detect              # mode=foreign tail_kind=armada tail_names=... replace_ok=1
+pocknix-install-internal --replace --dry-run   # the plan: erase list + the two new partitions
+pocknix-install-internal --replace             # for real
+```
+The GUI offers this as "Replace ArmadaOS with Holodor" and uses it for a Holodor reinstall too.
+Going the other way (Holodor internal, then ArmadaOS) is armada-installer's own "Replace with
+Armada" path; it treats our partitions the same way.
 
 **Remove the SD before booting internal.** Internal boots first, and with the SD still in there are two
 `HOLODOR_ROOT` partlabels — the kernel's `root=PARTLABEL=HOLODOR_ROOT` would be ambiguous.

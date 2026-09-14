@@ -1,6 +1,36 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-14 01:30 JST - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-14 19:00 JST - READ THIS FIRST (written by Claude Fable 5.1)
+
+### The Armada-user path (09-14 afternoon; supersedes the 01:30 block below where they differ)
+- **Cliff's reframing:** the first people he pitches Holodor to already run ArmadaOS; Reddit will
+  try both. INSTALL.md assumed stock Android. Memory: project-armada-users-first-audience.
+- **Shipped in RC 20260914** (build/image/sm8750/holodor-odin3-20260914-seedless.img.zst, 3.22 GiB,
+  log build/respin-20260914.log; spot-check green; sha in the sidecar): `pocknix-install-internal
+  --replace` (Armada's rule: erase everything after userdata, never resize or wipe userdata, no frp
+  question); `--detect` reports tail_kind (holodor/armada/rocknix/free/unknown), tail_names,
+  tail_gib, replace_ok; GUI offers "Put Holodor there, replacing ArmadaOS" and uses replace for a
+  Holodor reinstall (no more Android reset on reinstall); `pocknix-restore-stock-abl` searches
+  rocknix_abl/<SOC>/ (the ROCKNIX/Armada kit layout), any /run/media drive, `--from` a card root,
+  and identifies ANY ROCKNIX ABL release from /usr/share/holodor/rocknix-abl-releases.tsv
+  (Armada's catalog, GPL-2.0-or-later); GUI can browse for the backup folder. INSTALL.md has an
+  "Already running ArmadaOS or ROCKNIX?" section; docs/plan-2026-09-14-armada-coexistence.md has
+  the findings, the design and SIX DEVICE TESTS. Loop-tested on fusor + adversarial second-agent
+  review (four low findings, all fixed). **Nothing of this has run on the Odin 3 yet.**
+- **Facts learned (sourced in the plan doc):** Armada = same ROCKNIX ABL, ships 1.1.8 (we ship
+  1.1.7, never booted 1.1.8); their backup lands in rocknix_abl/SM8750/; their internal layout is
+  ARMADA (FAT16 ESP) + ARMADA_BOOT + ARMADA_ROOT; their installer has fresh/replace exactly like
+  ours now; the ABL is closed source (repo = README + updater), so how it picks between TWO
+  internal boot FATs can only be tested. Triple boot is blocked on that test.
+- **Next (Cliff drives, device on stock Android):** install ArmadaOS from its own kit, internal
+  install, then run the six tests in the plan doc. Test 5 (Holodor under ABL 1.1.8) decides
+  whether we bump packages/pocknix-bootloader-sm8750 to 1.1.8.
+- **RC 20260914 IS PUBLISHED:** https://holodor.bonesaw.com/holodor-odin3-20260914-seedless.img.zst
+  (3,456,808,712 bytes, sha256 05125508…) + sidecar, same publish command as 09-13. 20260913 stays
+  in the bucket (never overwrite a published name). ~/flash-rc.sh, INSTALL.md and README.md name
+  20260914. The 64 GB card in the Odin still holds 20260911.
+
+## CURRENT STATE 2026-09-14 01:30 JST (previous block, still accurate except the RC name)
 
 ### Where we are (state, not journey)
 - **RC 20260913 IS PUBLISHED and download-verified:**

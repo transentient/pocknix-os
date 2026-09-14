@@ -208,3 +208,14 @@ these right after the release, in this order.
    the RP5's Adreno 650 has mature Turnip support). Only use case left is Android-only
    apps, and real Android is one boot-menu choice away. Also backlog: an in-Game-Mode
    installer for emulators and Decky plugins (what Armada's "store" is; it sells nothing).
+
+## Coexistence with ArmadaOS and ROCKNIX (Cliff, 2026-09-14) - before release
+
+Cliff: the first people we pitch to already run ArmadaOS; Reddit will want to try both.
+Done in the repo (docs/plan-2026-09-14-armada-coexistence.md): Replace mode in the installer
+and GUI (take over an existing Linux install, Android untouched), the ROCKNIX/Armada backup
+layout and a release catalog in the stock-bootloader tool, an INSTALL.md section. Needs the
+device: the six tests in that plan, in particular which boot menu setting boots our card next
+to an internal Armada, and whether Holodor runs under ABL 1.1.8 (then bump our kit to 1.1.8).
+Triple boot (Android + Armada + Holodor internal) is blocked on what the closed ABL does with
+two internal boot partitions; options are in the plan.
