@@ -29,6 +29,25 @@
   (3,456,808,712 bytes, sha256 05125508…) + sidecar, same publish command as 09-13. 20260913 stays
   in the bucket (never overwrite a published name). ~/flash-rc.sh, INSTALL.md and README.md name
   20260914. The 64 GB card in the Odin still holds 20260911.
+- **09-15 device session (Cliff drove, from stock):** Armada's kit flashed ABL 1.1.8; Armada on
+  the 64 GB Axe card, then internal (Android 32 GB), Android set up; Holodor 20260914 card boots
+  with boot source `SDCard` (auto = internal first, observed). 1.1.8 still cannot see the 128 GB
+  Silicon Power card. Details + menu verbatim: docs/plan-2026-09-14-armada-coexistence.md.
+- **BLOCKER + FIX IN FLIGHT: Desktop Mode never existed on the Odin 3** ("Switch to Desktop" ->
+  tty; `startplasmamobile not found`; Holo Core has no plasma-mobile/kscreen; the 08-25 note in
+  this file was this). So the Holodor Installer GUI and Part IV were never reachable. Fix:
+  desktop.list += plasma-desktop, plasma-pa; pocknix-desktop-10 = startplasma-wayland + seeded
+  kwinoutputconfig.json (scale 2, DSI-1). Needs: package build, respin (RC 20260915), device test
+  of Desktop Mode, then the Replace test. Stock ABL backup from Armada's kit verified and kept at
+  ~/odin3-backups/armada_rocknix_abl-20260915-stock (Dec-2025 factory ABL, both slots equal).
+- **RC 20260915 BUILT + PUBLISHED** (build/image/sm8750/holodor-odin3-20260915-seedless.img.zst,
+  3,478,771,622 bytes, sha256 c6496c62…, log build/respin-20260915.log; spot-check green incl.
+  plasma-desktop 6.5.3 + pocknix-desktop-10 + startplasma-wayland). URL
+  https://holodor.bonesaw.com/holodor-odin3-20260915-seedless.img.zst. Docs + ~/flash-rc.sh name it.
+  **Build-script bug fixed on the way:** build-image.sh's resume-mode `pacman -Q` loop aborted the
+  build silently (pipefail) for any list package not yet installed; three respins died at
+  "installing 58 packages" with no message. Long builds/flashes: run as `sudo systemd-run` units,
+  the session's memory watchdog kills backgrounded shells during big page-cache reads.
 
 ## CURRENT STATE 2026-09-14 01:30 JST (previous block, still accurate except the RC name)
 

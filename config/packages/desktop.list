@@ -5,8 +5,12 @@
 # only the launcher/switch scripts — it does NOT depend() on this stack, to keep makepkg from
 # dragging the whole KDE/Qt tree into the build chroot (see packages/pocknix-desktop/PKGBUILD).
 
-# HOLODOR: not in Holo Core preview (v0: game mode first)
-#plasma-mobile        # mobile shell + the startplasmamobile session entrypoint
+# HOLODOR 2026-09-15: Holo Core's repo has NO plasma-mobile/plasma-nano/kscreen, so Desktop Mode
+# is the regular Plasma desktop (what SteamOS ships), started by startplasma-wayland. Found on the
+# Odin 3: "Switch to Desktop" dropped to a tty because startplasmamobile did not exist.
+#plasma-mobile        # mobile shell + the startplasmamobile session entrypoint (not in Holo Core)
+plasma-desktop       # the desktop shell (panel, launcher, folder view) — SteamOS's desktop
+plasma-pa            # volume applet (SteamOS has it; pulseaudio-qt comes with it)
 plasma-workspace     # startplasma-wayland + plasmashell (the shell host)
 kwin                 # the Wayland compositor Plasma Mobile runs on
 # HOLODOR: not in Holo Core preview (v0: game mode first)

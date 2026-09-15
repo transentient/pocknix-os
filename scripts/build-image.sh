@@ -232,7 +232,10 @@ install_packages() {
   # Fresh builds are unaffected (nothing installed yet, -Q answers nothing).
   local _kept=() _p _owner
   for _p in "${pkgs[@]}"; do
-    _owner="$(chroot "${root}" pacman -Q "${_p}" 2>/dev/null | awk '{print $1}')"
+    # NB: a NOT-yet-installed target makes `pacman -Q` exit 1; under pipefail that status leaks
+    # out of the substitution and `set -e` silently aborts the build (bit us 2026-09-15 when
+    # plasma-desktop was first added to a resumed rootfs). Empty owner = not installed = keep.
+    _owner="$(chroot "${root}" pacman -Q "${_p}" 2>/dev/null | awk '{print $1}' || true)"
     if [ -n "${_owner}" ] && [ "${_owner}" != "${_p}" ]; then
       log "  skipping ${_p} (provided by installed ${_owner})"
     else

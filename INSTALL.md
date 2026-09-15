@@ -39,9 +39,9 @@ on the SD card once you have written it.
     the card itself is probably fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
 - The **Holodor image**: one file. Current release:
-  https://holodor.bonesaw.com/holodor-odin3-20260914-seedless.img.zst (3.2 GB).
+  https://holodor.bonesaw.com/holodor-odin3-20260915-seedless.img.zst (3.2 GB).
   Its checksum file is
-  https://holodor.bonesaw.com/holodor-odin3-20260914-seedless.img.zst.sha256.
+  https://holodor.bonesaw.com/holodor-odin3-20260915-seedless.img.zst.sha256.
   Check the download against it before writing the card.
 
 ---
@@ -84,8 +84,8 @@ place. Differences from a stock device:
 
 1. Download the Holodor image and its checksum file (the two addresses are in "What
    you will need"). Check the download: on Linux or Mac, put both files in the same
-   folder and run `sha256sum -c holodor-odin3-20260914-seedless.img.zst.sha256`; on
-   Windows, run `certutil -hashfile holodor-odin3-20260914-seedless.img.zst SHA256`
+   folder and run `sha256sum -c holodor-odin3-20260915-seedless.img.zst.sha256`; on
+   Windows, run `certutil -hashfile holodor-odin3-20260915-seedless.img.zst SHA256`
    and compare the result with the text in the checksum file by eye.
 
 2. On your PC, write it to the card:
@@ -203,7 +203,12 @@ Boot menu (hold Volume Down at power on) > boot mode **Linux** > Start.
      connect without it.) Put the card back and power on. After it works, the file is
      renamed `wifi.txt.imported`; if something is wrong with it, the reason is written
      to `wifi-import-error.txt` on the same partition.
-   - Or plug in a **USB keyboard or dock** and use a wired connection or a terminal.
+   - **The wired way (no typing at all):** plug in a USB-C hub or dock with an ethernet
+     jack, cable attached. The setup waits for any network and carries on by itself.
+     Leave it plugged in until Steam is running and has joined your Wi-Fi from its own
+     network picker, then unplug it. Do not let the device go to sleep while the hub
+     is attached: USB does not come back after that sleep, and you will need a reboot.
+   - Or plug in a **USB keyboard** and use a terminal.
 
    The download is safe to interrupt. Powering off mid-download resumes on the next
    boot.

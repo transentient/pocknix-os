@@ -61,6 +61,47 @@ device. Status tags: verified (read in source or tested), unproven (needs the Od
   space after userdata (an interrupted replace) is offered as a replace target instead of a
   fresh install that would reset Android; `--from` accepts a card's root folder.
 
+## Device findings so far (2026-09-15, Cliff driving, the Armada-user path from stock)
+
+- **Armada's kit flashed ROCKNIX ABL 1.1.8** from stock Android via Odin settings > Run script as
+  Root (their `rocknix_abl/SM8750/flash_abl.sh`). Their `backup_abl.sh` writes ONLY to Android
+  internal storage (`/sdcard/rocknix_abl/SM8750/`), not to the SD card. Backup copied to the PC
+  and to fusor (`~/odin3-backups/armada_rocknix_abl-20260915-stock`): both slots identical, valid
+  ELF, matches no ROCKNIX release (genuine Dec-2025 factory ABL, differs from the August backup
+  because of the 09-11 full factory restore).
+- **The 1.1.8 menu** (verbatim): boot mode `linux`/`android`; abl mode `silent`; alt volume up
+  `android`; **boot source `auto`** (Armada's docs name the other values `Internal` and
+  `SDCard`; `auto` = internal first, then card); offmode charging `on`; version v1.1.8. **No
+  "set device model" step**: System Stats already read "model ayn odin 3". System Stats: SoC
+  Snapdragon 8 Elite Gen 1, 16 GB, 512 GB, display 1920x1080.
+- **Card visibility under 1.1.8:** 128 GB Silicon Power (new, invisible to 1.1.7): STILL "sd card
+  not inserted". 64 GB Axe: seen as 64GB. So the SD limitation is not a 1.1.7 artifact; the
+  INSTALL.md wording stands.
+- Armada 20260907 boots from the Axe card under 1.1.8 ("preparing armada", one self-reboot, then
+  the Steam intro + client update). Armada Installer lives in Desktop Mode, KDE launcher >
+  System (desktop entry `Categories=System;Settings;`, shown only when booted from a card).
+  Its Android-size control is a slider with 1 GB step buttons; Cliff: "this should not be a
+  slider" (ours is a size list).
+- Rufus + their `.img.gz`: progress jumps to "100% please wait" almost at once (gzip trailer
+  stores size mod 4 GiB, likely) and then writes silently for a long time; killing it left a
+  card that matched the image only for the first ~7.6 GB. Rewritten from fusor with a full
+  read-back; the reader dropped one window (third time), repaired with rewrite-sd-window.sh.
+
+- **Armada internal install (their installer, ~32 GB for Android) then Android set up cleanly**
+  (no lock, no account). With the Holodor card inserted and boot source `auto`, **Armada boots**
+  (auto = internal first, observed). With boot source **`SDCard`**, **Holodor RC 20260914 boots
+  under ABL 1.1.8**: AYN logo, Holodor art, cutscene (cut short by the compositor handoff), the
+  text first-boot setup, Steam download over the USB-C hub's ethernet, zombie marquee, Steam.
+- **BLOCKER FOUND: "Switch to Desktop" drops to a tty.** `~/pocknix-session.log` on the card:
+  `pocknix-desktop: startplasmamobile not found`. Holo Core's repo has no plasma-mobile,
+  plasma-nano or kscreen (desktop.list had them commented out "not in Holo Core preview"), so
+  Desktop Mode, and with it the Holodor Installer GUI and all of Part IV, never worked on the
+  Odin 3. HANDOFF had it logged 08-25 as "diagnose why startplasmamobile fails". Fix (09-15):
+  plasma-desktop + plasma-pa from Holo Core (resolve offline), pocknix-desktop-10 starts
+  startplasma-wayland (SteamOS's desktop), rotation comes from the DRM panel-orientation hint
+  (DT `rotation = <90>`, kwin honours it), scale 2.0 seeded into `~/.config/kwinoutputconfig.json`
+  keyed by connectorName DSI-1 because there is no kscreen. Untested until the next RC boots.
+
 ## What still needs the device (Cliff drives; agent reads state on request)
 
 The Odin 3 is on stock Android, so the Armada-user path can be reproduced exactly.

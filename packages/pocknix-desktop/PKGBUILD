@@ -20,7 +20,7 @@
 # docs/plasma-mobile-plan.md and the plasma-mobile-compositor memory.
 pkgname=pocknix-desktop
 pkgver=0.1.0
-pkgrel=9   # 9: flathub unit retries on failure (DNS not ready at network-online on some boots)
+pkgrel=10  # 10: regular Plasma desktop (startplasma-wayland) + seeded kwin output scale; Holo Core has no plasma-mobile/kscreen
 pkgdesc="Plasma Mobile desktop session for the RP6 + game<->desktop session switch"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"

@@ -1,5 +1,13 @@
 #!/bin/bash
-# pocknix-desktop — launch the Plasma Mobile desktop session on the RP6.
+# pocknix-desktop — launch the Desktop Mode session.
+#
+# HOLODOR 2026-09-15: on the Odin 3 (Holo Core repos) this is the REGULAR Plasma desktop via
+# startplasma-wayland, the same desktop SteamOS ships. Holo Core carries no plasma-mobile, no
+# plasma-nano and no kscreen, so the Plasma Mobile design below never ran on this device
+# ("Switch to Desktop" dropped to a tty: startplasmamobile not found). The history below is
+# kept for the RP6 profile, where Plasma Mobile was brought up from Arch Linux ARM.
+#
+# (original header, RP6 era) launch the Plasma Mobile desktop session on the RP6.
 #
 # This is the Desktop half of the two-session model (the Steam half is pocknix-steam). It is
 # exec'd by ~deck/.bash_profile on tty1 when the session-choice file says "plasma" — exactly the
@@ -19,42 +27,69 @@
 # compositor is up by pocknix-desktop-rotate (shipped as an /etc/xdg/autostart entry), NOT here —
 # kscreen needs the running session to talk to. See pocknix-desktop-rotate.
 set -e
-
 export HOME="${HOME:-/home/deck}"
 
-# Fail loudly if the mobile stack isn't installed (e.g. game-only image): better than a black VT.
-if ! command -v startplasmamobile >/dev/null 2>&1; then
-  echo "pocknix-desktop: startplasmamobile not found — is the plasma-mobile stack installed?" >&2
-  exit 1
+# Device facts (scale/output) from the BSP's device.conf; /etc/pocknix/device.conf overrides.
+for _dc in /usr/lib/pocknix/device.conf /etc/pocknix/device.conf; do
+  [ -r "${_dc}" ] && . "${_dc}"
+done
+# 6" 1080x1920 panel: kwin's auto scale (no EDID on a DSI panel, no width-mm in the DT) lands
+# far too small. Holo Core ships no kscreen, so there is no Display settings page and no
+# kscreen-doctor: the ONLY lever is kwin's own output store, seeded once per fresh home.
+# Rotation is NOT set here: the panel driver exposes the DRM panel-orientation hint and kwin
+# applies it natively (confirmed on the RP6, same class of panel).
+SCALE="${POCKNIX_DESKTOP_SCALE:-2}"          # 2.0 = 960x540 logical, Deck-like density on 6"
+OUTPUT="${POCKNIX_DESKTOP_OUTPUT:-DSI-1}"    # kwin matches a stored entry by connectorName when there is no EDID
+CFG="${XDG_CONFIG_HOME:-${HOME}/.config}"
+if [ ! -s "${CFG}/kwinoutputconfig.json" ]; then
+  mkdir -p "${CFG}"
+  cat > "${CFG}/kwinoutputconfig.json" <<EOF
+[
+    {
+        "data": [
+            {
+                "connectorName": "${OUTPUT}",
+                "scale": ${SCALE}
+            }
+        ],
+        "name": "outputs"
+    },
+    {
+        "data": [
+            {
+                "lidClosed": false,
+                "outputs": [
+                    {
+                        "enabled": true,
+                        "outputIndex": 0,
+                        "position": { "x": 0, "y": 0 },
+                        "priority": 0
+                    }
+                ]
+            }
+        ],
+        "name": "setups"
+    }
+]
+EOF
 fi
-
-# Seat backend: this device runs seatd (the Steam/gamescope session uses it), and the getty
-# autologin session is NOT reliably "active" on seat0 for logind-based clients. kwin_wayland
-# defaults to libseat's logind backend, which then can't get DRM master ("atomic commit failed:
-# Permission denied") or open input ("login1/session/_NN Unknown object") -> the panel stays on
-# the console while kwin spins. Forcing libseat to seatd makes kwin acquire the seat exactly the
-# way gamescope does (deck is in the 'seat' group -> can reach /run/seatd.sock). See progress.md.
-export LIBSEAT_BACKEND=seatd
-
-# XWayland socket dir: kwin only starts XWayland (needed by X11 apps — the native Steam client in
-# desktop mode) if /tmp/.X11-unix is a STICKY dir owned by root or us. The boot tmpfiles rule
-# (root:1777, pocknix-x11.conf) doesn't reliably survive a prior game-mode session: gamescope creates
-# /tmp/.X11-unix as deck:0755 (no sticky), which XWayland refuses -> kwin runs Wayland-only -> Steam
-# dies with "Unable to open a connection to X" (leaving orphan steam procs). Re-assert it here, right
-# before kwin: we run as deck, so chmod works when we or gamescope own it, and no-ops on root:1777.
-mkdir -p /tmp/.X11-unix 2>/dev/null || true
-chmod 1777 /tmp/.X11-unix 2>/dev/null || true
-
-# Power button: unbind powerdevil's "Turn Off Screen" global shortcut, which Plasma Mobile
-# binds to the Power Off key in tablet mode (powerdevil dpms.cpp — lock + DPMS off). pocknix-powerd
-# owns the key (short press = suspend), and the RP6 delivers the WAKING press to userspace after
-# resume, so this binding turned the freshly-lit panel straight back off — the "second press to
-# wake" bug. This is a *different* path from powerButtonAction (also disabled, /etc/xdg/powerdevilrc).
-# Re-asserted every launch (fixes-go-in-robust-locations): a fresh home or a powerdevil default
-# change must not resurrect it. Format: "active,default,description" — active=none.
+# X11 apps under Xwayland follow kdeglobals' scale (harmless on Wayland-native apps).
 if command -v kwriteconfig6 >/dev/null 2>&1; then
+  kwriteconfig6 --file kdeglobals --group KScreen --key ScaleFactor "${SCALE}" 2>/dev/null || true
+  kwriteconfig6 --file kdeglobals --group KScreen --key ScreenScaleFactors "${OUTPUT}=${SCALE};" 2>/dev/null || true
   kwriteconfig6 --file kglobalshortcutsrc --group org_kde_powerdevil \
     --key "Turn Off Screen" "none,Power Off,Turn Off Screen" 2>/dev/null || true
 fi
 
-exec startplasmamobile
+export LIBSEAT_BACKEND=seatd
+mkdir -p /tmp/.X11-unix 2>/dev/null || true
+chmod 1777 /tmp/.X11-unix 2>/dev/null || true
+
+# The regular Plasma desktop (SteamOS's choice). Plasma Mobile only if someone installed it.
+if command -v startplasma-wayland >/dev/null 2>&1; then
+  exec startplasma-wayland
+elif command -v startplasmamobile >/dev/null 2>&1; then
+  exec startplasmamobile
+fi
+echo "pocknix-desktop: no Plasma session found (startplasma-wayland / startplasmamobile) — is plasma-desktop installed?" >&2
+exit 1

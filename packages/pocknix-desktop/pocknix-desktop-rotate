@@ -39,7 +39,10 @@ SCALE="${POCKNIX_SCALE:-${POCKNIX_DESKTOP_SCALE:-2.5}}"
 OUTPUT="${POCKNIX_OUTPUT:-}"
 
 have() { command -v "$1" >/dev/null 2>&1; }
-have kscreen-doctor || { echo "pocknix-desktop-rotate: kscreen-doctor not found (install kscreen)" >&2; exit 1; }
+# Holo Core ships no kscreen: rotation comes from the DRM panel-orientation hint and the scale
+# is seeded by pocknix-desktop into kwin's output store, so without kscreen-doctor there is
+# nothing to do here. Quiet exit (this runs from autostart on every desktop session).
+have kscreen-doctor || exit 0
 
 log() { echo "pocknix-desktop-rotate: $*" >&2; }
 
