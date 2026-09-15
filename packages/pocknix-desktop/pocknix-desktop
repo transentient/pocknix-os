@@ -73,6 +73,12 @@ if [ ! -s "${CFG}/kwinoutputconfig.json" ]; then
 ]
 EOF
 fi
+# Touch first: Plasma's tablet mode (bigger hit targets, touch launcher/panel spacing). Set only
+# if the user has not chosen; kwin reads it at start. Off again with: kwriteconfig6 --file kwinrc
+# --group Input --key TabletMode off. Holo Core ships no on-screen keyboard; Steam's is the plan.
+if command -v kwriteconfig6 >/dev/null 2>&1 && ! grep -qs '^TabletMode=' "${CFG}/kwinrc"; then
+  kwriteconfig6 --file kwinrc --group Input --key TabletMode on 2>/dev/null || true
+fi
 # X11 apps under Xwayland follow kdeglobals' scale (harmless on Wayland-native apps).
 if command -v kwriteconfig6 >/dev/null 2>&1; then
   kwriteconfig6 --file kdeglobals --group KScreen --key ScaleFactor "${SCALE}" 2>/dev/null || true

@@ -102,6 +102,54 @@ device. Status tags: verified (read in source or tested), unproven (needs the Od
   (DT `rotation = <90>`, kwin honours it), scale 2.0 seeded into `~/.config/kwinoutputconfig.json`
   keyed by connectorName DSI-1 because there is no kscreen. Untested until the next RC boots.
 
+## 2026-09-15/16: Replace worked, Android then bootloops. Open.
+
+Sequence: Armada internal (their installer, Android 32 GB) -> Android set up and booting ->
+Holodor 20260915 card (boot source SDCard) -> Desktop Mode works (first time on this device,
+scale 2.0 good, brief sideways flash at start) -> Holodor Installer detected "ArmadaOS (403 GB
+after Android)", Replace ran, install completed -> boot source SDCard with no card = ABL error
+(strict), Internal boots Holodor (into Plasma: the clone carried the session choice; fix
+queued) -> **boot mode android: AYN logo / blank / AYN logo, ~12 s period, forever.**
+
+Everything checkable was checked from Linux over ssh (root via `systemd-run` under the wheel
+polkit rule; the release image has no sudo and a locked root), all read-only:
+- fastboot getvar: slot a active, successful, 5 retries, nothing unbootable; ABL 1.1.8.
+- `fastboot boot` of the factory boot.img (RAM only) loops the same way -> the ABL's Android path
+  and the boot image are not it; the kernel runs ~12 s and dies.
+- 72 static factory images (LUN0 + LUN4: boot/init_boot/vendor_boot/dtbo/vbmeta*/modem/dsp/
+  xbl...) byte-identical to the Dec-2025 EDL package; super's 8 chunks identical (dm-verity has
+  nothing to trip on); only abl_a/b (ROCKNIX), vm-bootsys_b, logfs, vm-persist, persist differ
+  (expected). misc: BCB empty; the bytes at 32 KiB are Android's own virtual-A/B + memtag records.
+- userdata: encrypted (metadata encryption; no signature is normal); f2fs structures sit exactly
+  at the current start (7518208), so Android formatted it there; a stale factory superblock at
+  7517992 lies outside the partition. Type GUID is Linux-fs (0fc63daf) not Android's 1b81e7e6;
+  Armada's sfdisk writer preserves types and parted (tested, 3.6/3.7) preserves unknown GUIDs
+  and unaligned starts, so who changed it is unknown; Android booted with it after Armada.
+- metadata (f2fs) mounts ro: vold/metadata_encryption/key/* present, ota/snapshots empty,
+  bootstat reason "shutdown,userrequested". No UFS I/O errors in any Holodor journal; Holodor
+  never mounted an Android partition.
+- Hiding our internal KERNEL (rename) did not change the loop. devinfo holds only ROCKNIX ABL
+  settings (BootSourceMode 3, ModelSelection AYN Odin 3, AltVolumeUp) + avb persistent value.
+- Android's fstabs (first stage + vendor) and all of vendor/system/product/odm contain no
+  reference to ROCKNIX. rawdump holds no readable text. Holodor's kernel has STRICT_DEVMEM and
+  no ramoops node, so Android's crash log cannot be read from Linux.
+
+**Not yet tried (all need Cliff's buttons; commands ready):**
+1. Android recovery via the misc BCB ("boot-recovery" at 0 + "recovery\n" at 64, from the SD
+   Holodor over ssh), then boot mode android -> recovery -> "View recovery logs" -> last_kmsg
+   = the panic. Afterwards zero the first 2 KiB of misc only (leave the 32 KiB records).
+2. Delete our internal boot FAT (`pocknix-uninstall-internal --disable-boot` from the SD) and
+   boot Android: isolates "our partition's presence breaks Android". Reversible (--enable-boot).
+3. Put userdata's type GUID back (`sgdisk -t 17:1b81e7e6-f50d-419b-a739-2aeef8da3335 /dev/sda`)
+   and boot Android. Reversible.
+4. Last resort: the 09-11 EDL factory recipe (Android only, ~1 h) after copying nothing (no
+   user data of value on the device).
+
+Same shape as the August bootloop after the first internal install (HANDOFF: "never proven that
+stock Android boots after pocknix-install-internal on the Odin 3"). Armada's install + Android
+boot worked in the same session, so the difference is in what OUR install or OUR Linux boot
+leaves behind, and it is not in any static partition.
+
 ## What still needs the device (Cliff drives; agent reads state on request)
 
 The Odin 3 is on stock Android, so the Armada-user path can be reproduced exactly.

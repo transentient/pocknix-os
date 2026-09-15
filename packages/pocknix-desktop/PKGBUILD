@@ -20,7 +20,7 @@
 # docs/plasma-mobile-plan.md and the plasma-mobile-compositor memory.
 pkgname=pocknix-desktop
 pkgver=0.1.0
-pkgrel=10  # 10: regular Plasma desktop (startplasma-wayland) + seeded kwin output scale; Holo Core has no plasma-mobile/kscreen
+pkgrel=11  # 11: tablet mode on by default, boot-art wallpaper first-run (Cliff 09-15); 10: regular Plasma desktop + seeded scale
 pkgdesc="Plasma Mobile desktop session for the RP6 + game<->desktop session switch"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
@@ -32,16 +32,21 @@ license=('GPL2')
 # chroot at makepkg time for no reason. The launcher + rotate scripts `command -v`-guard their
 # callees (startplasmamobile, kscreen-doctor) and fail gracefully if the stack is absent.
 depends=('bash')
-source=('pocknix-desktop' 'pocknix-desktop-rotate' 'pocknix-desktop-rotate.desktop'
+source=('pocknix-desktop' 'pocknix-desktop-rotate'
+        'pocknix-desktop-firstrun'
+        'pocknix-desktop-firstrun.desktop' 'pocknix-desktop-rotate.desktop'
         'pocknix-desktop-remove-taskpanel' 'pocknix-desktop-remove-taskpanel.desktop'
         'steamos-session-select' 'return-to-gamemode.desktop'
         'pocknix-flathub-setup' 'pocknix-flathub.service' 'ksplashrc' 'pocknix-x11.conf'
         'powerdevilrc')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   install -Dm755 "${srcdir}/pocknix-desktop"          "${pkgdir}/usr/bin/pocknix-desktop"
   install -Dm755 "${srcdir}/pocknix-desktop-rotate"   "${pkgdir}/usr/bin/pocknix-desktop-rotate"
+  install -Dm755 "${srcdir}/pocknix-desktop-firstrun" "${pkgdir}/usr/bin/pocknix-desktop-firstrun"
+  install -Dm644 "${srcdir}/pocknix-desktop-firstrun.desktop" \
+    "${pkgdir}/etc/xdg/autostart/pocknix-desktop-firstrun.desktop"
   install -Dm755 "${srcdir}/steamos-session-select"   "${pkgdir}/usr/bin/steamos-session-select"
   # Autostart the rotation transform once the Plasma session (and kscreen kded) is up.
   install -Dm644 "${srcdir}/pocknix-desktop-rotate.desktop" \

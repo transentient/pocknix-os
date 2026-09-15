@@ -40,6 +40,19 @@
   kwinoutputconfig.json (scale 2, DSI-1). Needs: package build, respin (RC 20260915), device test
   of Desktop Mode, then the Replace test. Stock ABL backup from Armada's kit verified and kept at
   ~/odin3-backups/armada_rocknix_abl-20260915-stock (Dec-2025 factory ABL, both slots equal).
+- **09-15/16 NIGHT: Desktop Mode WORKS on 20260915 (Plasma, right way up, scale 2.0 good). Replace
+  over Armada WORKED (detected "ArmadaOS", 403 GB, Android untouched by our tools). THEN ANDROID
+  BOOTLOOPS** (AYN logo / blank, 12 s period). Full read-only forensics in
+  docs/plan-2026-09-14-armada-coexistence.md ("Replace worked, Android then bootloops"): every
+  static partition = factory, slot healthy, factory boot.img via `fastboot boot` loops too, no
+  ROCKNIX reference anywhere in Android, userdata/metadata consistent. CAUSE UNKNOWN. Four
+  experiments queued for Cliff's hands (recovery logs via misc BCB first). Device powered off
+  (Cliff asked: no static screen overnight). ssh: deck@192.168.1.47 (hub) / .32 (wifi), password
+  "holodor" set by Cliff on both the internal install and the SD; fusor key installed; root =
+  `systemd-run --wait --pipe` (wheel polkit rule; no sudo, root locked in the release image; the
+  INSTALL.md appendix's `sudo` line is WRONG, fix pending). Internal KERNEL was renamed for a test
+  and RESTORED. Backups on fusor: devinfo-20260916-abl118.bin; factory super reassembled at
+  build/super.raw + build/superx/ (vendor/system/product/odm extracted) for further digging.
 - **RC 20260915 BUILT + PUBLISHED** (build/image/sm8750/holodor-odin3-20260915-seedless.img.zst,
   3,478,771,622 bytes, sha256 c6496c62…, log build/respin-20260915.log; spot-check green incl.
   plasma-desktop 6.5.3 + pocknix-desktop-10 + startplasma-wayland). URL
