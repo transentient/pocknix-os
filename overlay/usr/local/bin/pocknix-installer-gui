@@ -149,7 +149,7 @@ install_flow() {
   [ "$(val "$info" abl_backup)" = found ] \
     || bk="<br/><br/>⚠️ <b>No stock bootloader backup was found on the SD card.</b> The install still works, but the copy you made on your PC (or the one in rocknix_abl/SM8750 on your ArmadaOS or ROCKNIX card) is then your only way back to a stock bootloader. To keep one on the device, cancel, copy abl_a.img and abl_b.img into the rocknix_abl folder on this SD card (or run backup_abl.sh from Android with this card inserted), then come back."
   kdialog --title "$TITLE" --warningcontinuecancel \
-    "<b>Install Holodor to internal storage, alongside Android?</b><br/><br/>This <b>factory-resets Android</b>: installed Android apps and their data are lost (the Android system itself is kept and stays bootable from the boot menu). The SD card is not touched.<br/><br/>Nothing before the Android data partition is modified, so the bootloader stays safe.${bk}" \
+    "<b>Install Holodor to internal storage, alongside Android?</b><br/><br/>This <b>factory-resets Android</b>: its apps and data are lost; Android itself stays bootable.<br/>The SD card and the bootloader are not touched.${bk}" \
     || exit 0
 
   ud=$(choose_android_size "$amin" "$amax") || exit 0
@@ -179,7 +179,7 @@ replace_flow() {
   [ "$(val "$info" abl_backup)" = found ] \
     || bk="<br/><br/>⚠️ <b>No stock bootloader backup was found on the SD card.</b> Holodor can still be installed, but keep the backup you made when you first flashed the bootloader (on your PC, or in rocknix_abl/SM8750 on your ArmadaOS or ROCKNIX card). Copy abl_a.img and abl_b.img into the rocknix_abl folder on this SD card to keep one on the device."
   kdialog --title "$TITLE" --yes-label "Replace with Holodor" --no-label "Cancel" --warningyesno \
-    "<b>Replace ${what} with Holodor?</b><br/><br/>Internal storage has <b>${what}</b> after Android (${names}, ${gib} GB). Holodor takes over exactly that space.<br/><br/>Everything in ${what} is erased: its settings, games and saves. <b>Android is not touched</b>: it is not resized and not reset, and it stays bootable from the boot menu. The bootloader stays as it is.${bk}" \
+    "<b>Replace ${what} with Holodor?</b><br/><br/>After Android: <b>${what}</b> (${names}, ${gib} GB). Holodor takes exactly that space.<br/>Everything in ${what} is erased.<br/><b>Android is not touched</b>: not resized, not reset.${bk}" \
     || exit 0
   run_busy "Replacing ${what} with Holodor — do not power off…" \
       "$INSTALL_CLI" --yes --replace \
@@ -190,7 +190,7 @@ replace_flow() {
 remove_flow() {
   local info="$1" frp
   kdialog --title "$TITLE" --warningcontinuecancel \
-    "<b>Remove Holodor and give all internal storage back to Android?</b><br/><br/>This ERASES the internal Holodor and factory-resets Android. The ROCKNIX boot menu stays (so this SD card still boots); putting the stock bootloader back is a separate step afterwards." \
+    "<b>Remove Holodor and give all internal storage back to Android?</b><br/><br/>Erases the internal Holodor. Android is factory reset.<br/>The boot menu stays; restoring the stock bootloader is a separate step." \
     || exit 0
   frp=$(frp_flag "$info")
   # shellcheck disable=SC2086

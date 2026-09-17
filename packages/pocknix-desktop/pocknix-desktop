@@ -38,7 +38,8 @@ done
 # kscreen-doctor: the ONLY lever is kwin's own output store, seeded once per fresh home.
 # Rotation is NOT set here: the panel driver exposes the DRM panel-orientation hint and kwin
 # applies it natively (confirmed on the RP6, same class of panel).
-SCALE="${POCKNIX_DESKTOP_SCALE:-2}"          # 2.0 = 960x540 logical, Deck-like density on 6"
+SCALE="${POCKNIX_DESKTOP_SCALE:-1.5}"        # 1.5 = 1280x720 logical (Deck-sized). 2.0 (960x540) looked good but
+                                             # kdialog windows + tablet-mode padding overflowed it (Cliff, 09-18)
 OUTPUT="${POCKNIX_DESKTOP_OUTPUT:-DSI-1}"    # kwin matches a stored entry by connectorName when there is no EDID
 CFG="${XDG_CONFIG_HOME:-${HOME}/.config}"
 if [ ! -s "${CFG}/kwinoutputconfig.json" ]; then

@@ -128,7 +128,23 @@ boot FAT by its own label (ROCKNIX) instead of the internal label; --enable-boot
 /flash in the internal fstab to the new PARTUUID; pocknix-restore-stock-abl looks for HOLODOR or
 ROCKNIX on the internal disk. The SD image layout is unchanged (Windows must keep seeing it).
 
-## 2026-09-15/16: Replace worked, Android then bootloops. (Superseded by the section above.)
+## 2026-09-17/18: acceptance with RC 20260917 (Cliff driving)
+
+- Armada 20260907's installer ("Switch to Armada") REFUSED our layout: "an unrecognized partition
+  lies after userdata on /dev/sda; refusing." Its release installer is a bash script that
+  recognises exactly ROCKNIX, STORAGE, ARMADA, ARMADA_BOOT, ARMADA_ROOT (their git main is the
+  Python rewrite that replaces anything). Renamed our root to STORAGE from Armada over ssh
+  (user armada / password armada, sshd off by default) and their replace ran; Armada internal
+  booted; Android booted. INSTALL.md now says: going back to Armada = ABL UNINSTALL CFW until
+  Armada ships the new installer. Their UI names the existing install by partition name and
+  sums only the partitions it recognises ("Rocknix: 0GB" with HOLODOR_ROOT).
+- Holodor RC 20260917 card next to internal Armada, boot source SDCard: first boot, Steam, Desktop
+  Mode with the boot-art wallpaper; Holodor Installer: "ArmadaOS", Replace; Holodor boots from
+  internal; **Android boots** afterwards. The headline claim holds on the shipped image.
+- Cosmetic, logged: the boot cutscene is choppy from a card and is cut off by the compositor
+  handoff; Armada's shutdown takes over a minute with the fan at full.
+
+## 2026-09-15/16: Replace worked, Android then bootloops. (Superseded by the sections above.)
 
 Sequence: Armada internal (their installer, Android 32 GB) -> Android set up and booting ->
 Holodor 20260915 card (boot source SDCard) -> Desktop Mode works (first time on this device,

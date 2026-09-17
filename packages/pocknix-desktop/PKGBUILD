@@ -20,7 +20,7 @@
 # docs/plasma-mobile-plan.md and the plasma-mobile-compositor memory.
 pkgname=pocknix-desktop
 pkgver=0.1.0
-pkgrel=11  # 11: tablet mode on by default, boot-art wallpaper first-run (Cliff 09-15); 10: regular Plasma desktop + seeded scale
+pkgrel=12  # 12: scale 1.5 (installer dialogs overflowed 960x540 with tablet mode, 09-18); 11: tablet mode + wallpaper; 10: startplasma-wayland
 pkgdesc="Plasma Mobile desktop session for the RP6 + game<->desktop session switch"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"

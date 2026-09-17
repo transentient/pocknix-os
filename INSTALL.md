@@ -72,8 +72,12 @@ place. Differences from a stock device:
   installer sees the existing install and offers **Replace with Holodor**. It reuses
   exactly the space the other system had. **Android is not touched**: not resized, not
   reset, and it keeps its apps. Everything in the Armada or ROCKNIX install is erased,
-  so move any saves you care about first. Going back the other way is the same step in
-  ArmadaOS's own installer; it treats Holodor's partitions the same way.
+  so move any saves you care about first.
+- **Going back to ArmadaOS.** Armada's installer, as of its 20260907 release, replaces only
+  layouts it recognises by partition name (its own and ROCKNIX's) and refuses Holodor's.
+  Until Armada ships its newer installer, which replaces any layout, go back through the
+  boot menu: **UNINSTALL CFW & EXPAND USERDATA** removes Holodor and gives the space to
+  Android (Android is factory reset by that), then install Armada from its card as new.
 - **All three at once** (Android, ArmadaOS and Holodor on internal storage) is not
   possible today: the boot menu boots one Linux from internal storage. Keep the other
   one on an SD card, or use Replace to swap which one is internal.
