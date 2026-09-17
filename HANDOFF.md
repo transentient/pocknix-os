@@ -1,6 +1,27 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-17 15:00 JST - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-18 02:00 JST - READ THIS FIRST (written by Claude Fable 5.1)
+
+### ACCEPTANCE PASSED ON THE DEVICE (09-17/18, Cliff driving, shipped RC images)
+- **Armada path:** Armada card -> "Switch to Armada" over our internal Holodor (their 20260907
+  installer REFUSES HOLODOR-named partitions: recognises only ROCKNIX/STORAGE/ARMADA*; renamed our
+  root to STORAGE over ssh to proceed; INSTALL.md now says go back via ABL UNINSTALL CFW until
+  Armada's next release) -> Armada internal boots -> Android boots. Then Holodor 20260917 card,
+  Replace over Armada -> Holodor internal boots -> **Android boots, no wizard.**
+- **Stock path:** Remove Holodor (found: wipefs-only left Android at "Cannot load Android system /
+  factory reset?" -> fixed: zero 8 MiB, RC 20260918b) -> Android factory reset + wizard -> fresh
+  install 32 GB -> Holodor internal boots -> **Android boots (wizard, expected).**
+- Found + fixed on the way: installer dialogs overflowed at scale 2.0 with tablet mode (scale 1.5,
+  RC 20260918); internal clone booted into the desktop when installed from Desktop Mode (session
+  choice stripped from the clone, RC 20260918c, building now).
+- **Still to do:** restore stock bootloader from the GUI (last; the Armada-era stock backup will be
+  placed in rocknix_abl/ on the Lexar card when it is next flashed); fresh-user walkthrough of
+  INSTALL.md (Cliff drives); ROCKNIX/Armada could be told about the msftdata bootloop.
+- Device: internal Holodor (fresh install, HOLODOR/EFI layout) + Android set up? (wizard shown,
+  Cliff decides). sshd on the internal install is OFF (fresh clone of the 20260917 card, which had
+  sshd enabled only in the SD session... check before relying on it).
+
+## (previous) CURRENT STATE 2026-09-17 15:00 JST
 
 ### ROOT CAUSE OF THE ANDROID BOOTLOOP FOUND AND FIXED (09-17, bisected on the device with Cliff)
 - **An internal FAT partition typed "Microsoft basic data" makes AYN's Dec-2025 Android reset ~12 s

@@ -39,9 +39,9 @@ on the SD card once you have written it.
     the card itself is probably fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
 - The **Holodor image**: one file. Current release:
-  https://holodor.bonesaw.com/holodor-odin3-20260918b-seedless.img.zst (3.2 GB).
+  https://holodor.bonesaw.com/holodor-odin3-20260918c-seedless.img.zst (3.2 GB).
   Its checksum file is
-  https://holodor.bonesaw.com/holodor-odin3-20260918b-seedless.img.zst.sha256.
+  https://holodor.bonesaw.com/holodor-odin3-20260918c-seedless.img.zst.sha256.
   Check the download against it before writing the card.
 
 ---
@@ -88,8 +88,8 @@ place. Differences from a stock device:
 
 1. Download the Holodor image and its checksum file (the two addresses are in "What
    you will need"). Check the download: on Linux or Mac, put both files in the same
-   folder and run `sha256sum -c holodor-odin3-20260918b-seedless.img.zst.sha256`; on
-   Windows, run `certutil -hashfile holodor-odin3-20260918b-seedless.img.zst SHA256`
+   folder and run `sha256sum -c holodor-odin3-20260918c-seedless.img.zst.sha256`; on
+   Windows, run `certutil -hashfile holodor-odin3-20260918c-seedless.img.zst SHA256`
    and compare the result with the text in the checksum file by eye.
 
 2. On your PC, write it to the card:
