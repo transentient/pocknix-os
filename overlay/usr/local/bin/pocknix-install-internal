@@ -3,11 +3,17 @@
 #
 # Run this ON THE DEVICE (the SD-booted pocknix), as root. It mirrors ROCKNIX's installtointernal
 # and armada-installer: shrink the Android `userdata` partition on the internal disk, then create a
-# FAT boot partition named ROCKNIX (the existing ROCKNIX ABL boots whatever partition is named
-# ROCKNIX with the boot flag — that's why your SD boots) + an ext4 POCKNIX_ROOT, copy the current
-# KERNEL onto the FAT, and clone the running rootfs onto the ext4. The ABL, xbl, modem, persist and
-# everything before `userdata` are NEVER touched, so this is far lower-risk than flashing a
-# bootloader. After it finishes, power off, remove the SD card, and boot — internal boots first.
+# FAT boot partition (the ROCKNIX ABL boots any internal FAT holding /KERNEL) + an ext4 root, copy
+# the current KERNEL onto the FAT, and clone the running rootfs onto the ext4. The ABL, xbl, modem,
+# persist and everything before `userdata` are NEVER touched, so this is far lower-risk than
+# flashing a bootloader. After it finishes, power off, remove the SD card, and boot.
+#
+# THE BOOT FAT MUST BE TYPED "EFI System" (C12A7328), NOT "Microsoft basic data" (found 2026-09-17,
+# AYN Odin 3, Dec-2025 Android, by bisection on the device): with a basic-data FAT on the internal
+# UFS, Android resets ~12 s into every boot, forever (AYN logo / blank / AYN logo). Same partition,
+# same files, typed EFI System: Android boots. The GPT name (ROCKNIX / HOLODOR) is irrelevant, and a
+# basic-data FAT on the SD card is harmless. This is what looped Android in August too; ArmadaOS
+# types its boot partition EFI and never hit it. parted's `set N esp on` writes that type.
 #
 # Iterating after install: you do NOT re-run this. Update in place — scp + pacman -U / -S a package,
 # rsync the overlay, or (kernel) pacman -U linux-pocknix. This is the one-time gateway only.
@@ -63,8 +69,10 @@ ANDROID_MIN_GIB=1                 # smallest Android userdata we'll leave
 #   * the internal UFS has 4096-byte logical sectors, so the boot FAT MUST be made with -S 4096
 #     (the SD is 512-byte; a default mkfs.vfat creates a 512-sector FAT the ABL reads as corrupt).
 #   * ROCKNIX names the internal boot partition ROCKNIX (the removable SD uses "system").
-BOOT_GPT_NAME="${POCKNIX_BOOT_GPT_NAME:-ROCKNIX}"     # GPT partition name (ROCKNIX's internal convention)
-BOOT_FAT_LABEL="${POCKNIX_BOOT_FAT_LABEL:-ROCKNIX}"   # FAT label the ABL looks for
+BOOT_GPT_NAME="${POCKNIX_BOOT_GPT_NAME:-HOLODOR}"     # GPT partition name of the internal boot FAT
+BOOT_FAT_LABEL="${POCKNIX_BOOT_FAT_LABEL:-HOLODOR}"   # its FAT label (the ABL keys on neither)
+LEGACY_BOOT_NAME="ROCKNIX"                             # what installs before 2026-09-17 were named
+SD_FAT_LABEL="${POCKNIX_SD_FAT_LABEL:-ROCKNIX}"       # the SD card's boot FAT label (build-sd-image), where KERNEL is copied from
 ROOT_GPT_NAME="${POCKNIX_ROOT_LABEL:-POCKNIX_ROOT}"   # same GPT name as the SD root (root= itself is PARTUUID-pinned)
 DRY_RUN=0; ASSUME_YES=0; UD_GIB=""; DETECT=0; FRP_MODE=""   # FRP_MODE: clear | keep | "" (ask)
 REPLACE=0; OPERATION=fresh                                   # OPERATION: fresh | replace
@@ -177,7 +185,7 @@ if [ "$TAIL_KIND" != none ]; then
     echo "tail_kind=$TAIL_KIND"; echo "tail_names=$TAIL_LIST"; echo "tail_gib=$TAIL_GIB"
     echo "replace_ok=$REPLACE_OK"; echo "android_gib=$(( (UD_END - UD_START) / GiB ))"
     if [ "$TAIL_KIND" = holodor ]; then
-      if printf '%s\n' "${TAIL_NAMES[@]}" | grep -qx -e "$BOOT_GPT_NAME"; then echo "boot_disabled=0"; else echo "boot_disabled=1"; fi
+      if printf '%s\n' "${TAIL_NAMES[@]}" | grep -qx -e "$BOOT_GPT_NAME" -e "$LEGACY_BOOT_NAME"; then echo "boot_disabled=0"; else echo "boot_disabled=1"; fi
       echo "pocknix_gib=$TAIL_GIB"
     fi
     exit 0
@@ -333,7 +341,8 @@ else
 fi
 parted -a optimal -s "$DEVICE" mkpart primary fat32  "${BOOT_START_MIB}MiB" "${BOOT_END_MIB}MiB"
 BOOT_NUM="$(partnum_at_mib "$BOOT_START_MIB")"; [ -n "$BOOT_NUM" ] || die "could not locate the new boot partition at ${BOOT_START_MIB}MiB"
-parted -s "$DEVICE" name "$BOOT_NUM" "$BOOT_GPT_NAME"   # fat32 mkpart auto-sets the msftdata type (= ROCKNIX)
+parted -s "$DEVICE" name "$BOOT_NUM" "$BOOT_GPT_NAME"
+parted -s "$DEVICE" set "$BOOT_NUM" esp on   # type = EFI System. NOT basic data: that loops Android (see header)
 parted -a optimal -s "$DEVICE" mkpart primary ext4   "${ROOT_START_MIB}MiB" "${ROOT_END_MIB}MiB"
 ROOT_NUM="$(partnum_at_mib "$ROOT_START_MIB")"; [ -n "$ROOT_NUM" ] || die "could not locate the new root partition at ${ROOT_START_MIB}MiB"
 parted -s "$DEVICE" name "$ROOT_NUM" "$ROOT_GPT_NAME"
@@ -369,8 +378,8 @@ mount "$BOOT_PART" "$BMNT"; mount "$ROOT_PART" "$RMNT"
 # Copy the ENTIRE current boot partition (KERNEL + KERNEL.md5 — the ABL verifies KERNEL against its
 # md5, so a missing KERNEL.md5 = "installation corrupt") from the SD onto the internal FAT. The SD's
 # boot FAT is the only ROCKNIX-labelled FAT that isn't on the internal $DEVICE.
-SD_BOOT="$(blkid -t LABEL="$BOOT_FAT_LABEL" -o device 2>/dev/null | grep -v "^${DEVICE}" | head -1 || true)"
-[ -n "$SD_BOOT" ] || die "couldn't find the SD boot partition (LABEL=$BOOT_FAT_LABEL) to copy KERNEL from"
+SD_BOOT="$(blkid -t LABEL="$SD_FAT_LABEL" -o device 2>/dev/null | grep -v "^${DEVICE}" | head -1 || true)"
+[ -n "$SD_BOOT" ] || die "couldn't find the SD boot partition (LABEL=$SD_FAT_LABEL) to copy KERNEL from"
 # The SD boot FAT is usually ALREADY mounted (the SD image mounts it on /flash via fstab). vfat can't
 # be re-mounted RO while it's mounted RW elsewhere ("Can't mount, would change RO state"), so reuse
 # the existing mountpoint when there is one; only mount it ourselves otherwise.
@@ -493,7 +502,7 @@ else
   Internal install complete. Now:
     1) Power off.
     2) Remove the SD card.
-    3) Power on — the ABL boots the internal $BOOT_GPT_NAME partition (internal boots before SD).
+    3) Power on — the ABL boots the internal $BOOT_GPT_NAME partition (boot source auto/Internal).
   (Leaving the SD in causes two ${ROOT_GPT_NAME} partitions; remove it to avoid an ambiguous root.)
 EOF
 fi

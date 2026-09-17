@@ -37,7 +37,8 @@ case "$BOOT_STYLE" in
 esac
 
 DEVICE="${DEVICE:-${POCKNIX_INTERNAL_DISK:-/dev/sda}}"
-BOOT_NAME="${POCKNIX_BOOT_GPT_NAME:-ROCKNIX}"     # GPT name of the boot FAT  (pocknix-install-internal)
+BOOT_NAME="${POCKNIX_BOOT_GPT_NAME:-HOLODOR}"     # GPT name of the boot FAT  (pocknix-install-internal)
+LEGACY_BOOT_NAME="ROCKNIX"                        # installs made before 2026-09-17 (basic-data typed; see the install header)
 ROOT_NAME="${POCKNIX_ROOT_LABEL:-POCKNIX_ROOT}"   # GPT name of the ext4 root
 DISABLE_BOOT=0 ; ENABLE_BOOT=0 ; DRY_RUN=0 ; ASSUME_YES=0 ; FRP_MODE=""   # clear | keep | "" (ask; --yes clears)
 
@@ -67,7 +68,7 @@ for t in parted blkid lsblk findmnt wipefs; do command -v "$t" >/dev/null 2>&1 |
 partnum() { parted -m -s "$DEVICE" print 2>/dev/null | awk -F: -v n="$1" '$6==n{print $1}'; }
 partdev() { case "$DEVICE" in *[0-9]) echo "${DEVICE}p$1" ;; *) echo "${DEVICE}$1" ;; esac; }
 
-BOOT_NUM="$(partnum "$BOOT_NAME" || true)"
+BOOT_NUM="$(partnum "$BOOT_NAME" || partnum "$LEGACY_BOOT_NAME" || true)"
 ROOT_NUM="$(partnum "$ROOT_NAME" || true)"
 
 # ---------------------------------------------------------------------------------------------------
@@ -107,6 +108,7 @@ if [ "$ENABLE_BOOT" = 1 ]; then
   [ -n "$NEW" ] || NEW="$(parted -m -s "$DEVICE" unit MiB print | awk -F: -v s="$UD_END" '$1 ~ /^[0-9]+$/ {st=$2; gsub("MiB","",st); if (int(st)==s) print $1}' | head -1)"
   [ -n "$NEW" ] || die "could not locate the recreated boot partition"
   parted -s "$DEVICE" name "$NEW" "$BOOT_NAME"
+  parted -s "$DEVICE" set "$NEW" esp on     # EFI System type: a basic-data FAT here loops Android (2026-09-17)
   partprobe "$DEVICE" 2>/dev/null || true; sleep 1
   bdev="$(partdev "$NEW")"; ss="$(blockdev --getss "$bdev")"
   say "Formatting $bdev FAT32 (-S $ss -s 1, name/label $BOOT_NAME) ..."
@@ -123,6 +125,13 @@ if [ "$ENABLE_BOOT" = 1 ]; then
   for m in dev proc sys; do mount --bind "/$m" "$RMNT/$m"; done
   say "Regenerating /flash/KERNEL (+KERNEL.md5) inside $ROOT_NAME ..."
   chroot "$RMNT" /usr/bin/pocknix-build-bootimg || die "pocknix-build-bootimg failed in chroot"
+  # The recreated FAT has a NEW PARTUUID; the internal fstab pins /flash to the old one and would
+  # wait 90 s for it at every boot (seen 2026-09-17). Repoint it.
+  NEW_PARTUUID="$(blkid -s PARTUUID -o value "$bdev")"
+  if [ -n "$NEW_PARTUUID" ] && grep -q ' /flash ' "$RMNT/etc/fstab"; then
+    sed -i -E "s|^PARTUUID=[0-9a-fA-F-]+( +/flash )|PARTUUID=${NEW_PARTUUID}\1|" "$RMNT/etc/fstab"
+    say "fstab: /flash now PARTUUID=${NEW_PARTUUID}"
+  fi
   cleanup_enable; trap - EXIT
   say "Done — internal boot re-enabled. Power off, REMOVE the SD, and boot: internal pocknix should come up."
   exit 0
@@ -194,7 +203,7 @@ if [ "$FRP" = populated ] && [ "$DRY_RUN" != 1 ]; then
 fi
 
 if [ -n "$ROOT_NUM" ]; then run parted -s "$DEVICE" rm "$ROOT_NUM"; fi
-BOOT_NUM="$(partnum "$BOOT_NAME" || true)"            # re-read: numbers can shift after an rm
+BOOT_NUM="$(partnum "$BOOT_NAME" || partnum "$LEGACY_BOOT_NAME" || true)"            # re-read: numbers can shift after an rm
 if [ -n "$BOOT_NUM" ]; then run parted -s "$DEVICE" rm "$BOOT_NUM"; fi
 UD_NUM="$(partnum userdata || true)"
 run parted -s "$DEVICE" rm "$UD_NUM"

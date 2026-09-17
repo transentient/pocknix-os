@@ -5,8 +5,12 @@ clones a **running SD install** onto internal storage; `pocknix-uninstall-intern
 
 Both scripts live in the image at `/usr/local/bin/` (overlay), run **on the device**, and never touch
 `abl`/`xbl`/`modem`/`persist`/`super` — only Android's `userdata` (shrunk) plus the two pocknix
-partitions they add (`ROCKNIX` FAT boot + `HOLODOR_ROOT` ext4). For the exact boot-partition layout
-and *why* it must be what it is, see the `rp6-internal-boot` memory.
+partitions they add (`HOLODOR` FAT boot, typed **EFI System**, + `HOLODOR_ROOT` ext4). The boot FAT
+MUST be typed EFI System, not "Microsoft basic data": with a basic-data FAT on the internal UFS,
+AYN's Android resets ~12 s into every boot (found by bisection 2026-09-17; the GPT name does not
+matter, and the SD card's basic-data FAT is harmless). Installs made before that date are named
+`ROCKNIX` and are still recognised by every tool. For the rest of the boot-partition layout, see
+the `rp6-internal-boot` memory.
 
 > ⚠️ This repartitions the disk Android lives on. It shrinks `userdata` (wipes Android user data) but
 > leaves Android itself bootable. **Always `--dry-run` first and read the printed plan.**

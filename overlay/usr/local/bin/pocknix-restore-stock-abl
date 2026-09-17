@@ -35,7 +35,7 @@ set -euo pipefail
 [ -r /usr/lib/pocknix/device.conf ] && . /usr/lib/pocknix/device.conf
 [ -r /etc/pocknix/device.conf ] && . /etc/pocknix/device.conf
 DEVICE="${POCKNIX_INTERNAL_DISK:-/dev/sda}"
-BOOT_FAT_LABEL="${POCKNIX_BOOT_FAT_LABEL:-ROCKNIX}"
+BOOT_FAT_LABEL="${POCKNIX_BOOT_FAT_LABEL:-HOLODOR}"; LEGACY_BOOT_FAT_LABEL="ROCKNIX"   # internal boot FAT label (installs before 2026-09-17 used ROCKNIX)
 SOC_UC="${POCKNIX_SOC:-sm8750}"; SOC_UC="${SOC_UC^^}"
 SHIPPED_ELF="/usr/share/bootloader/rocknix_abl/abl_signed-${SOC_UC}.elf"   # what flash_abl.sh writes; a backup equal to it is not stock
 ABL_CATALOG="${POCKNIX_ABL_CATALOG:-/usr/share/holodor/rocknix-abl-releases.tsv}"   # every ROCKNIX ABL release: version, soc, size, sha256-of-prefix
@@ -121,7 +121,7 @@ else
     candidates+=("$m/rocknix_abl" "$m/rocknix_abl/$SOC_UC")
   done
   # the internal boot FAT (not mounted when booted from the SD): mount it read-only
-  int_fat="$(blkid -t LABEL="$BOOT_FAT_LABEL" -o device 2>/dev/null | grep "^${DEVICE}" | head -1 || true)"
+  int_fat="$( { blkid -t LABEL="$BOOT_FAT_LABEL" -o device 2>/dev/null; blkid -t LABEL="$LEGACY_BOOT_FAT_LABEL" -o device 2>/dev/null; } | grep "^${DEVICE}" | head -1 || true)"
   if [ -n "$int_fat" ] && ! findmnt -n "$int_fat" >/dev/null 2>&1; then
     INT_MNT="$(mktemp -d)"
     mount -o ro "$int_fat" "$INT_MNT" 2>/dev/null && candidates+=("$INT_MNT/abl-backup") || { rmdir "$INT_MNT"; INT_MNT=""; }

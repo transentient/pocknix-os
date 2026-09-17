@@ -102,7 +102,33 @@ device. Status tags: verified (read in source or tested), unproven (needs the Od
   (DT `rotation = <90>`, kwin honours it), scale 2.0 seeded into `~/.config/kwinoutputconfig.json`
   keyed by connectorName DSI-1 because there is no kscreen. Untested until the next RC boots.
 
-## 2026-09-15/16: Replace worked, Android then bootloops. Open.
+## 2026-09-17: ROOT CAUSE FOUND. Internal boot FAT typed "basic data" loops Android. FIXED.
+
+Bisected on the device with Cliff (each cycle: change from the Holodor SD over ssh, boot Android):
+1. Restore userdata's Android type GUID: still loops.
+2. Delete our internal boot FAT (`--disable-boot`), root left intact: **Android boots.**
+3. Recreate it, type EFI System (C12A7328), name+label HOLODOR: **Android boots; Holodor boots
+   from it too** (boot source Internal). The only cost: the rebuilt partition has a new PARTUUID and
+   the internal fstab waited 90 s for the old one (fixed in `--enable-boot`).
+4. Same partition, EFI type, name+label back to ROCKNIX: **Android boots** -> the name is
+   irrelevant, the TYPE is the trigger. The Holodor SD card (basic-data FAT, label ROCKNIX) was
+   inserted for every one of these boots -> a basic-data FAT on the CARD is harmless; only one on
+   the internal UFS trips Android. Mechanism inside Android/ABL unknown (no crash log obtainable:
+   no cache partition, recovery.log clean, STRICT_DEVMEM); not needed for the fix.
+
+This is what looped Android in August too (first internal install ever, same installer). ArmadaOS
+types its ESP EFI System (and its SD boot partition too) and never hit it. ROCKNIX's own
+installtointernal convention (msftdata "ROCKNIX") is what we copied; whether ROCKNIX users on the
+Odin 3 with the Dec-2025 Android see this is worth asking them.
+
+Fix (this commit): pocknix-install-internal and pocknix-uninstall-internal --enable-boot run
+`parted set N esp on` after creating the boot FAT; defaults renamed to HOLODOR (GPT name + FAT
+label; legacy ROCKNIX-named installs still recognised everywhere); the installer finds the SD's
+boot FAT by its own label (ROCKNIX) instead of the internal label; --enable-boot repoints
+/flash in the internal fstab to the new PARTUUID; pocknix-restore-stock-abl looks for HOLODOR or
+ROCKNIX on the internal disk. The SD image layout is unchanged (Windows must keep seeing it).
+
+## 2026-09-15/16: Replace worked, Android then bootloops. (Superseded by the section above.)
 
 Sequence: Armada internal (their installer, Android 32 GB) -> Android set up and booting ->
 Holodor 20260915 card (boot source SDCard) -> Desktop Mode works (first time on this device,

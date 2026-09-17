@@ -39,9 +39,9 @@ on the SD card once you have written it.
     the card itself is probably fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
 - The **Holodor image**: one file. Current release:
-  https://holodor.bonesaw.com/holodor-odin3-20260915-seedless.img.zst (3.2 GB).
+  https://holodor.bonesaw.com/holodor-odin3-20260917-seedless.img.zst (3.2 GB).
   Its checksum file is
-  https://holodor.bonesaw.com/holodor-odin3-20260915-seedless.img.zst.sha256.
+  https://holodor.bonesaw.com/holodor-odin3-20260917-seedless.img.zst.sha256.
   Check the download against it before writing the card.
 
 ---
@@ -84,8 +84,8 @@ place. Differences from a stock device:
 
 1. Download the Holodor image and its checksum file (the two addresses are in "What
    you will need"). Check the download: on Linux or Mac, put both files in the same
-   folder and run `sha256sum -c holodor-odin3-20260915-seedless.img.zst.sha256`; on
-   Windows, run `certutil -hashfile holodor-odin3-20260915-seedless.img.zst SHA256`
+   folder and run `sha256sum -c holodor-odin3-20260917-seedless.img.zst.sha256`; on
+   Windows, run `certutil -hashfile holodor-odin3-20260917-seedless.img.zst SHA256`
    and compare the result with the text in the checksum file by eye.
 
 2. On your PC, write it to the card:
@@ -377,14 +377,17 @@ affected.
 
 ## Appendix: enabling SSH and setting passwords (tinkerers)
 
-Release images ship the Steam Deck way: no passwords exist and SSH is off, so there is
-nothing to attack until you opt in. To enable remote access:
+Release images ship the Steam Deck way: no passwords exist, root is locked, there is no
+sudo, and SSH is off, so there is nothing to attack until you opt in. To enable remote
+access:
 
 1. Switch to Desktop Mode, open a terminal (Konsole).
-2. `passwd` sets a password for the `deck` user (it will not ask for an old one).
-3. `sudo systemctl enable --now sshd` turns SSH on, key or password auth as you
-   configure it. (`sudo passwd root` first if you want direct root SSH; better: ssh in
-   as deck and use sudo.)
+2. `passwd` sets a password for the `deck` user (press Enter at the "current password"
+   prompt: there is none).
+3. `systemctl enable --now sshd` turns SSH on. No sudo is needed: the `deck` user may
+   manage services. Log in over SSH as `deck`.
+4. For a root shell, from the deck account: `systemd-run --wait --pipe -t /bin/bash`.
+   The same rule that lets deck manage services lets it run this.
 
 Command-line equivalents of the installer app: `pocknix-install-internal` (add
 `--replace` to take over an existing Linux install without touching Android),

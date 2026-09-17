@@ -1,6 +1,32 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-14 19:00 JST - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-17 15:00 JST - READ THIS FIRST (written by Claude Fable 5.1)
+
+### ROOT CAUSE OF THE ANDROID BOOTLOOP FOUND AND FIXED (09-17, bisected on the device with Cliff)
+- **An internal FAT partition typed "Microsoft basic data" makes AYN's Dec-2025 Android reset ~12 s
+  into boot, forever.** Same partition typed **EFI System**: Android boots, and Holodor still boots
+  from it. GPT name irrelevant (tested ROCKNIX and HOLODOR both ways); the SD card's basic-data FAT
+  is harmless (it was inserted throughout). This was August's bootloop too. ArmadaOS types its ESP
+  EFI and never hit it; we copied ROCKNIX's msftdata convention. Memory:
+  reference-android-loops-on-basic-data-fat. Details: docs/plan-2026-09-14-armada-coexistence.md.
+- **Fix in RC 20260917** (built, spot-check green): installer + `--enable-boot` run `parted set N
+  esp on`; internal boot partition now named/labelled HOLODOR (legacy ROCKNIX installs recognised
+  by install --detect, uninstall, restore); installer finds the SD's boot FAT by the SD label;
+  `--enable-boot` repoints /flash in the internal fstab (the 90 s wait seen 09-17). INSTALL.md
+  appendix fixed (no sudo on the image: `passwd`, `systemctl enable --now sshd`, root via
+  `systemd-run --wait --pipe -t /bin/bash`). pocknix-desktop-11 rides too (tablet mode default,
+  boot-art wallpaper first-run).
+- **Device now:** Android boots; internal Holodor present (HOLODOR_ROOT + boot FAT typed EFI but
+  GPT-named/labelled ROCKNIX after the last bisect step; Holodor boots from it via boot source
+  Internal; its fstab /flash repointed). sshd enabled on BOTH the internal install and the SD,
+  password "holodor", fusor key installed. misc BCB backup: ~/odin3-backups/misc-before-bcb-*.bin
+  (recovery cleared the BCB itself). userdata type GUID set back to Android's (1b81e7e6).
+- **Acceptance still to run with RC 20260917 (Cliff's list, ~2.5 h device time):** (1) Armada path
+  end to end: Armada card, THEIR replace over our internal Holodor, Android boots, Holodor card,
+  Replace, Android boots without wizard; (2) stock path: Remove Holodor, fresh install, Android
+  boots; (3) restore stock bootloader from the GUI, last. Then the fresh-user walkthrough.
+
+## (previous) CURRENT STATE 2026-09-14 19:00 JST
 
 ### The Armada-user path (09-14 afternoon; supersedes the 01:30 block below where they differ)
 - **Cliff's reframing:** the first people he pitches Holodor to already run ArmadaOS; Reddit will
