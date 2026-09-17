@@ -461,6 +461,10 @@ rsync -aHAXx --numeric-ids \
   --exclude='/tmp/*'  --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found' \
   / "$RMNT/"
 for d in proc sys dev run tmp mnt media flash; do mkdir -p "$RMNT/$d"; done
+# The clone inherits the running session's state. An install started from Desktop Mode would
+# otherwise boot the internal system into the desktop (seen 2026-09-15); a fresh system boots
+# into Steam, so drop the session choice (and the one-shot desktop stamps) in the copy.
+rm -f "$RMNT/home/deck/.local/state/pocknix-session" "$RMNT/home/deck/.local/state/pocknix-wallpaper-applied"
 
 # fstab on the internal install, plus the internal FAT at /flash so the kernel-update
 # hook can refresh it later. arm-efi mounts by PARTUUID (matches the grub.cfg pin, and
