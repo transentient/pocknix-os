@@ -220,6 +220,11 @@ newnum="$(parted -m -s "$DEVICE" unit MiB print \
 [ -n "$newnum" ] || die "could not locate the recreated userdata partition at ${UD_START}MiB"
 parted -s "$DEVICE" name "$newnum" userdata
 partprobe "$DEVICE" 2>/dev/null || true
-wipefs -a "$(partdev "$newnum")" 2>/dev/null || true   # Android reformats userdata on its next boot
+# Android formats userdata by itself only when the partition looks BLANK. wipefs alone left the
+# encrypted filesystem body behind and Android answered "Cannot load Android system. Your data may
+# be corrupt" with a manual reset prompt (2026-09-18). Zero the first 8 MiB like the fresh install
+# (and armada-installer) do; then Android formats silently and runs its setup wizard.
+dd if=/dev/zero of="$(partdev "$newnum")" bs=1M count=8 conv=fsync status=none 2>/dev/null || true
+wipefs -a "$(partdev "$newnum")" 2>/dev/null || true
 say "Done: userdata restored as partition #$newnum (${UD_START}–${END}MiB). Power off and boot."
 say "The SD/Android now boots; reinstall a fresh pocknix later with pocknix-install-internal."
