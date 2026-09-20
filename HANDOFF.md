@@ -1,6 +1,23 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-18 02:00 JST - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-20 17:30 JST - READ THIS FIRST (written by Claude Fable 5.1)
+
+- **RC 20260920b published** = kernel-26 (jack detection 0603/0604, RTC-in-SDAM 0602, ath12k scan
+  priority 1020, DBV cap 3413 in 0811) + bsp-common-21 (dwc3-only USB autosuspend) + boot-art-2
+  (cutscene preloads frames, supervisor waits for it) + desktop-12 (scale 1.5) + installer fixes
+  (Remove zeroes userdata; clone boots into Steam). None of kernel-26 / the cutscene fix has run on
+  the device yet: flash the Lexar with ~/flash-rc.sh (points at 20260920b) and test: jack plug
+  detection, clock survives power-off, cutscene plays whole and smooth from the card, max
+  brightness slightly lower.
+- **Upstream sweep:** docs/upstream-sweep-2026-09-20.md (ROCKNIX on 7.2 -> `make sync` is UNSAFE for
+  sm8750; ranked shortlist; ROCKNIX installtointernal still types the FAT msftdata = the bootloop).
+  A Valve/Collabora/Mesa/FEX sweep and the DPU-rotation experiment prep (worktree branch, kernel
+  series 50-rotation-exp + gamescope-next at Valve fa0b4d3) are running as agents; results land
+  in docs/. Cliff wants to try hardware rotation (Armada 20260915: perf gain on SM8750).
+- Long builds/flashes: `sudo systemd-run` units (the session watchdog kills backgrounded shells).
+  publish-image.sh must run as cliff (rclone remote is in cliff's config, not root's).
+
+## (previous) CURRENT STATE 2026-09-18 02:00 JST
 
 ### ACCEPTANCE PASSED ON THE DEVICE (09-17/18, Cliff driving, shipped RC images)
 - **Armada path:** Armada card -> "Switch to Armada" over our internal Holodor (their 20260907
