@@ -3,7 +3,7 @@
 # (make packages PKG=wayland-protocols-next), never part of the default set. Data-only package.
 pkgname=wayland-protocols-next
 _pkgname=wayland-protocols
-pkgver=1.49
+pkgver=1.47   # 1.47 = wlroots 0.20's minimum; 1.48+ generate enum headers that need a newer wayland-scanner than Holo Core's 1.24
 pkgrel=1
 pkgdesc="Wayland protocol specifications ${pkgver} (build-time only; for gamescope-next)"
 arch=('any')
