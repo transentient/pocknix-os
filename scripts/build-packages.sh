@@ -298,6 +298,15 @@ main() {
       case "${name}" in *"-${othersoc}") skip=1; break ;; esac
     done
     [ "${skip}" -eq 1 ] && continue
+    # Opt-in packages: a package dir carrying a file named OPTIONAL (e.g. gamescope-next, the
+    # 2026-09-20 hardware-rotation experiment) is built ONLY when named explicitly via
+    # PKG="...". A plain `make packages` / `make build` never builds it, so an experimental
+    # artifact cannot land in localrepo — and from there into an RC — by accident (the way the
+    # staged mesa-next-6 trio did on 2026-09-06). Same convention as the kernel's optional
+    # patch series (kernel/<soc>/patches/<series>/OPTIONAL).
+    if [ -f "${pkgdir}/OPTIONAL" ]; then
+      case " ${want[*]} " in *" ${name} "*) ;; *) log "skipping optional package ${name} (build with PKG=${name})"; continue ;; esac
+    fi
     force=0
     [ "${POCKNIX_FORCE_REBUILD:-0}" = "1" ] && force=1
     if [ "${#want[@]}" -gt 0 ]; then

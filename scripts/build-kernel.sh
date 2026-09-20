@@ -62,10 +62,35 @@ fetch_source() {
   tar -C "${KBUILD}" -xf "${tb}"
 }
 
+# Optional series: a patches/<series>/ dir carrying a file named OPTIONAL is skipped
+# unless its basename is listed in HOLODOR_KERNEL_EXTRA_SERIES (space-separated).
+# Lets an experiment (e.g. 50-rotation-exp, DPU hardware rotation) live in-tree,
+# numbered after 40-holodor, without touching the default build:
+#   HOLODOR_KERNEL_EXTRA_SERIES="50-rotation-exp" make kernel
+# A name listed but not present is a hard error (a typo must not silently build
+# the default kernel and get deployed as the experiment).
+series_is_selected() {
+  local name="$1" s
+  [ -f "${KERNEL_DIR}/patches/${name}/OPTIONAL" ] || return 0
+  for s in ${HOLODOR_KERNEL_EXTRA_SERIES:-}; do
+    [ "${s}" = "${name}" ] && return 0
+  done
+  return 1
+}
+
 apply_patches() {
-  local d p n
+  local d p n s
+  for s in ${HOLODOR_KERNEL_EXTRA_SERIES:-}; do
+    [ -d "${KERNEL_DIR}/patches/${s}" ] \
+      || die "HOLODOR_KERNEL_EXTRA_SERIES names '${s}' but ${KERNEL_DIR}/patches/${s}/ does not exist"
+    log "extra series selected: ${s}"
+  done
   for d in "${KERNEL_DIR}"/patches/*/; do
     [ -d "${d}" ] || continue
+    if ! series_is_selected "$(basename "${d}")"; then
+      log "skipping optional series $(basename "${d}") (not in HOLODOR_KERNEL_EXTRA_SERIES)"
+      continue
+    fi
     n=0
     for p in "${d}"*.patch; do
       [ -f "${p}" ] || continue
@@ -267,6 +292,16 @@ configure() {
       --module SND_SOC_LPASS_VA_MACRO \
       --module SND_SOC_LPASS_RX_MACRO \
       --module SND_SOC_LPASS_TX_MACRO
+  fi
+
+  # Optional patch series (HOLODOR_KERNEL_EXTRA_SERIES, see apply_patches) stamp the kernel
+  # release: `uname -r` reads e.g. 7.1.3-50-rotation-exp, the modules land in their own
+  # /usr/lib/modules/<release> dir, and the experimental kernel can never be mistaken for the
+  # shipped one on a device or in a log. The default build keeps the synced CONFIG_LOCALVERSION.
+  if [ -n "${HOLODOR_KERNEL_EXTRA_SERIES:-}" ]; then
+    local lv; lv="-$(printf '%s' "${HOLODOR_KERNEL_EXTRA_SERIES}" | tr -s ' ' '-')"
+    "${KSRC}/scripts/config" --file "${KSRC}/.config" --set-str LOCALVERSION "${lv}"
+    log "kernel release stamped with extra series: LOCALVERSION=${lv}"
   fi
 
   # olddefconfig auto-accepts defaults for any new symbols (no prompts, no stdin).
