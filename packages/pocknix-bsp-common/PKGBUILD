@@ -5,7 +5,10 @@
 # devices/<name>/packages/pocknix-bsp-<name>, which depends on this package.
 pkgname=pocknix-bsp-common
 pkgver=0.1.0
-pkgrel=20   # 20: download-inhibit policy file (always|plugged|never, Pocknix Control switch) + no hold at <=5% on battery. 19: power-mode: `max` no longer survives a reboot (boot re-apply turns it into balanced). 18: wake-grace-post: `$i` not `${i}` in the error line (systemd expanded `${i}` inside the sh -c string, cosmetic warning every wake). 17: wake-grace retries the inhibit (logind race = 2-presses-to-wake); wifi-heal launched as a
+pkgrel=21   # 21: 60-pocknix-usb-autosuspend.rules — runtime-suspend ONLY the dwc3-qcom glue (drops its
+            #     1 GB/s USB-to-DDR interconnect vote while the port is idle), leaf USB devices/hubs
+            #     stay powered (ArmadaOS 98d8f53, 2026-09-15; upstream sweep 2026-09-20 item U1).
+            # 20: download-inhibit policy file (always|plugged|never, Pocknix Control switch) + no hold at <=5% on battery. 19: power-mode: `max` no longer survives a reboot (boot re-apply turns it into balanced). 18: wake-grace-post: `$i` not `${i}` in the error line (systemd expanded `${i}` inside the sh -c string, cosmetic warning every wake). 17: wake-grace retries the inhibit (logind race = 2-presses-to-wake); wifi-heal launched as a
             #     transient unit (setsid& died with the hook cgroup, never ran) + nmcli connection-up first;
             #     charge-full re-applied on USB power_supply udev events; 16: download-inhibit + wake-grace
 pkgdesc="pocknix shared board support: sleep.d dispatcher, suspend hooks, power-key policy, session udev rules"
@@ -25,8 +28,9 @@ source=('pocknix-sleep' 'sdam-debug-pre' 'sdam-debug-post'
         'pocknix-download-inhibit' 'pocknix-download-inhibit.service' 'wake-grace-post'
         'iwd-wait-wlan0.conf'
         '20-pocknix-powerkey.conf' 'no-freeze-user-sessions.conf'
-        '90-pocknix-backlight.rules' '60-pocknix-controllers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        '90-pocknix-backlight.rules' '60-pocknix-controllers.rules'
+        '60-pocknix-usb-autosuspend.rules')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # systemd system-sleep hook that dispatches our sleep.d/{pre,post} scripts
@@ -138,4 +142,10 @@ package() {
   # Critical for the InputPlumber 'deck' target (Valve 28de) hidraw that Steam Input reads.
   install -Dm644 "${srcdir}/60-pocknix-controllers.rules" \
     "${pkgdir}/usr/lib/udev/rules.d/60-pocknix-controllers.rules"
+  # USB controller runtime PM: autosuspend ONLY the dwc3-qcom glue (its idle
+  # interconnect vote blocks DDR low-power tiers); never the devices/hubs below
+  # it (a dock's hub would power its ports off — ArmadaOS issue #302). See the
+  # rule file header. ArmadaOS 98d8f53, sweep 2026-09-20 U1.
+  install -Dm644 "${srcdir}/60-pocknix-usb-autosuspend.rules" \
+    "${pkgdir}/usr/lib/udev/rules.d/60-pocknix-usb-autosuspend.rules"
 }
