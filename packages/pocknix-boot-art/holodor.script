@@ -1,19 +1,23 @@
 # holodor.script — the Holodor boot cutscene (pocknix-boot-art).
 #
 # 34 frames, 10fps, played ONCE, then holds the final logo frame until
-# plymouth quits (plymouth-quit-wait hands tty1 to the session). Frames are
+# plymouth quits (the session supervisor quits it with --retain-splash once
+# the cutscene has had time to finish; see ~deck/.bash_profile). Frames are
 # pre-scaled 8x nearest-neighbor to 1920x1080 (native art is 240x135) so
 # nothing scales on the boot path; plymouth's DRM renderer handles the Odin 3
 # panel's 90-degree orientation on its own (DTS rotation property).
 #
-# Frames are LAZY-loaded, one per animation step: a decoded 1080p frame is
-# ~8 MB, so loading all 34 up front would hold ~280 MB during boot. Lazy keeps
-# it at the current frame only, one PNG decode per 100 ms — cheap.
+# Frames are PRELOADED while frame 1 holds as a title card: one PNG decode
+# per refresh tick, so the ~1 s of decoding happens before playback starts
+# and the animation itself never touches the disk. Decoding lazily during
+# playback (the previous design) stuttered on SD cards, where the boot's
+# I/O storm turns each 100 ms frame read into a random wait. Memory cost:
+# 34 decoded 1080p frames ~ 270 MB, held only until plymouth quits.
 #
 # Non-boot modes (shutdown/reboot) show the static logo frame, no animation.
 
 frame_count = 34;      # frames 35-40 (the fade-to-black tail) are dropped on
-                       # purpose — plymouth's quit transition does the fade
+                       # purpose — the handoff to the session does the fade
 ticks_per_frame = 5;   # script refresh runs at 50/s; 50/5 = the art's 10 fps
 
 Window.SetBackgroundTopColor(0, 0, 0);
@@ -25,18 +29,13 @@ fun frame_name(i) {
   return "frame-" + i + ".png";
 }
 
-sprite = Sprite();
-current = 0;
-tick = 0;
-
-fun show_frame(i) {
+# Decode one frame; shrink to fit only if the mode is ever smaller than the art.
+fun load_frame(i) {
   image = Image(frame_name(i));
   w = image.GetWidth();
   h = image.GetHeight();
   sw = Window.GetWidth();
   sh = Window.GetHeight();
-  # Expected: 1920x1080 mode, art drawn 1:1. If the mode is ever smaller
-  # (unexpected panel/scale), shrink to fit rather than crop.
   f = sw / w;
   g = sh / h;
   if (g < f)
@@ -46,11 +45,36 @@ fun show_frame(i) {
     h = Math.Int(h * f);
     image = image.Scale(w, h);
   }
+  return image;
+}
+
+# frames[i]: decoded images, keyed by frame number. The hash is created by the
+# first indexed assignment (plymouth-script auto-creates, as script.script's
+# dialog.bullet[index] does); there is no array literal.
+loaded = 0;            # frames decoded so far (1..frame_count)
+sprite = Sprite();
+current = 0;
+tick = 0;
+
+fun show_frame(i) {
+  image = frames[i];
+  w = image.GetWidth();
+  h = image.GetHeight();
+  sw = Window.GetWidth();
+  sh = Window.GetHeight();
   sprite.SetImage(image);
   sprite.SetPosition((sw - w) / 2, (sh - h) / 2, 0);
 }
 
 fun refresh_callback() {
+  # Phase 1: preload the remaining frames, one per tick, while frame 1 holds.
+  if (loaded < frame_count) {
+    n = loaded + 1;
+    global.frames[n] = load_frame(n);
+    global.loaded = n;
+    return;
+  }
+  # Phase 2: play once from RAM at 10 fps, then hold the last frame.
   if (current < frame_count) {
     global.tick = tick + 1;
     n = Math.Int(tick / ticks_per_frame) + 1;
@@ -64,11 +88,15 @@ fun refresh_callback() {
 }
 
 if (Plymouth.GetMode() == "boot") {
+  frames[1] = load_frame(1);
+  loaded = 1;
   current = 1;
   show_frame(1);
   Plymouth.SetRefreshFunction(refresh_callback);
 } else {
   # shutdown/reboot: just the logo, held
+  frames[frame_count] = load_frame(frame_count);
+  loaded = frame_count;
   current = frame_count;
   show_frame(frame_count);
 }

@@ -16,7 +16,7 @@
 # holds the logo and plymouth's quit transition does the fade.
 pkgname=pocknix-boot-art
 pkgver=1.0.0
-pkgrel=1
+pkgrel=2  # 2: preload all frames before playback (no stutter from SD); previous: lazy frames
 pkgdesc="Holodor plymouth boot theme (pixel-art cutscene by ssalmon_px)"
 arch=('any')
 url="https://github.com/transentient/holodor"

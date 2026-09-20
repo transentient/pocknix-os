@@ -34,6 +34,21 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     # --retain-splash right before the compositor takes DRM: the held frame stays
     # on the panel through the handoff, closing the ~20s black gap (and hiding the
     # getty flash). No-op after first launch / when plymouthd isn't running.
+    # Day-one polish: let the boot cutscene FINISH before the panel is handed over. The holodor
+    # theme preloads ~1 s then plays 3.4 s (34 frames at 10 fps), so the first launch waits
+    # until plymouthd has been up POCKNIX_CUTSCENE_SECS (default 5) seconds. Costs nothing on a
+    # slow SD boot (the session is later anyway), a second or two on internal storage.
+    if [ -z "${pocknix_cutscene_waited:-}" ]; then
+      pocknix_cutscene_waited=1
+      pocknix_plymouth_pid="$(pidof plymouthd 2>/dev/null | awk '{print $1}')"
+      if [ -n "${pocknix_plymouth_pid}" ]; then
+        pocknix_up="$(ps -o etimes= -p "${pocknix_plymouth_pid}" 2>/dev/null | tr -d ' ')"
+        pocknix_need="${POCKNIX_CUTSCENE_SECS:-5}"
+        if [ -n "${pocknix_up}" ] && [ "${pocknix_up}" -lt "${pocknix_need}" ] 2>/dev/null; then
+          sleep "$(( pocknix_need - pocknix_up ))"
+        fi
+      fi
+    fi
     plymouth quit --retain-splash 2>/dev/null || true
     case "${POCKNIX_SESSION}" in
       plasma|desktop) command -v pocknix-desktop >/dev/null 2>&1 && pocknix-desktop >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
