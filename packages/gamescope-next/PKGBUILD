@@ -83,7 +83,7 @@ depends=('wayland' 'libdrm' 'libinput' 'libxkbcommon' 'pixman' 'systemd-libs' 'l
          'libxcb' 'xcb-util-wm' 'seatd' 'hwdata' 'sdl2' 'pipewire' 'vulkan-icd-loader'
          'glslang' 'xorg-xwayland' 'libdisplay-info')
 makedepends=('git' 'meson' 'ninja' 'cmake' 'pkgconf' 'glslang' 'vulkan-headers'
-             'wayland-protocols' 'python' 'libxkbcommon' 'wayland'
+             'wayland-protocols>=1.47' 'python' 'libxkbcommon' 'wayland'   # >=1.47: wlroots 0.20; Holo Core has 1.45, so build packages/wayland-protocols-next first
              # wlroots subproject build-deps (else meson tries to build them itself):
              'xorg-xwayland' 'libdisplay-info' 'xcb-util-errors' 'xcb-util-renderutil'
              'xcb-util-image' 'xcb-util-keysyms')
