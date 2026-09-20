@@ -9,7 +9,7 @@ the ROCKNIX kernel, and a Steam Big Picture session that boots in seconds.
 There are two ways to run it:
 
 - **From the SD card.** Good for trying it out. The Android install is not changed at all.
-  Running this way is, however slower than internal storage, and some cards may not work
+  Running this way is, however, slower than internal storage, and some cards may not work
   (see below).
 - **Installed to internal storage, alongside Android.** The real way to run Holodor.
   Runs fast. Android stays bootable from the boot menu. Note: your Android install is
@@ -33,9 +33,9 @@ on the SD card once you have written it.
 
 - An **AYN Odin 3** (any storage size) on stock Android
 - A **microSD card, 32 GB minimum** (64 GB or more if you will install games to it)
-  - The bootloader is picky about SD cards. Older, plain cards (for example SanDisk
-    Ultra) work; many fast modern cards (high-end UHS-I or A2) are invisible to it.
-    Part II step 8 tells you whether yours works. If it does not, use a different card;
+  - The bootloader is picky about SD cards. I had a couple of Silicon Power cards that
+    wouldn't work, maybe because they were newer A2 cards. When you get to Part II
+    step 8, you can tell whether yours works. If it does not, use a different card;
     the card itself is probably fine for other uses.
 - A **PC** (Linux, Mac or Windows) with an SD card reader
 - The **Holodor image**: one file. Current release:
