@@ -10,13 +10,13 @@ Holodor is developed and tested on the **AYN Odin 3**, and that is the only devi
 
 **Expect the first hour to be rough.** Holodor does not ship with Steam. On first boot it downloads the Steam client, and right after you sign in Steam updates itself again. Until that finishes, menus lag, button presses respond late, and the storage grinds, especially on an SD card. Nothing is wrong. It happens once.
 
-## Isn't ArmadaOS the SteamOS for Android handhelds?
+## Isn't ArmadaOS like, **THE** SteamOS for Odin 3 and other android handhelds?
 
-Yes, and it is the main one. [ArmadaOS](https://armadaos.dev/) has a real team behind it, supports around a dozen devices, has shipped releases for months, and has a community you can ask when something breaks. If you want the most mature option, install Armada.
+Yeah! [ArmadaOS](https://armadaos.dev/) has a real team and community behind it, supports around a dozen devices, and has shipped releases for months. If you want the most mature option, install Armada.
 
-Holodor started from a different idea: make a SteamOS that is as close to the real thing as possible, built from Valve's own Holo Core packages on an Arch Linux base instead of a Fedora rebuild. That is an honest description of what it is, and here is what it is not: it does not make games run faster, and it does not feel much different to use. Both projects run the ROCKNIX kernel and mostly the same graphics stack, and when one of them figures something out the other picks it up soon after, because all of it is open source.
+Holodor started from a different idea: make a SteamOS that is as close to the real thing as possible, built from Valve's own Holo Core packages on an Arch Linux base instead of a Fedora rebuild. That's not a big deal as far as the user experience. Holodor doesn't run any faster and it does not feel much different to use. Both projects run the ROCKNIX kernel and mostly the same graphics stack, and when one of them figures something out the other picks it up soon after, because all of it is open source.
 
-Two things Holodor does have today. Standby drain on the Odin 3 is measured at about 0.4 percent per hour, where Armada still describes its native sleep as a work in progress. And the installer handles the Google account lock that can follow an Android factory reset, and can put the stock bootloader back from Linux, so going back to plain Android does not depend on a working Android. The full comparison, with sources, is in [docs/armada-comparison-2026-09-13.md](docs/armada-comparison-2026-09-13.md).
+We may be better on battery drain during sleep than ArmadaOS. We were a couple weeks ago. This stuff is moving fast though! I had a heck of a time figuring out how to get Android to boot again, and then ran into a real wall when doing a complete reflash to factory base, and I fixed both of these issues, and it's possible ArmadaOS devs and community never ran into them. The full comparison, with sources, is in [docs/armada-comparison-2026-09-13.md](docs/armada-comparison-2026-09-13.md).
 
 ## About the use of generative AI coding tools
 
@@ -24,7 +24,7 @@ I made extensive use of Claude Code and Gemini in this project. I get it if you 
 
 The words you are reading now are written by me, the developer of this project. Some of the docs and such are likely Claudish. 
 
-Interesting story: at one point when I was chatbotting with the LLM I said "Could we add some boot animation or something to make Holodor special?" No lie, the LLM said, "That's your call but let me suggest that you do the art yourself or find a human artist to do it for you. I could make something for you but it would just be slop. Nobody wants to see that. Art is something that humans are optimized for and I am just an LLM."
+Interesting story: at one point when I was chatbotting with the LLM I said "Could we add some boot animation or something to make Holodor special?" No lie, the LLM replied, "That's your call but let me suggest that you do the art yourself or find a human artist to do it for you. I could make something for you but it would just be slop. Nobody wants to see that. Art is something that humans are optimized for and I am just an LLM." (So I reached out on reddit and connected with the talented and honest SSalmon, who for a very reasonable price graced us with some cool bootup art and animation.) 
 
 We're at a weird moment in history right now for real. There are a lot of very diverse and very strong opinions on generative AI and I feel the need to be clear on where I personally stand on this. I am a professional software developer of 20 years and did network engineering for a decade before that. I never asked for LLM tools. But I simply have had to get comfortable using them or go unemployed, and I got mouths to feed. You know there is this sci-fi concept of the multiverse that has been very popular the last couple of years...well personally as someone who has been involved in tech since the early 90s I don't think there are many "alternate timelines" where some billionaires didn't eventually decide to help themselves to All the Data and use it to train models using more and more compute bought with more and more borrowed money. It's just the obvious culmination of the whole Silicon Valley thing. After two decades of millions of internet users clicking "I Accept" without reading the EULA, somebody was absolutely guaranteed to say, "How can I take absolutely all of this data and turn it into a personal enrichment machine?" 
 
@@ -64,7 +64,7 @@ Please refer to **[INSTALL.md](INSTALL.md)** for detailed instructions. The curr
 https://holodor.bonesaw.com/holodor-odin3-20260920b-seedless.img.zst (3.2 GB), with its
 checksum next to it.
 
-**Summary:** One download. You write the Holodor image to an SD card, then use the bootloader files that are already on that card to do the one-time boot menu setup from Android (with a mandatory backup of your original bootloader). Boot from the card to try it, then install to internal storage alongside Android with the Holodor Installer app. Going back to Android, or to a fully stock device, is covered in the same guide.
+**Summary:** One download. You write the Holodor image and ROCKNIX bootloader to an SD card, then use the new bootloader to do the one-time boot menu setup from Android (with a mandatory backup of your original bootloader). Boot from the card to try it, then install to internal storage alongside Android with the Holodor Installer app. Going back to Android, or to a fully stock device, is covered in the same guide.
 
 ## Building from Source
 
@@ -91,6 +91,7 @@ Holodor was made possible thanks to the foundational work of several outstanding
 - **Teguh Sobirin** - For the Odin 3 audio UCM.
 - The teams behind **FEX-Emu**, **Mesa/Turnip**, and **InputPlumber**.
 - The AYN Odin 3 Linux community on Discord for their testing, insights, and helpful feedback.
+- And needless to say, AYN Technologies themselves for putting such a hot arm SoC into a really decent gaming handheld body and developing the firmware which we are now going to squeeze down into a tiny little internal partition that we might never use. 
 
 ## License
 
