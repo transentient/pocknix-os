@@ -4,7 +4,7 @@
 
 Holodor combines Valve's Holo Core (the official SteamOS aarch64 userland) with the ROCKNIX mainline kernel, carefully integrating them to run smoothly on Qualcomm hardware. Boot your handheld directly into Steam Big Picture mode, and keep your Android installation on the side.
 
-**Devices:** Holodor is developed and tested on the **AYN Odin 3**, and that is the only device it supports today. The Retroid Pocket 5 is next in line, and the build system is laid out so that other Snapdragon handhelds can follow. Everything below refers to the Odin 3 unless it says otherwise.
+Holodor is developed and tested on the **AYN Odin 3**, and that is the only device it supports today. The Retroid Pocket 5 is next in line, and the build system is laid out so that other Snapdragon handhelds can follow. Everything below refers to the Odin 3 unless it says otherwise.
 
 *The name is a blend of Holo Core, Odin, and a nod to a certain gentle giant who held the door.*
 
