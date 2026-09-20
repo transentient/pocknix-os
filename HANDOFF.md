@@ -14,6 +14,19 @@
   A Valve/Collabora/Mesa/FEX sweep and the DPU-rotation experiment prep (worktree branch, kernel
   series 50-rotation-exp + gamescope-next at Valve fa0b4d3) are running as agents; results land
   in docs/. Cliff wants to try hardware rotation (Armada 20260915: perf gain on SM8750).
+- **Rotation experiment (K11) is BUILT, not deployed:** docs/rotation-experiment-2026-09-20.md is the
+  protocol. Artifacts in ~/odin3-backups/rotexp-20260920/: KERNEL-rotexp (7.1.3 + 50-rotation-exp),
+  linux-pocknix-sm8750-7.1.3-27 (EXPERIMENT pkgrel, built in the worktree
+  .claude/worktrees/agent-aaa02742fb15ad1b4 only; main's localrepo still has -26), gamescope-next
+  1:3.16.29 (Valve 8f21264; our 0001/0004 + 0006 rebased; no rotation shader), pocknix-steam-42
+  (POCKNIX_ROTATION=shader|hw switch, default shader). Deploy in place over ssh per the doc
+  (pacman -U the three, KERNEL -> /flash, POCKNIX_ROTATION=hw in /etc/pocknix/device.conf),
+  A/B with tools/ab against 22.11 fps baseline, rollback = kernel-26 pkg + KERNEL.bak + gamescope.
+  Build notes: gamescope-next needs wayland-protocols>=1.47 (packages/wayland-protocols-next 1.47,
+  OPTIONAL; 1.49's enum headers need a newer wayland-scanner than Holo Core has); worktree
+  builds need main's localrepo copied in (repo-add) and `bash scripts/build-packages.sh <pkg>`
+  directly (the `make packages` service run died silently); a stale wayland-protocols 1.45 in the
+  chroot must be `pacman -Rdd`'d first.
 - Long builds/flashes: `sudo systemd-run` units (the session watchdog kills backgrounded shells).
   publish-image.sh must run as cliff (rclone remote is in cliff's config, not root's).
 
