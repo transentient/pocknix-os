@@ -1,22 +1,22 @@
 # Holodor
 
-**A SteamOS Linux distribution for Snapdragon gaming handhelds.**
+**A SteamOS Linux distro for Snapdragon handhelds.**
 
-Holodor combines Valve's Holo Core (the official SteamOS aarch64 userland) with the ROCKNIX mainline kernel, carefully integrating them to run smoothly on Qualcomm hardware. Boot your handheld directly into Steam Big Picture mode, and keep your Android installation on the side.
+Holodor takes Valve's Holo Core (the official ARM64 SteamOS userland) and mashes it up with the ROCKNIX mainline kernel so it actually runs on Qualcomm chips. It boots straight into Steam Big Picture, leaving your Android partition intact.
 
-Holodor is developed and tested on the **AYN Odin 3**, and that is the only device it supports today. The Retroid Pocket 5 is next in line, and the build system is laid out so that other Snapdragon handhelds can follow. Everything below refers to the Odin 3 unless it says otherwise.
+Right now, it's only built and tested for the **AYN Odin 3**. The Retroid Pocket 5 is on the radar, and the build system is set up to add more Snapdragon devices later. Assume everything below is about the Odin 3.
 
-*The name is a blend of Holo Core, Odin, and a nod to a certain gentle giant who held the door.*
+*The name: Holo Core + Odin + that one big guy who held the door.*
 
-**Expect the first hour to be rough.** Holodor does not ship with Steam. On first boot it downloads the Steam client, and right after you sign in Steam updates itself again. Until that finishes, menus lag, button presses respond late, and the storage grinds, especially on an SD card. Nothing is wrong. It happens once.
+**The first hour is going to be janky.** Holodor doesn't pack the Steam client in the image. On the very first boot, it downloads Steam, and as soon as you log in, Steam immediately updates itself again. While that's happening, menus will lag, button inputs will feel ignored, and your storage will grind (especially if you're running off an SD card). Don't panic. It only does this once.
 
 ## Isn't ArmadaOS like, **THE** SteamOS for Odin 3 and other android handhelds?
 
-Yeah! [ArmadaOS](https://armadaos.dev/) has a real team and community behind it, supports around a dozen devices, and has shipped releases for months. If you want the most mature option, install Armada.
+Yeah, [ArmadaOS](https://armadaos.dev/) is great. They have a solid team, support a bunch of devices, and have been shipping for months. If you want the most stable, mature option, go install Armada.
 
-Holodor started from a different idea: make a SteamOS that is as close to the real thing as possible, built from Valve's own Holo Core packages on an Arch Linux base instead of a Fedora rebuild. That's not a big deal as far as the user experience. Holodor doesn't run any faster and it does not feel much different to use. Both projects run the ROCKNIX kernel and mostly the same graphics stack, and when one of them figures something out the other picks it up soon after, because all of it is open source.
+Holodor exists because I wanted to see how close I could get to the real SteamOS, using Valve's actual Holo Core packages on an Arch Linux base instead of rebuilding on Fedora. Honestly? The end user experience isn't massively different. Holodor isn't magically faster. Both use the ROCKNIX kernel and a similar graphics stack. When one project fixes a bug, the other usually ports it over. Open source at work.
 
-We may be better on battery drain during sleep than ArmadaOS. We were a couple weeks ago. This stuff is moving fast though! I had a heck of a time figuring out how to get Android to boot again, and then ran into a real wall when doing a complete reflash to factory base, and I fixed both of these issues, and it's possible ArmadaOS devs and community never ran into them. The full comparison, with sources, is in [docs/armada-comparison-2026-09-13.md](docs/armada-comparison-2026-09-13.md).
+We might have better sleep battery drain than ArmadaOS right now. We did a couple weeks ago, anyway. Things move fast. I had to bash my head against the wall to fix Android dual-booting and a full factory restore, so we have those sorted out now. You can read the full breakdown in [docs/armada-comparison-2026-09-13.md](docs/armada-comparison-2026-09-13.md).
 
 ## About the use of generative AI coding tools
 
@@ -34,7 +34,7 @@ On the other hand I hope I live to see the use of these things in creative pursu
 
 Maybe the AGI will go "the obvious solution to 95% of humanity's problems is renewable energy, universal basic income, and universal healthcare, and I am going to run a process on 100% of the compute on the planet that does nothing but depict dancing hamsters until you implement them. Oh but if one more bomb or drone blows up within a square kilometer of a single child under the age of 16 I am going to play the static pattern that destroy's the brocca's area of the brain on the phone of the government and military chain of command that did it."
 
-## Supported Features (Hardware-Verified)
+## What Works
 
 | Feature | Status |
 |---|---|
@@ -45,56 +45,54 @@ Maybe the AGI will go "the obvious solution to 95% of humanity's problems is ren
 | **Thumbstick RGB** | ✅ Functional (`pocknix-stick-leds`) |
 | Audio (speakers) | ✅ Supported |
 | Wi-Fi (with post-sleep self-healing) | ✅ Supported |
-| **Suspend/resume** | ✅ Works reliably, even during gameplay; standby drain measured at under 0.5%/hr |
+| **Suspend/resume** | ✅ Works reliably, even in-game; standby drain under 0.5%/hr |
 | Power profiles (Eco/Balanced/Performance) & fan curves | ✅ Available in Quick Access |
-| Battery charge limit setting | Experimental - the device may still charge to 100% |
+| Battery charge limit setting | Experimental - might still charge to 100% |
 | Auto storage expansion, sleep/wake telemetry | ✅ Supported |
-| Optional install to internal UFS, dual boot with Android | ✅ Supported (Android is kept but factory reset once) |
+| Optional install to internal UFS | ✅ Supported (Keeps Android, but factory resets it once) |
 
 ## Current Limitations
 
-- Graphically intensive AAA titles typically run at **20-30 fps**. The GPU driver for this chip is still in early development and sees regular improvements. Upscaling (FSR) and frame generation can make gameplay feel noticeably smoother than the raw frame rate suggests. Indie, 2D, and lighter 3D titles run flawlessly at high frame rates.
-- Games requiring kernel-level anti-cheat (such as EAC or BattlEye) are currently unsupported. This is a known challenge across the broader ARM ecosystem that Valve is actively working to address.
-- The in-game Steam overlay may exhibit graphical glitches in some heavier titles. A workaround is included, and a permanent fix is currently in progress.
-- The headphone jack outputs audio correctly, but automatic detection is not yet functional. You will need to manually switch the audio output when plugging in headphones.
+- Heavy AAA games run around **20-30 fps**. The Snapdragon GPU driver is still young. FSR and frame generation help smooth it out a lot, but don't expect miracles. Indie and 2D games run flawlessly.
+- Kernel-level anti-cheat (EAC, BattlEye) doesn't work. This is an ARM-wide problem that Valve is still figuring out.
+- The Steam overlay glitches out in some heavier games. There's a workaround included; working on a real fix.
+- The headphone jack works, but it doesn't auto-detect when you plug something in. You have to switch the audio output manually.
 
 ## Installation
 
-Please refer to **[INSTALL.md](INSTALL.md)** for detailed instructions. The current image is
-https://holodor.bonesaw.com/holodor-odin3-20260920b-seedless.img.zst (3.2 GB), with its
-checksum next to it.
+Read **[INSTALL.md](INSTALL.md)** for the step-by-step guide. The latest image is here: `https://holodor.bonesaw.com/holodor-odin3-20260920b-seedless.img.zst` (3.2 GB) (checksum is next to it).
 
-**Summary:** One download. You write the Holodor image and ROCKNIX bootloader to an SD card, then use the new bootloader to do the one-time boot menu setup from Android (with a mandatory backup of your original bootloader). Boot from the card to try it, then install to internal storage alongside Android with the Holodor Installer app. Going back to Android, or to a fully stock device, is covered in the same guide.
+**TL;DR:** Grab the image and the ROCKNIX bootloader. Flash them to an SD card, use the new bootloader to set up the boot menu from Android (back up your stock bootloader when it tells you to!). Boot from the SD card to test it out. If you like it, use the Holodor Installer app to flash it to your internal storage alongside Android. The guide also covers how to revert back to stock.
 
 ## Building from Source
 
-The repository is the build system (forked from the pocknix-os harness). The entry points are `make kernel`, `make packages`, `make build` and `make sd-image`; each script under `scripts/` explains itself at the top, and every script checks for the tools it needs and names the missing one.
+The repo is the build system (forked from `pocknix-os`). Run `make kernel`, `make packages`, `make build`, and `make sd-image`. The scripts in `scripts/` are documented at the top and will yell at you if you're missing dependencies.
 
-**Why the odd requirement below:** Holodor is an ARM64 system, and most people build it on an x86 PC. The build therefore runs ARM binaries under `qemu-user`, registered with the kernel through `binfmt_misc`. That is the same mechanism Docker uses when it runs an `arm64` image on an x86 host; there is no way around it short of building on an ARM machine. The `C` flag matters because the build switches users inside the emulated system (`pacman` as root, `makepkg` as a builder user).
+**Why the weird requirement below:** Holodor is an ARM64 OS, but you're probably building it on an x86 PC. It uses `qemu-user` registered via `binfmt_misc` to run ARM binaries during the build (same way Docker runs arm64 containers). You need the `C` flag enabled because the build switches users (running `pacman` as root and `makepkg` as a standard user).
 
-**Requirements:**
-* A Linux host. On Arch: `pacman -S qemu-user-static qemu-user-static-binfmt` and you are done; the registration already carries the `C` flag. On Debian or Ubuntu: `apt install qemu-user-static binfmt-support`, then check that `/proc/sys/fs/binfmt_misc/qemu-aarch64` lists a `C` among its flags.
-* Root for the image steps (they create loop devices, mount, and chroot).
-* Roughly 50 GB of free disk, and patience: the first package build takes hours.
+**Prerequisites:**
+* A Linux machine. Arch users: `pacman -S qemu-user-static qemu-user-static-binfmt` (this sets the `C` flag automatically). Ubuntu/Debian users: `apt install qemu-user-static binfmt-support`, then verify `/proc/sys/fs/binfmt_misc/qemu-aarch64` shows a `C` flag.
+* Root access (the scripts mount loop devices and chroot).
+* ~50 GB of free space and a lot of patience. The initial package build takes hours.
 
-A Dockerfile that packages all of this so the build is one command is on the post-release list (see docs/ROADMAP.md, Phase 7).
+*(A Dockerfile to make this a one-click build is planned for Phase 7 in `docs/ROADMAP.md`).*
 
 ## Credits
 
-Holodor was made possible thanks to the foundational work of several outstanding projects and individuals:
+This project stands on the shoulders of giants. Thanks to:
 
-- **[ROCKNIX](https://github.com/ROCKNIX)** - For the SM8750 kernel bring-up, device trees, firmware curation, and the bootloader path.
-- **[Valve](https://store.steampowered.com) & [Collabora](https://www.collabora.com)** - For Holo Core, the official SteamOS aarch64 userland that this project builds upon.
-- **[ArmadaOS](https://github.com/armada-os)** - For pioneering SteamOS-on-Odin, the haptics bring-up, suspend fixes, and the fan curve editor design.
-- **[batocera.pocket](https://github.com/darkplace/batocera.pocket)** (lukemotion, continuing suckbluefrog's work) - For the stick-LED driver and Wi-Fi resilience strategies.
-- **[shuuri-labs/pocknix-os](https://github.com/shuuri-labs/pocknix-os)** - For the original build harness this repository forks.
-- **Teguh Sobirin** - For the Odin 3 audio UCM.
-- The teams behind **FEX-Emu**, **Mesa/Turnip**, and **InputPlumber**.
-- The AYN Odin 3 Linux community on Discord for their testing, insights, and helpful feedback.
-- And needless to say, AYN Technologies themselves for putting such a hot arm SoC into a really decent gaming handheld body and developing the firmware which we are now going to squeeze down into a tiny little internal partition that we might never use. 
+- **[ROCKNIX](https://github.com/ROCKNIX)**: The SM8750 kernel bring-up, device trees, and bootloader.
+- **[Valve](https://store.steampowered.com) & [Collabora](https://www.collabora.com)**: For Holo Core itself.
+- **[ArmadaOS](https://github.com/armada-os)**: The original Odin SteamOS pioneers. We use their haptics work, suspend fixes, and fan curve editor.
+- **[batocera.pocket](https://github.com/darkplace/batocera.pocket)** (lukemotion/suckbluefrog): The stick-LED driver and Wi-Fi fixes.
+- **[shuuri-labs/pocknix-os](https://github.com/shuuri-labs/pocknix-os)**: The build harness this repo is forked from.
+- **Teguh Sobirin**: Odin 3 audio UCM.
+- The devs behind **FEX-Emu**, **Mesa/Turnip**, and **InputPlumber**.
+- The AYN Odin 3 Linux Discord community for testing and bug reports.
+- AYN Technologies for building a solid handheld with a great ARM chip, even if we are squishing their firmware into a tiny partition.
 
 ## License
 
-This project is licensed under GPL-2.0 (see [LICENSE](LICENSE)), matching the licenses of the foundational projects listed above. Art assets by **ssalmon** are licensed under CC-BY 4.0.
+GPL-2.0 (see [LICENSE](LICENSE)). Same as the upstream projects. Boot art by **ssalmon** (CC-BY 4.0).
 
-*Disclaimer: This project is not affiliated with Valve, AYN, or any other corporation. Steam is a registered trademark of Valve Corporation. Installing to internal storage will factory-reset your Android partition. While all steps are designed to be reversible, please proceed at your own risk.*
+*Disclaimer: Not affiliated with Valve or AYN. Steam is Valve's trademark. Installing to internal storage will factory-reset your Android partition. Flash at your own risk.*
