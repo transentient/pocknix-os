@@ -1,6 +1,153 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-20 17:30 JST - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-22 (sleep-now) - READ THIS FIRST (written by Claude Fable 5.1)
+
+### Where we are (state, not journey)
+- **Every release claim has passed on the real Odin 3 with shipped RC images (09-17/18):**
+  Armada -> Holodor by Replace (Android untouched, no wizard); Holodor -> Armada with their
+  installer; stock Android -> Remove -> fresh install -> Android boots (wizard, expected);
+  Desktop Mode works (first time ever on the Odin 3); the SD swap works. Cliff has since done the
+  whole install from INSTALL.md himself (09-21).
+- **Latest RC = 20260920b, published** at https://holodor.bonesaw.com/holodor-odin3-20260920b-seedless.img.zst
+  (kernel-26, bsp-common-21, boot-art-2, desktop-12, installer fixes). It is on the Lexar card
+  (byte-exact, with the stock ABL backup in rocknix_abl/). **NOT yet seen on the device:** kernel-26
+  (headset jack detection 0603/0604, RTC offset in SDAM 0602, ath12k scan priority 1020, DBV cap
+  3413 = slightly lower max brightness), the cutscene fix (preload + supervisor wait), desktop scale
+  1.5, Remove zeroing, clone-boots-into-Steam. First boot of that card is the test. Cliff may
+  already have booted it while reviewing the docs; ask.
+- **INSTALL.md rewritten twice on 09-21 to Cliff's rule: >=90% numbered steps, no commentary**
+  (memory: feedback-install-docs-steps-only). Parts I-VI + Troubleshooting + Appendices A/B.
+  Cliff edits it on GitHub too (`git pull --no-rebase` before every push; a merge happened 09-21).
+- **Rotation experiment (Armada's "hardware display rotation = perf gain") is BUILT, not deployed:**
+  docs/rotation-experiment-2026-09-20.md is the protocol; artifacts in ~/odin3-backups/rotexp-20260920/
+  (KERNEL-rotexp, linux-pocknix-sm8750-7.1.3-27 EXPERIMENT, gamescope-next 1:3.16.29 (Valve
+  8f21264), pocknix-steam-42 with POCKNIX_ROTATION=shader|hw). Main's default build is untouched
+  (kernel series 50-rotation-exp and packages gamescope-next / wayland-protocols-next carry an
+  OPTIONAL marker; main's localrepo still has kernel -26 and gamescope 4286887-3).
+- **Two upstream sweeps in docs/:** upstream-sweep-2026-09-20.md (ROCKNIX/Armada; ranked list; the
+  four "pull now" items ARE in kernel-26) and upstream-sweep-2026-09-20-valve.md (Valve gamescope,
+  Mesa turnip a8xx, FEX 2608/2609, SteamOS/Holo Core, Proton; shortlist: mesa pin bump for four gen8
+  fixes; FEX-2609 needs pocknix-decky-run's FEXInterpreter -> FEX rename first).
+- Device: internal Holodor (fresh install from the stock path, HOLODOR/EFI layout, 32 GB Android),
+  Android set up by Cliff. sshd on the internal install is probably OFF (fresh clone); the release
+  image recipe to get in is memory technique-release-image-root-access (passwd + systemctl start
+  sshd as deck; root via systemd-run --wait --pipe). Password "holodor" was used on test installs.
+  The Axe 64 GB card holds Armada 20260907 (verified byte-exact). The 128 GB Silicon Power card is
+  invisible to ABL 1.1.7 AND 1.1.8 (not usable for booting).
+- Bootloader on the device: ROCKNIX ABL **1.1.8** (Armada's kit flashed it). Our card still ships
+  1.1.7 and it boots fine under 1.1.8; INSTALL.md says do not flash ours over a newer one. Bumping
+  packages/pocknix-bootloader-sm8750 to 1.1.8 is now reasonable (Holodor SD + internal both ran
+  under it all week) but was NOT done.
+
+### What we did 2026-09-14 -> 09-22 (concrete)
+- Replace mode (armada-installer's rule) in pocknix-install-internal + GUI; --detect reports
+  tail_kind/tail_names/tail_gib/replace_ok; free space after userdata = replace target.
+- pocknix-restore-stock-abl: finds rocknix_abl/<SOC>/ (ROCKNIX/Armada kit layout), any /run/media
+  drive, --from a card root; identifies ANY ROCKNIX ABL release from
+  /usr/share/holodor/rocknix-abl-releases.tsv (Armada's catalog); GUI can browse for the folder.
+- **ROOT CAUSE + FIX of the Android bootloop (09-17):** internal boot FAT typed "Microsoft basic
+  data" -> AYN Android resets ~12 s into boot forever. EFI System type -> boots. Installer and
+  --enable-boot now `parted set N esp on`; internal boot partition named HOLODOR (legacy ROCKNIX
+  recognised). This was August's bootloop too. (memory reference-android-loops-on-basic-data-fat)
+- Desktop Mode: Holo Core has no plasma-mobile/kscreen; pocknix-desktop-10..12 = startplasma-wayland,
+  seeded kwinoutputconfig.json (scale 1.5, connectorName DSI-1), tablet mode on, boot-art wallpaper
+  first-run autostart; plasma-desktop + plasma-pa added to config/packages/desktop.list.
+- scripts/build-image.sh: resume-mode `pacman -Q` loop aborted silently under pipefail for any
+  not-yet-installed list package (`|| true`).
+- pocknix-uninstall-internal: Remove zeroes 8 MiB of the regrown userdata (else Android asks
+  "Cannot load Android system / factory reset?"); --enable-boot repoints /flash PARTUUID in fstab.
+- pocknix-install-internal: strips the cloned session choice so internal boots into Steam.
+- Cutscene: holodor.script preloads all 34 frames while frame 1 holds (~1 s), then plays from RAM;
+  .bash_profile waits until plymouthd has been up POCKNIX_CUTSCENE_SECS (5) before the first
+  `plymouth quit --retain-splash`. pocknix-boot-art-2. (untested on device)
+- kernel-26 + bsp-common-21 (dwc3-only USB autosuspend rule). PATCHES.md got an sm8750 row.
+- INSTALL.md: "Coming from ArmadaOS or ROCKNIX" (4 steps), Part VI factory restore (EDL steps,
+  package from the AYN Discord `odin3-linux` channel), appendices A (SSH) / B (CLI tools), red-screen
+  reassurance, two cards for two systems. Known-limitations section removed at Cliff's request.
+- Memory files added: project-armada-users-first-audience, reference-android-loops-on-basic-data-fat,
+  technique-release-image-root-access, reference-rufus-gzip-image-progress,
+  feedback-install-docs-steps-only; reference-sd-card-reader-write-drops extended.
+
+### What we learned that is not in the code
+- ArmadaOS = same ROCKNIX ABL, ships 1.1.8, backs up to rocknix_abl/SM8750/ on Android internal
+  storage ONLY (their install then wipes it: users must copy it out first). Armada's 20260907
+  RELEASE installer recognises only ROCKNIX/STORAGE/ARMADA/ARMADA_BOOT/ARMADA_ROOT names and
+  refuses HOLODOR_ROOT ("unrecognized partition after userdata"); their git main replaces anything.
+  Going back to Armada today = ABL "UNINSTALL CFW & EXPAND USERDATA" (Android reset). Their UI
+  names the existing install by partition name and sums only names it knows ("Rocknix: 0GB").
+- ABL 1.1.8 menu: boot mode linux/android; boot source auto/Internal/SDCard (strict: SDCard with no
+  card = error, you must go back to the menu); no device-model step (auto "AYN Odin 3"); System
+  Stats shows the card. Armada's docs: after their internal install check boot source = Internal.
+- ROCKNIX's own installtointernal (updated 09-17) STILL types the FAT msftdata -> ROCKNIX users on
+  the Dec-2025 Android will hit the bootloop. Nobody has told them yet.
+- Rufus + .img.gz: progress jumps to "100% please wait" then writes silently for a long time (gzip
+  size mod 4 GiB); killing it corrupts the card. Our .zst shows real progress.
+- fusor's SD reader dropped one ~120 KiB window on 5 of 6 long writes. ~/repair-sd.sh RAW_IMAGE
+  (search -> rewrite 256 KiB windows -> full verify) fixes it; ~/flash-rc.sh || ~/repair-sd.sh is
+  the pipeline. Cliff wants a better reader or a card writer that runs on the Odin itself.
+- The session's memory watchdog kills backgrounded shells (even sleep loops) during big page-cache
+  reads; run every long job as `sudo systemd-run --unit=... -p StandardOutput=file:LOG script`
+  and watch the log with Monitor. publish-image.sh must run as cliff (rclone remote is in cliff's
+  config; as root "didn't find section in config file (r2)").
+- Package builds in a worktree: copy main's localrepo in (repo-add), run
+  `DEVICE=sm8750 bash scripts/build-packages.sh <pkg>` directly (the `make packages` service run
+  died silently), and `pacman -Rdd` a stale conflicting package inside the chroot
+  (build/pkgbuild-root-sm8750 IS the chroot root). gamescope 3.16.27+ needs wayland-protocols
+  >= 1.47 (wlroots 0.20); 1.48+ need a newer wayland-scanner than Holo Core's 1.24, hence
+  wayland-protocols-next pinned at 1.47.
+- kwin lights the panel portrait for a split second before applying the orientation hint
+  (cosmetic, unfixed). Armada's shutdown takes >1 min with the fan at full.
+
+### WHAT WE WERE WRONG ABOUT THIS WEEK (do NOT re-derive)
+- **WRONG (09-14 plan): "parted drops Qualcomm A/B GPT attribute bits / rewrites unknown type GUIDs
+  / moves unaligned partitions."** All three tested false on loop devices (parted 3.6 and 3.7).
+- **WRONG (09-16 night): "userdata was wiped" (no fs signature).** The partition is encrypted
+  (metadata encryption); no signature is normal. **WRONG: "the userdata start moved after Android
+  formatted it."** The f2fs block map proved Android formatted at the current start.
+- **WRONG: the A/B slot theory, the boot-source setting theory, "the ABL chokes on our FAT"
+  (hiding KERNEL changed nothing), the ROCKNIX-name theory (EFI type + ROCKNIX name boots).** Only
+  the TYPE GUID matters. Do not spend time on partition names.
+- **WRONG (09-15): "Desktop Mode is broken by the hub / a second display."** It had never run:
+  startplasmamobile did not exist on the image.
+- **WRONG (my instruction, twice): "connect Wi-Fi via the network icon at the first-boot
+  screen."** There is no keyboard there; wifi.txt or a wired hub only (INSTALL.md is right).
+- **WRONG: INSTALL.md's old appendix `sudo systemctl ...`.** No sudo on the image; fixed.
+- Cliff, 09-21: do NOT write narrative/commentary into INSTALL.md again (third strike).
+
+### Traps
+- A basic-data-typed FAT on the internal UFS must never be created by any tool. The SD card's
+  basic-data FAT is harmless (tested with the card inserted).
+- Never overwrite a published image filename; RC names are date-stamped, "b"/"c" suffixes used.
+- `make sync` would replace kernel/sm8750/patches/20-sm8750 with ROCKNIX's 7.2 set: do not run it.
+- Kernel package pkgrel 27 exists ONLY in the worktree .claude/worktrees/agent-aaa02742fb15ad1b4
+  (experiment). Main's localrepo must stay at -26 for release respins.
+- The release image: deck has NO sudo, root locked; the GUI's privileged tools work via polkit.
+- INSTALL.md is Cliff's document now; audit against feedback-install-docs-steps-only before touching.
+
+### NEXT (ordered)
+1. Ask Cliff whether the 20260920b card has been booted; if not, that boot tests kernel-26 (jack,
+   clock, brightness), the cutscene, scale 1.5 dialogs, and that a Desktop-Mode install boots to
+   Steam. Log results in HANDOFF; fix what fails; respin.
+2. Last acceptance item: Restore stock bootloader from the GUI (card has the backup). Ends with
+   the ROCKNIX menu gone; re-flash from Android afterwards.
+3. Rotation experiment deploy + A/B per docs/rotation-experiment-2026-09-20.md (needs ssh on the
+   internal install and ~1 h of device time; rollback documented). Cliff wants this.
+4. Bump the shipped ABL kit to 1.1.8 (packages/pocknix-bootloader-sm8750, README.provenance);
+   fix INSTALL.md wording about 1.1.7/1.1.8 accordingly.
+5. Tell ROCKNIX (installtointernal msftdata) and Armada (HOLODOR names) about the findings.
+6. After release: mesa pin bump (four gen8 fixes), FEX-2609 (rename FEXInterpreter first), the
+   rest of the sweep shortlists; the two fuzzy patches 0701/1300 (context fix offered by the agent).
+7. Tooling: a card writer that runs on the Odin (dd from the published image over the network),
+   since fusor's reader drops windows.
+
+### Open questions
+- Why does a basic-data FAT on the internal UFS reset AYN's Android? Mechanism unknown (no crash
+  log obtainable). Not needed for the fix.
+- Does the cutscene preload (34 x 8 MB decoded) delay the first frame noticeably? Untested.
+- Whether tablet mode + scale 1.5 is the desktop Cliff wants (he asked for touch-friendly; Holo
+  Core has no on-screen keyboard; Steam's keyboard is the planned route).
+
+## (previous) CURRENT STATE 2026-09-20 17:30 JST (written by Claude Fable 5.1)
 
 - **RC 20260920b published** = kernel-26 (jack detection 0603/0604, RTC-in-SDAM 0602, ath12k scan
   priority 1020, DBV cap 3413 in 0811) + bsp-common-21 (dwc3-only USB autosuspend) + boot-art-2
