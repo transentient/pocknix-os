@@ -10,8 +10,9 @@ Both need the one-time boot menu setup in Part II. Do Part I, then II, then III.
 is optional. Already running ArmadaOS or ROCKNIX? Do Part I, then skip to "Coming from
 ArmadaOS or ROCKNIX".
 
-The first boot downloads Steam and lets it update itself. Menus lag and the storage
-grinds until that finishes. It happens once.
+The first boot downloads Steam and lets it update itself in the background. Menus lag and 
+the storage grinds until that finishes. It happens once, takes 30-45 minutes or so. Note: this 
+is a different experience than Aramada, because they ship a client. 
 
 ---
 
