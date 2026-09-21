@@ -91,8 +91,8 @@ To boot Android at any time: boot menu > boot mode Android > start.
    prepared. Do not press the power button. If nothing appears after three minutes,
    hold Power for fifteen seconds and boot again.
 3. Give it a network for the Steam download, one of these ways:
-   - **wifi.txt:** put the SD card in your PC and create a file called `wifi.txt` on
-     the small partition, containing:
+   - **wifi.txt:** put the SD card in your PC. It shows one drive, the one with the
+     `rocknix_abl` folder on it. Create a file called `wifi.txt` there, containing:
 
      ```
      ssid=YourNetworkName
@@ -104,8 +104,9 @@ To boot Android at any time: boot menu > boot mode Android > start.
      card back and boot. After it works the file is renamed `wifi.txt.imported`; if it
      was wrong, the reason is in `wifi-import-error.txt` on the same partition.
    - **Wired:** plug in a USB-C hub or dock with an ethernet cable. Leave it in until
-     Steam is up and has joined your Wi-Fi from its own network settings. Do not let the
-     device sleep with the hub attached.
+     Steam is up and has joined your Wi-Fi from its own network settings. Powering the
+     device off with the hub attached is fine. Letting it go to sleep with the hub
+     attached is not: USB does not come back until the next boot.
 4. The download screen shows its progress. It takes minutes on a fast card, up to an
    hour on a slow one. Powering off mid-download is safe; it resumes on the next boot.
 5. Sign in to Steam. Right after sign-in, Steam updates itself. Menus lag and the
@@ -124,7 +125,7 @@ anything.
 The installer shrinks Android's data partition and installs Holodor beside it. Android
 is factory reset by this, once. Everything else about Android stays.
 
-1. Boot Holodor from the SD card, with a network connected.
+1. Boot Holodor from the SD card, connected to Wi-Fi or to a wired hub.
 2. Switch to Desktop Mode: Steam menu > Power > Switch to Desktop.
 3. Open Holodor Installer: application menu > System > Holodor Installer.
 4. Choose **Install Holodor to internal storage**. Pick how much space Android keeps;
@@ -133,7 +134,8 @@ is factory reset by this, once. Everything else about Android stays.
 5. Confirm and wait 20 to 30 minutes. Do not power off.
 6. Power off. Remove the SD card. Power on. Holodor boots from internal storage.
 
-Keep the SD card. It is your rescue system and the way to remove Holodor later.
+The SD card is also your rescue system: removing Holodor and restoring the stock
+bootloader are done from it.
 
 To boot Android afterwards: hold Volume Down at power on, boot mode Android. Android
 runs its first-time setup again. Decline Android updates.
@@ -156,8 +158,9 @@ turned off Android updates.
    Replace erases that install and uses its space. Android is not resized and not reset.
    Move any saves you care about off the old install first.
 
-You cannot have Android, ArmadaOS and Holodor on internal storage at the same time. Only
-one Linux system fits; keep the other on an SD card.
+To try Armada and Holodor side by side, keep one SD card for each and boot whichever
+card you want with boot source set to SD card. You cannot have Android, ArmadaOS and
+Holodor on internal storage at the same time; only one Linux system fits there.
 
 To go back to ArmadaOS later: in the boot menu choose **UNINSTALL CFW & EXPAND USERDATA**
 (this removes Holodor and factory resets Android), then install Armada from its card as
@@ -177,14 +180,67 @@ replace them directly.
 3. **Restore the stock bootloader.** After step 2 and after Android has been seen to
    work: boot the SD card, open Holodor Installer, choose **Restore stock bootloader**.
    It uses the backup on the card, or lets you pick a folder. Afterwards the device boots
-   straight into Android and the boot menu is gone. If a red "device is corrupt" screen
-   appears and restarts by itself, a short tap of the power button continues.
+   straight into Android and the boot menu is gone.
 
-If Android itself is broken, AYN's factory firmware package restores it. Flash the
-complete package, every partition, in one go. Do not touch the buttons while it runs.
-If Android then shows "Factory reset this device" with only a Reset button, erase the
-`frp` partition with the same tool (`edl e frp --memory=ufs --lun=0`), or use Holodor
-Installer > Fix Android setup lock if the boot menu is still present.
+**About the red "Your device is corrupt" screen.** With the stock bootloader back, the
+Odin 3 shows this warning at every power-on, because the bootloader is unlocked. Nothing
+is corrupt. Wait a few seconds and it restarts on its own; a short tap of the power
+button skips the wait. It goes away only if AYN's firmware relocks the bootloader.
+
+---
+
+## Part VI - Restore stock Android with AYN's factory firmware
+
+Use this only if Android itself no longer boots. It rewrites every partition on the
+device: the stock bootloader comes back, Holodor's partitions are removed, and Android
+is factory reset. The SD card is not affected.
+
+You need:
+
+- A Linux PC with Python 3 and a USB-C cable.
+- The `edl` tool: https://github.com/bkerler/edl (install per its README).
+- AYN's factory package for the Odin 3 (a folder named like `Odin3_20251206`). AYN does
+  not publish it. We found ours through a Google Drive link posted in the `odin3-linux`
+  channel of the AYN Discord server.
+
+1. Unzip the package. It contains a loader file `xbl_s_devprg_ns.melf`, several
+   `rawprogram*.xml` and `patch*.xml` files, and the partition images.
+2. On the PC: `sudo modprobe -r qcserial usb_wwan` (a kernel driver otherwise grabs the
+   device).
+3. Put the Odin 3 into EDL mode: power it off from the power menu and wait ten seconds
+   after the screen goes dark. Unplug the cable. Hold Volume Up and Volume Down together,
+   plug the USB cable in while holding them, count to five, release. `lsusb` on the PC
+   now lists a device `05c6:9008`.
+4. Read-only check that the tool talks to the device, run from inside the package
+   folder:
+
+   ```
+   sudo edl printgpt --memory=ufs --loader=xbl_s_devprg_ns.melf
+   ```
+
+5. Flash the complete package, every partition, in one command. For the Dec-2025
+   package the exact command is:
+
+   ```
+   sudo edl qfil rawprogram_unsparse0.xml,rawprogram1.xml,rawprogram2.xml,rawprogram3.xml,rawprogram_unsparse4.xml,rawprogram5.xml patch0.xml,patch1.xml,patch2.xml,patch3.xml,patch4.xml,patch5.xml . --memory=ufs --loader=xbl_s_devprg_ns.melf
+   ```
+
+   For another package, list all of its `rawprogram*.xml` files and all of its
+   `patch*.xml` files the same way. Never flash only some of them. Do not touch the
+   buttons while it runs, and never hold the power button for more than ten seconds
+   during any EDL step: that resets the chip and aborts the flash.
+6. Erase the Google account marker, which the factory package does not rewrite:
+
+   ```
+   sudo edl e frp --memory=ufs --lun=0 --loader=xbl_s_devprg_ns.melf
+   ```
+
+   Without this, Android greets you with "Factory reset this device" and only a Reset
+   button.
+7. `sudo edl reset`. The device restarts.
+8. With the cable still in, the red "Your device is corrupt" screen appears: tap Power
+   once. If a battery picture appears instead, hold Power for about three seconds until
+   the AYN logo. Android starts and runs its first-time setup.
 
 ---
 
@@ -207,30 +263,36 @@ Installer > Fix Android setup lock if the boot menu is still present.
   fastboot, `fastboot set_active a` (or `b`).
 - **Anything else wedged:** hold Power for 15 seconds and boot again.
 
-## Known limitations
-
-- Heavy AAA titles run around 20 to 30 fps. Upscaling and frame insertion help. Indie,
-  2D and light-3D titles run at high framerates.
-- Games with kernel anti-cheat (for example Elden Ring's EAC) do not run.
-- Suspending while a game is running may disconnect the controller in-game. Exit to
-  Steam first.
-- The charge limit setting is experimental; the device may charge to 100% anyway.
-- Only one Linux system can be on internal storage at a time.
-- The boot menu reads fewer SD cards than Android does.
-
 ---
 
-## Appendix: SSH and passwords
+## Appendices
 
-The image has no passwords, a locked root, no sudo, and SSH off.
+### A. Starting SSH
+
+SSH is off on every Holodor image, and the `deck` user has no password, so there is
+nothing to log in to until you set this up. To turn it on:
 
 1. Switch to Desktop Mode and open Konsole.
-2. `passwd` sets a password for the `deck` user. Press Enter at the "current password"
-   prompt.
-3. `systemctl enable --now sshd` turns SSH on. Log in over SSH as `deck`.
-4. For a root shell: `systemd-run --wait --pipe -t /bin/bash`.
+2. Set a password for the `deck` user: run `passwd`. Press Enter at the "current
+   password" prompt, then type the new password twice.
+3. Turn SSH on, now and at every boot: `systemctl enable --now sshd`.
+4. From your PC: `ssh deck@<the Odin's IP address>`. The address is under Settings >
+   Network in Desktop Mode.
 
-Command-line equivalents of the installer: `pocknix-install-internal` (`--replace` to
-take over an existing Linux install), `pocknix-uninstall-internal`, `pocknix-clear-frp`,
-`pocknix-restore-stock-abl` (`--from DIR` for a backup in any folder). Each prints its
-plan with `--dry-run`, `--check` or `--find` first.
+There is no sudo and the root account is locked. For a root shell from the `deck`
+account, run `systemd-run --wait --pipe -t /bin/bash`.
+
+### B. Running the installer's tools from the command line
+
+Everything the Holodor Installer app does is also a command, run from a root shell:
+
+- `pocknix-install-internal` installs to internal storage. Add `--replace` to take over
+  an existing Linux install without touching Android.
+- `pocknix-uninstall-internal` removes Holodor from internal storage.
+- `pocknix-clear-frp` clears Android's account marker (the "Fix Android setup lock"
+  button).
+- `pocknix-restore-stock-abl` restores the stock bootloader. Add `--from DIR` to use a
+  backup in any folder.
+
+Each one prints its plan first with `--dry-run` (`--check` or `--find` for the last two)
+and changes nothing until run without it.
