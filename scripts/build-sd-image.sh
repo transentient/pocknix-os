@@ -228,6 +228,13 @@ EOF
   # Desktop (Plasma Mobile) session: register the Flathub remote on the first online boot so
   # Discover/flatpak can install apps. Harmless in game-only use (oneshot, no-op once added).
   chroot "${root}" systemctl enable pocknix-flathub.service 2>/dev/null || true
+  # getty@tty1 must NOT wait for plymouth-quit-wait: the splash quit itself waits for the
+  # deck session's ready flag (pocknix-cutscene-wait), so upstream's After= would deadlock
+  # into the fail-safe. A drop-in cannot remove an After= entry, so ship an instance unit
+  # for tty1 = upstream's template minus that one ordering (the autologin drop-in still
+  # applies on top). Regenerated every build so it tracks the systemd package.
+  sed '/^After=/s/ *plymouth-quit-wait\.service//' "${root}/usr/lib/systemd/system/getty@.service" \
+    > "${root}/etc/systemd/system/getty@tty1.service"
   # Boot splash: plymouth's own plymouth-quit{,-wait} units (static wants of multi-user,
   # root) quit the splash; the overlay drop-in plymouth-quit.service.d/10-holodor-cutscene.conf
   # holds that quit until the cutscene has played (pocknix-cutscene-wait). getty@tty1 is
