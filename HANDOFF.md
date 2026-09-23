@@ -58,7 +58,8 @@
 - Clock power-off test PASSED: after a full power-off the RTC gave the kernel the right time
   (39 s later NTP moved it <1 s). The SDAM offset needs one NTP sync first (fresh card boots
   with RTC=1970 until then; systemd advances to the timesync clock file).
-- RC 20260923d = 20260920b + all of the above + bsp-sm8750-18. Published (see below).
+- RC 20260923e = 20260920b + all of the above + bsp-sm8750-18 + decky-18 + boot-time fixes.
+  (20260923d was uploaded but never linked; e supersedes it.)
 - The Lexar card is a DEBUG card now (sshd + fusor key + lab Wi-Fi + live edits); reflash it
   from the published image before using it as a reference.
 
@@ -66,7 +67,8 @@
   "Started" (ExecMainStartTimestamp 12.65 s vs 7.29 s) because the held splash-quit job keeps
   the queue busy; fixed with Type=simple in the autologin drop-in. pocknix-diag now 90 s in at
   idle prio (its 31 s in blame was the sleep; real work 1.5 s). decky loader (18) waits for
-  Steam + Nice 10. Steam client dir = 647 MB: too big for SD readahead. A/B reboot pending.
+  Steam + Nice 10. Steam client dir = 647 MB: too big for SD readahead. A/B RESULT: agetty exec 7.66 s (was
+  12.65), login 1 s, gamescope has DRM at 11.1 s (was 15.7) = -4.6 s per boot. Shipped in 20260923e.
 - REPRODUCED (resume, 21:5x): after an idle s2idle suspend + wake, the Steam and QAM buttons
   were unresponsive (inputplumber running, Steam running). Cliff power-cycled. The known
   dead-controls-after-resume item: not touched tonight.
