@@ -35,6 +35,9 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     # to be gone (it holds DRM master; gamescope would get "Device or resource busy") before
     # launching. Nothing here may call `plymouth quit` itself: plymouthd ignores non-root
     # clients (a deck-side quit was silently refused for months, found 2026-09-23).
+    # plymouthd probes the terminal as it exits (cursor to 999;999 + a position query);
+    # with echo on, the replies "^[[1;1R^[[67;240R" print in the corner for a frame.
+    stty -echo 2>/dev/null || true
     touch "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pocknix-session-ready" 2>/dev/null
     pocknix_i=0
     while pidof plymouthd >/dev/null 2>&1 && [ "${pocknix_i}" -lt 150 ]; do
