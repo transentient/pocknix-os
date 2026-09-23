@@ -1,6 +1,55 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-22 (sleep-now) - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-23 evening - READ THIS FIRST (written by Claude Fable 5.1)
+
+### RELEASED 2026-09-23
+- Public source repo: github.com/transentient/holodor (fresh history, sanitized). This dev repo is
+  github.com/transentient/holodor-dev (private). Export: `scripts/sync-public.sh --push` (git
+  archive HEAD minus .gitattributes export-ignore; one commit per sync; refuses if the public
+  clone is behind its origin). New internal docs need an export-ignore line. Public docs say
+  "the maintainer notes" instead of linking here. holodor-releases (OTA) is public; the sm8750 tag
+  was republished with the 20260920b package set (kernel-26 etc.). Signing key backed up by Cliff.
+- Image on the download page is still 20260920b. A respin (20260923) is due with the fixes below.
+
+### 20260920b device acceptance (Lexar card, 2026-09-23) - results
+- Cutscene: FAILED on every boot but the slow first one, then fixed. ROOT CAUSE: plymouthd
+  ignores commands from non-root clients, so the deck session's `plymouth quit` had been refused
+  for months; the splash only ever went away because plymouth-quit.service (root) ran ~4 s after
+  the splash appeared and clipped the animation. build-sd-image.sh's `systemctl disable` of
+  plymouth-quit{,-wait} was a no-op (static multi-user wants). Masking them (first attempt) left
+  plymouthd alive holding DRM master: seatd "Could not make device fd drm master: Device or
+  resource busy", gamescope blind, Steam audible on a black panel. FIX (standard): keep
+  plymouth's units, drop-in plymouth-quit.service.d/10-holodor-cutscene.conf runs
+  pocknix-cutscene-wait (ExecStartPre: wait until plymouthd has been up POCKNIX_CUTSCENE_SECS=7);
+  getty@tty1 orders after plymouth-quit-wait. Deck-side plymouth calls removed from .bash_profile.
+  Verified: full animation, brief black gap, Steam. agetty --noissue/--nohints/--nohostname +
+  ~/.hushlogin remove the login banner that flashed top-left.
+- Seedless first boot: the bootstrap's text status screen on tty1 was invisible under a retained
+  splash (blank until Steam appeared). Same fix (plain root quit -> text mode). Steam download
+  took ~2 min on Cliff's Wi-Fi, not 30-45.
+- Headphone jack (kernel-26 0603/0604): DETECTION WORKS ('Headphone Jack'/'Mic Jack' CARD
+  controls flip on plug). Routing restored in bsp-sm8750 18 (HiFi.conf JackControl "Headphone
+  Jack", JackHWMute "Speaker", PlaybackPriority 200): plug -> Headphones sink default, Speaker
+  "not available"; unplug -> back to Speaker. Verified live. KNOWN ISSUE: headphones sound "a
+  little hissy and right-side heavy" (Cliff). Mixer is symmetric (HPHL/HPHR Volume 20/20 = max
+  analog gain, pipewire sink at 40% / -24 dB): gain staging suspect, not investigated.
+- Desktop Mode (scale 1.5, tablet mode): "looks good" (Cliff). Restore stock bootloader from the
+  Holodor Installer GUI: PASSED ("bootloader restored on both slots"; message readable). Cliff
+  re-flashes the ROCKNIX ABL from Android afterwards.
+- RTC (0602 SDAM offset): after one NTP sync, a reboot came up with the right time from the RTC
+  ("setting system clock to 2026-09-23T09:10:04 UTC"). Without a prior sync the RTC reads 1970 and
+  systemd advances to /var/lib/systemd/timesync/clock. Full power-off test still to do.
+- Wi-Fi/ath12k fine. Brightness: max 4096, running 3072; not judged.
+- Debug access: the Lexar card now has sshd enabled + fusor's key for deck (root via
+  `systemd-run --wait --pipe`), and the dev Wi-Fi preseed. It is NOT a clean release card any more.
+
+### NEXT
+1. Clock power-off test (boot the card after a full power-off; check the rtc-pm8xxx line).
+2. Respin 20260923 with: cutscene drop-in, supervisor cleanup, agetty flags, bsp-sm8750-18.
+   Publish (new filename), update README/INSTALL links, sync-public, tag.
+3. Headphone gain staging (hiss / right-heavy). 4. ABL kit 1.1.8 bump. 5. Tell ROCKNIX/Armada.
+
+## CURRENT STATE 2026-09-22 (sleep-now) - (written by Claude Fable 5.1)
 
 ### Where we are (state, not journey)
 - **Every release claim has passed on the real Odin 3 with shipped RC images (09-17/18):**
