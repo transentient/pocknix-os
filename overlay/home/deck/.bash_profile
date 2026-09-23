@@ -40,6 +40,8 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     while pidof plymouthd >/dev/null 2>&1 && [ "${pocknix_i}" -lt 150 ]; do
       sleep 0.1; pocknix_i=$(( pocknix_i + 1 ))
     done
+    # plymouthd re-shows the console cursor on exit: hide it again, and clear.
+    printf '\033[?25l\033[2J\033[H'
     case "${POCKNIX_SESSION}" in
       plasma|desktop) command -v pocknix-desktop >/dev/null 2>&1 && pocknix-desktop >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
       *)              command -v pocknix-steam   >/dev/null 2>&1 && pocknix-steam   >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
