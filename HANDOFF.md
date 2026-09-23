@@ -62,7 +62,19 @@
 - The Lexar card is a DEBUG card now (sshd + fusor key + lab Wi-Fi + live edits); reflash it
   from the published image before using it as a reference.
 
+- Boot time (measured 21:5x): getty@ is upstream Type=idle -> agetty exec'd 5.4 s after
+  "Started" (ExecMainStartTimestamp 12.65 s vs 7.29 s) because the held splash-quit job keeps
+  the queue busy; fixed with Type=simple in the autologin drop-in. pocknix-diag now 90 s in at
+  idle prio (its 31 s in blame was the sleep; real work 1.5 s). decky loader (18) waits for
+  Steam + Nice 10. Steam client dir = 647 MB: too big for SD readahead. A/B reboot pending.
+- REPRODUCED (resume, 21:5x): after an idle s2idle suspend + wake, the Steam and QAM buttons
+  were unresponsive (inputplumber running, Steam running). Cliff power-cycled. The known
+  dead-controls-after-resume item: not touched tonight.
+
 ### NEXT
+0. Decky Loader on NATIVE aarch64 Python (it is x86 under FEX only because upstream ships an
+   x86 bundle; the backend is portable). First post-release item (Cliff). Then the resume
+   dead-controls bug.
 1. Headphone gain staging (hiss / right-heavy): HPHL/HPHR Volume 20/20 = max analog, sink -24 dB.
 2. Why does tty1 login take 5-13 s (agetty start -> pam session)? Not visible now (under the
    logo) but it is boot time. 3. ABL kit 1.1.8 bump. 4. Tell ROCKNIX/Armada (msftdata FAT).
