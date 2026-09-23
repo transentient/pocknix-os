@@ -1,86 +1,103 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-23 evening - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-23 close (RELEASED + ANNOUNCED) - READ THIS FIRST (written by Claude Fable 5.1)
 
-### RELEASED 2026-09-23
-- Public source repo: github.com/transentient/holodor (fresh history, sanitized). This dev repo is
-  github.com/transentient/holodor-dev (private). Export: `scripts/sync-public.sh --push` (git
-  archive HEAD minus .gitattributes export-ignore; one commit per sync; refuses if the public
-  clone is behind its origin). New internal docs need an export-ignore line. Public docs say
-  "the maintainer notes" instead of linking here. holodor-releases (OTA) is public; the sm8750 tag
-  was republished with the 20260920b package set (kernel-26 etc.). Signing key backed up by Cliff.
-- Image on the download page is still 20260920b. A respin (20260923) is due with the fixes below.
+### Where we are (state, not journey)
+- **Holodor is public and announced (2026-09-23 evening).** Release = **20260923e**, tagged
+  `release-20260923e` in both repos.
+  - Public source: github.com/transentient/holodor (branch main, fresh history, sanitized).
+    README + INSTALL link https://holodor.bonesaw.com/holodor-odin3-20260923e-seedless.img.zst
+    (3.48 GB, sha256 61f450eb…; full-download verified through the hostname).
+  - Dev repo (THIS one): github.com/transentient/holodor-dev, branch holodor-main, private, full
+    history, HANDOFF, plans, reviews. Source of truth. fusor: ~/projects/holodor;
+    public clone: ~/projects/holodor-public. Cliff's BONESAW checkout points at holodor-dev.
+  - Export: `scripts/sync-public.sh --push` = `git archive HEAD` minus `.gitattributes`
+    export-ignore paths, one commit per sync; refuses if the public clone is behind its origin.
+    Never edit the public repo directly. New internal docs need an export-ignore line. Public
+    files say "the maintainer notes" instead of linking here.
+  - OTA: github.com/transentient/holodor-releases is public; tag sm8750 carries the 20260923e
+    package set (kernel-26, bsp-common-21, bsp-sm8750-18, decky-18, desktop-12, boot-art-2).
+    `make publish DEVICE=sm8750` as cliff (not root, not systemd-run).
+  - Signing key backed up off fusor by Cliff (09-23).
+- **20260923e = 20260920b + today's fixes** (all verified live on the Lexar card over ssh):
+  - Boot splash handoff rebuilt on standard units (see the plymouth section below).
+  - Headphone jack: MBHC detection works on kernel-26; bsp-sm8750-18 restores JackControl /
+    JackHWMute / priority -> auto-switch plug/unplug verified.
+  - Boot time: getty@tty1 Type=simple (upstream Type=idle held agetty 5-13 s); gamescope has
+    DRM at 11.1 s (was 15.7). pocknix-diag 90 s in at idle prio; decky loader waits for Steam,
+    Nice 10.
+  - Cosmetics: agetty --skip-login --noissue --nohints --nohostname, ~/.hushlogin, stty -echo,
+    cursor re-hide -> nothing on the panel between the logo and Steam.
+- **Acceptance on the device (09-23), all PASSED:** cutscene; seedless first boot (Steam
+  download ~2 min on Cliff's Wi-Fi); jack plug/unplug; Desktop Mode (scale 1.5) "looks good";
+  Restore stock bootloader from the Holodor Installer GUI (both slots, red-screen Android boot,
+  ROCKNIX ABL re-flashed from Android after); RTC across a full power-off (needs one NTP sync
+  first; fresh cards boot with RTC=1970 until then).
+- **NOT exercised on 20260923e itself:** internal install / Remove (last run on 09-17/18 and
+  Cliff's 09-21 install from older RCs; nothing today touched the installer).
+- **Device state:** internal Holodor (Cliff's 09-21 install) + Android, ROCKNIX ABL 1.1.8 back
+  on (re-flashed after the restore test). The **Lexar card is a DEBUG card**: sshd enabled with
+  fusor's key for deck (root via `systemd-run --wait --pipe`), lab Wi-Fi preseeded, live-edited
+  units. Reflash it from the published image before using it as a reference. Odin Wi-Fi IP
+  192.168.1.32. Axe 64 GB card = Armada 20260907.
+- Respin recipe (worked 5x today, ~3 min): build-image RESUME+SKIP_PKGPHASE+SEEDLESS ->
+  build-sd-image SEEDLESS+RELEASE SD_TIMEZONE=Asia/Tokyo -> zstd -12 + sidecar; run as a
+  `sudo systemd-run --unit=... -p StandardOutput=file:build/respin-<date>.log` unit; loop-mount
+  p2 read-only and spot-check; publish-image.sh as cliff with POCKNIX_IMAGE_FILE; full download
+  + sha256sum -c; then README/INSTALL links, sync-public, tag.
 
-### 20260920b device acceptance (Lexar card, 2026-09-23) - results
-- Cutscene + splash handoff: FAILED on every boot but the slow first one, then fixed in
-  four steps (all verified live on the card, ssh). ROOT CAUSE: plymouthd ignores commands from
-  non-root clients, so the deck session's `plymouth quit` had been refused for months; the
-  splash only ever went away because plymouth-quit.service (root) ran ~4 s after the splash
-  appeared and clipped the animation. build-sd-image.sh's `systemctl disable` of
-  plymouth-quit{,-wait} was a no-op (static multi-user wants). Masking them left plymouthd alive
-  holding DRM master: seatd "Could not make device fd drm master: Device or resource busy",
-  gamescope blind, Steam audible on a black panel. FINAL DESIGN (standard units, no mask):
-    * plymouth-quit.service.d/10-holodor-cutscene.conf -> ExecStartPre=pocknix-cutscene-wait:
-      waits POCKNIX_CUTSCENE_SECS=6 from plymouth-start's ActiveEnterTimestamp (splash shown),
-      THEN holds until the deck session touches /run/user/1001/pocknix-session-ready (fail-safe
-      POCKNIX_SPLASH_MAX_SECS=30). plymouth-quit-wait.service.d: TimeoutSec=90.
-    * /etc/systemd/system/getty@tty1.service = upstream template minus After=plymouth-quit-wait
-      (generated by build-sd-image.sh; a drop-in CANNOT remove an After= entry, an empty
-      `After=` does not reset it). Login + systemd --user run under the held logo.
-    * autologin drop-in: ExecStartPre hides the console cursor; agetty --autologin deck
-      --skip-login --noissue --nohints --nohostname (no --noclear); ~/.hushlogin.
-    * .bash_profile: `stty -echo` (plymouthd's exit-time cursor probe echoed "^[[1;1R^[[67;240R"
-      into the corner), touch the flag, poll `pidof plymouthd` gone (<=15 s), re-hide cursor +
-      clear (plymouthd re-shows it), launch. No deck-side plymouth calls remain.
-  Result: animation -> logo held through login -> black only while gamescope+Steam start
-  (Cliff: "a bit longer than I would like"; inherent, ~3-5 s on SD) -> Steam. Corners clean.
-  Timeline on SD: splash 5.4 s, getty 7.2 s, session ~18-20 s (login itself takes 5-13 s,
-  unexplained), quit <0.5 s after the flag, gamescope has DRM ~0.5 s later.
-- Seedless first boot: the bootstrap's text status screen on tty1 was invisible under a retained
-  splash (blank until Steam appeared). Same fix (plain root quit -> text mode). Steam download
-  took ~2 min on Cliff's Wi-Fi, not 30-45.
-- Headphone jack (kernel-26 0603/0604): DETECTION WORKS ('Headphone Jack'/'Mic Jack' CARD
-  controls flip on plug). Routing restored in bsp-sm8750 18 (HiFi.conf JackControl "Headphone
-  Jack", JackHWMute "Speaker", PlaybackPriority 200): plug -> Headphones sink default, Speaker
-  "not available"; unplug -> back to Speaker. Verified live. KNOWN ISSUE: headphones sound "a
-  little hissy and right-side heavy" (Cliff). Mixer is symmetric (HPHL/HPHR Volume 20/20 = max
-  analog gain, pipewire sink at 40% / -24 dB): gain staging suspect, not investigated.
-- Desktop Mode (scale 1.5, tablet mode): "looks good" (Cliff). Restore stock bootloader from the
-  Holodor Installer GUI: PASSED ("bootloader restored on both slots"; message readable). Cliff
-  re-flashes the ROCKNIX ABL from Android afterwards.
-- RTC (0602 SDAM offset): after one NTP sync, a reboot came up with the right time from the RTC
-  ("setting system clock to 2026-09-23T09:10:04 UTC"). Without a prior sync the RTC reads 1970 and
-  systemd advances to /var/lib/systemd/timesync/clock. Full power-off test still to do.
-- Wi-Fi/ath12k fine. Brightness: max 4096, running 3072; not judged.
-- Debug access: the Lexar card now has sshd enabled + fusor's key for deck (root via
-  `systemd-run --wait --pipe`), and the dev Wi-Fi preseed. It is NOT a clean release card any more.
+### The plymouth / boot splash design (2026-09-23) - do not re-derive
+- ROOT FACT: **plymouthd ignores commands from non-root clients.** The deck session's
+  `plymouth quit` had been silently refused for months; the splash only ever went away because
+  plymouth-quit.service (root, a STATIC want of multi-user.target - `systemctl disable` is a
+  no-op on it) ran ~4 s after the splash appeared, clipping the cutscene. Masking those units
+  left plymouthd alive holding DRM master -> seatd "Could not make device fd drm master: Device
+  or resource busy", gamescope blind, Steam audible on black. `--retain-splash` retains nothing
+  on the msm panel. A drop-in CANNOT remove an After= entry (empty `After=` does not reset).
+- FINAL: plymouth-quit.service.d/10-holodor-cutscene.conf -> ExecStartPre=pocknix-cutscene-wait
+  (POCKNIX_CUTSCENE_SECS=6 from plymouth-start's ActiveEnterTimestamp = splash shown; then hold
+  until /run/user/1001/pocknix-session-ready exists, fail-safe POCKNIX_SPLASH_MAX_SECS=30);
+  plymouth-quit-wait.service.d TimeoutSec=90; /etc/systemd/system/getty@tty1.service =
+  upstream template minus After=plymouth-quit-wait (generated by build-sd-image.sh) + autologin
+  drop-in (Type=simple, cursor hide ExecStartPre, quiet agetty flags); .bash_profile: stty
+  -echo, touch flag, poll `pidof plymouthd` gone, re-hide cursor + clear, launch. Timeline on
+  SD: splash 3.5-5.7 s, getty ~7.5 s, session ~8.6 s, quit ~10.5 s, gamescope DRM ~11 s.
+- Live proof technique: `systemd-run --wait --pipe plymouth quit` as deck-with-polkit-root, then
+  kill gamescope -> Steam appears. Console text buffer readable via /dev/vcs1.
 
-- Clock power-off test PASSED: after a full power-off the RTC gave the kernel the right time
-  (39 s later NTP moved it <1 s). The SDAM offset needs one NTP sync first (fresh card boots
-  with RTC=1970 until then; systemd advances to the timesync clock file).
-- RC 20260923e = 20260920b + all of the above + bsp-sm8750-18 + decky-18 + boot-time fixes.
-  (20260923d was uploaded but never linked; e supersedes it.)
-- The Lexar card is a DEBUG card now (sshd + fusor key + lab Wi-Fi + live edits); reflash it
-  from the published image before using it as a reference.
+### Known issues (logged, not release blockers)
+- Headphones "a little hissy and right-side heavy" (Cliff). Mixer symmetric: HPHL/HPHR Volume
+  20/20 = max analog gain, pipewire sink at 40 % (-24 dB) -> gain staging suspect.
+- **Dead Steam/QAM buttons after an idle s2idle suspend + wake** (reproduced 09-23 21:5x;
+  inputplumber and Steam both running). The known resume item; Cliff power-cycled.
+- Black gap between the logo and Steam's first frame = gamescope + Steam client start (~3-5 s on
+  SD; Steam client dir is 647 MB, too big to read ahead on a card).
+- pocknix-diag runs every boot (support report), now at 90 s / idle prio. Fine.
+- ROCKNIX's installtointernal still types the internal FAT msftdata (bootloop on AYN Android);
+  Armada's installer refuses HOLODOR_ROOT names. Nobody told them yet.
 
-- Boot time (measured 21:5x): getty@ is upstream Type=idle -> agetty exec'd 5.4 s after
-  "Started" (ExecMainStartTimestamp 12.65 s vs 7.29 s) because the held splash-quit job keeps
-  the queue busy; fixed with Type=simple in the autologin drop-in. pocknix-diag now 90 s in at
-  idle prio (its 31 s in blame was the sleep; real work 1.5 s). decky loader (18) waits for
-  Steam + Nice 10. Steam client dir = 647 MB: too big for SD readahead. A/B RESULT: agetty exec 7.66 s (was
-  12.65), login 1 s, gamescope has DRM at 11.1 s (was 15.7) = -4.6 s per boot. Shipped in 20260923e.
-- REPRODUCED (resume, 21:5x): after an idle s2idle suspend + wake, the Steam and QAM buttons
-  were unresponsive (inputplumber running, Steam running). Cliff power-cycled. The known
-  dead-controls-after-resume item: not touched tonight.
+### NEXT (ordered; Cliff's priorities)
+1. **Decky Loader on NATIVE aarch64 Python** (Cliff: first post-release item). It is x86 under
+   FEX only because upstream ships an x86 PyInstaller bundle; the backend is portable Python.
+   Package it from source on Holo Core's python3 (+ deps: aiohttp etc.), point
+   pocknix-decky-run at it, test Pocknix Control's py_modules natively (they currently run as
+   an x86 guest - see the comments in updates.py). Removes the FEX JIT cost at boot.
+2. Resume dead-controls bug (above). 3. Headphone gain staging.
+4. Internal install + Remove run on 20260923e (or the next RC) for parity.
+5. ABL kit 1.1.8 bump (packages/pocknix-bootloader-sm8750 + INSTALL wording).
+6. Tell ROCKNIX (msftdata FAT) and Armada (HOLODOR names). 7. Reflash the Lexar as a clean card.
+8. Later: mesa pin bump (four gen8 fixes), FEX-2609 (rename FEXInterpreter first), rotation
+   experiment (docs/rotation-experiment-2026-09-20.md), the sweep shortlists, tty1 login
+   timing on internal storage, website page (stale SourceForge text; not hosted; private).
 
-### NEXT
-0. Decky Loader on NATIVE aarch64 Python (it is x86 under FEX only because upstream ships an
-   x86 bundle; the backend is portable). First post-release item (Cliff). Then the resume
-   dead-controls bug.
-1. Headphone gain staging (hiss / right-heavy): HPHL/HPHR Volume 20/20 = max analog, sink -24 dB.
-2. Why does tty1 login take 5-13 s (agetty start -> pam session)? Not visible now (under the
-   logo) but it is boot time. 3. ABL kit 1.1.8 bump. 4. Tell ROCKNIX/Armada (msftdata FAT).
-5. Post-release: mesa pin bump, FEX-2609, the sweep shortlists.
+### Traps (new today; older ones in the 09-22 section below still apply)
+- Never mask/disable plymouth-quit{,-wait}; never call `plymouth quit` from the deck session.
+- Don't `git push` from a clone whose origin still says transentient/holodor unless it IS the
+  public clone: that name is now the PUBLIC repo.
+- The classifier blocks `git remote set-url` and secret-key exports for the agent; Cliff runs
+  those with `!`.
+- Background shells die with the session (a session restart happened 22:3x); long jobs as
+  systemd-run units, results in build/*.log.
 
 ## CURRENT STATE 2026-09-22 (sleep-now) - (written by Claude Fable 5.1)
 
