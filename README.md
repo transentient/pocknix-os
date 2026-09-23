@@ -71,7 +71,7 @@ The repo is the build system (forked from `pocknix-os`). Run `make kernel`, `mak
 * Root access (the scripts mount loop devices and chroot).
 * ~50 GB of free space and a lot of patience. The initial package build takes hours.
 
-*(A Dockerfile to make this a one-click build is planned for Phase 7 in `docs/ROADMAP.md`).*
+*(A Dockerfile to make this a one-click build is planned.)*
 
 ## Credits
 
