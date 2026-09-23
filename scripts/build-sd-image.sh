@@ -228,16 +228,12 @@ EOF
   # Desktop (Plasma Mobile) session: register the Flathub remote on the first online boot so
   # Discover/flatpak can install apps. Harmless in game-only use (oneshot, no-op once added).
   chroot "${root}" systemctl enable pocknix-flathub.service 2>/dev/null || true
-  # Splash-hold: keep plymouth (playing the cutscene, then holding the logo) up THROUGH
-  # session start. The session supervisor (deck .bash_profile) releases it with
-  # --retain-splash right before gamescope takes DRM — closing the ~20s black boot gap.
-  # MASK, not disable: the plymouth package ships these two as static wants of
-  # multi-user.target (/usr/lib/systemd/system/multi-user.target.wants/), so `disable`
-  # removes nothing and they still ran ~4 s after the splash appeared, cutting the
-  # cutscene off on every boot fast enough to reach multi-user before it finished
-  # (found on the 20260920b card, 2026-09-23). getty@tty1's After=plymouth-quit-wait
-  # ordering is harmless against a masked unit.
-  chroot "${root}" systemctl mask plymouth-quit.service plymouth-quit-wait.service 2>/dev/null || true
+  # Boot splash: plymouth's own plymouth-quit{,-wait} units (static wants of multi-user,
+  # root) quit the splash; the overlay drop-in plymouth-quit.service.d/10-holodor-cutscene.conf
+  # holds that quit until the cutscene has played (pocknix-cutscene-wait). getty@tty1 is
+  # ordered after plymouth-quit-wait, so the deck session starts once the panel is free.
+  # Do NOT mask or disable those units: plymouthd ignores non-root clients, so nothing in
+  # the deck session can quit it, and a live plymouthd holds DRM master (gamescope blind).
   # Waydroid: re-assert the Android /data tuning (nav/density/font/immersive/multi_windows)
   # after each container boot — those settings are wiped by `waydroid init`. See docs/waydroid.md.
   chroot "${root}" systemctl enable pocknix-waydroid-tuning.service 2>/dev/null || true

@@ -29,37 +29,11 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     POCKNIX_SESSION="$(cat "${POCKNIX_STATE}" 2>/dev/null || echo gamescope)"
     pocknix_start="$(date +%s)"
     printf '\033[?25l\033[2J\033[H'
-    # Splash-hold: plymouth-quit{,-wait} are MASKED in the image (build-sd-image.sh), so
-    # the boot splash is still ours here and we release it right before the compositor
-    # takes DRM (hides the getty flash). No-op after first launch / when plymouthd isn't
-    # running.
-    # Day-one polish: let the boot cutscene FINISH before the panel is handed over. The holodor
-    # theme preloads ~1 s then plays 3.4 s (34 frames at 10 fps), and the splash appears
-    # ~0.1 s after plymouthd starts, so the first launch waits until plymouthd has been up
-    # POCKNIX_CUTSCENE_SECS (default 7: ~2.5 s of margin for the preload) seconds. Costs
-    # nothing on a slow SD boot (the session is later anyway), a few seconds on internal.
-    if [ -z "${pocknix_cutscene_waited:-}" ]; then
-      pocknix_cutscene_waited=1
-      pocknix_plymouth_pid="$(pidof plymouthd 2>/dev/null | awk '{print $1}')"
-      if [ -n "${pocknix_plymouth_pid}" ]; then
-        pocknix_up="$(ps -o etimes= -p "${pocknix_plymouth_pid}" 2>/dev/null | tr -d ' ')"
-        pocknix_need="${POCKNIX_CUTSCENE_SECS:-7}"
-        if [ -n "${pocknix_up}" ] && [ "${pocknix_up}" -lt "${pocknix_need}" ] 2>/dev/null; then
-          sleep "$(( pocknix_need - pocknix_up ))"
-        fi
-      fi
-    fi
-    # Plain quit, never --retain-splash: on the msm panel nothing is retained (the frame
-    # goes with the daemon's framebuffer), the seedless first boot draws its status screen
-    # as TEXT on tty1 (invisible in the graphics mode a retained quit leaves behind), and
-    # `plymouth quit` returns before plymouthd has let go of DRM master — gamescope then got
-    # "Could not make device fd drm master: Device or resource busy" from seatd and ran
-    # blind (Steam audible, panel black; 2026-09-23). So: quit, then wait for the daemon.
-    plymouth quit 2>/dev/null || true
-    pocknix_i=0
-    while pidof plymouthd >/dev/null 2>&1 && [ "${pocknix_i}" -lt 50 ]; do
-      sleep 0.1; pocknix_i=$(( pocknix_i + 1 ))
-    done
+    # The boot splash is already gone: plymouth-quit.service (root, held by the
+    # pocknix-cutscene-wait drop-in until the cutscene has played) quits it, and getty@tty1
+    # is ordered after plymouth-quit-wait. Nothing here can quit plymouthd (it ignores
+    # non-root clients — a deck-side `plymouth quit` was refused for months, which is why
+    # a masked plymouth-quit left plymouthd holding DRM master and gamescope blind, 09-23).
     case "${POCKNIX_SESSION}" in
       plasma|desktop) command -v pocknix-desktop >/dev/null 2>&1 && pocknix-desktop >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
       *)              command -v pocknix-steam   >/dev/null 2>&1 && pocknix-steam   >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
@@ -69,8 +43,7 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     if [ "$(( $(date +%s) - pocknix_start ))" -lt 5 ]; then
       pocknix_fastfails="$(( pocknix_fastfails + 1 ))"
       if [ "${pocknix_fastfails}" -ge 3 ]; then
-        # Reveal the console (splash may still be up if the first launch died).
-        plymouth quit 2>/dev/null || true
+        # Reveal the console.
         printf '\033[?25h'
         echo "pocknix: session '${POCKNIX_SESSION}' keeps exiting immediately — dropping to a shell." >&2
         echo "        (fix it, then re-login; or 'touch ~/.no-steam' to stay at a shell.)" >&2
@@ -84,8 +57,7 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
   printf '\033[?25h'
 fi
 
-# Escape hatch on tty1 (~/.no-steam): the session loop never ran, so nothing
-# released the boot splash — reveal the console for debugging.
+# Escape hatch on tty1 (~/.no-steam): the session loop never ran — make the console usable.
 if [ "$(tty)" = "/dev/tty1" ] && [ -e "${HOME}/.no-steam" ]; then
-  plymouth quit 2>/dev/null || true
+  printf '\033[?25h'
 fi
