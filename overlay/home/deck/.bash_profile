@@ -30,10 +30,9 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     pocknix_start="$(date +%s)"
     printf '\033[?25l\033[2J\033[H'
     # Splash-hold: plymouth-quit{,-wait} are MASKED in the image (build-sd-image.sh), so
-    # the boot splash is still ours here. Release it with
-    # --retain-splash right before the compositor takes DRM: the held frame stays
-    # on the panel through the handoff, closing the ~20s black gap (and hiding the
-    # getty flash). No-op after first launch / when plymouthd isn't running.
+    # the boot splash is still ours here and we release it right before the compositor
+    # takes DRM (hides the getty flash). No-op after first launch / when plymouthd isn't
+    # running.
     # Day-one polish: let the boot cutscene FINISH before the panel is handed over. The holodor
     # theme preloads ~1 s then plays 3.4 s (34 frames at 10 fps), and the splash appears
     # ~0.1 s after plymouthd starts, so the first launch waits until plymouthd has been up
@@ -50,16 +49,17 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
         fi
       fi
     fi
-    # --retain-splash leaves the VT in graphics mode: fine when a compositor takes DRM next,
-    # but the seedless first boot runs pocknix-steam-bootstrap first, which draws its status
-    # screen as TEXT on tty1 — invisible behind a retained splash (blank panel for the whole
-    # Steam download, seen 2026-09-23). No Steam client yet => plain quit, console visible.
-    if [ "${POCKNIX_SESSION}" != plasma ] && [ "${POCKNIX_SESSION}" != desktop ] \
-       && [ ! -x "${HOME}/.local/share/Steam/steamrtarm64/steam" ]; then
-      plymouth quit 2>/dev/null || true
-    else
-      plymouth quit --retain-splash 2>/dev/null || true
-    fi
+    # Plain quit, never --retain-splash: on the msm panel nothing is retained (the frame
+    # goes with the daemon's framebuffer), the seedless first boot draws its status screen
+    # as TEXT on tty1 (invisible in the graphics mode a retained quit leaves behind), and
+    # `plymouth quit` returns before plymouthd has let go of DRM master — gamescope then got
+    # "Could not make device fd drm master: Device or resource busy" from seatd and ran
+    # blind (Steam audible, panel black; 2026-09-23). So: quit, then wait for the daemon.
+    plymouth quit 2>/dev/null || true
+    pocknix_i=0
+    while pidof plymouthd >/dev/null 2>&1 && [ "${pocknix_i}" -lt 50 ]; do
+      sleep 0.1; pocknix_i=$(( pocknix_i + 1 ))
+    done
     case "${POCKNIX_SESSION}" in
       plasma|desktop) command -v pocknix-desktop >/dev/null 2>&1 && pocknix-desktop >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
       *)              command -v pocknix-steam   >/dev/null 2>&1 && pocknix-steam   >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
