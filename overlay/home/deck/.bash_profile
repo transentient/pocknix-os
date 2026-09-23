@@ -50,7 +50,16 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
         fi
       fi
     fi
-    plymouth quit --retain-splash 2>/dev/null || true
+    # --retain-splash leaves the VT in graphics mode: fine when a compositor takes DRM next,
+    # but the seedless first boot runs pocknix-steam-bootstrap first, which draws its status
+    # screen as TEXT on tty1 — invisible behind a retained splash (blank panel for the whole
+    # Steam download, seen 2026-09-23). No Steam client yet => plain quit, console visible.
+    if [ "${POCKNIX_SESSION}" != plasma ] && [ "${POCKNIX_SESSION}" != desktop ] \
+       && [ ! -x "${HOME}/.local/share/Steam/steamrtarm64/steam" ]; then
+      plymouth quit 2>/dev/null || true
+    else
+      plymouth quit --retain-splash 2>/dev/null || true
+    fi
     case "${POCKNIX_SESSION}" in
       plasma|desktop) command -v pocknix-desktop >/dev/null 2>&1 && pocknix-desktop >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
       *)              command -v pocknix-steam   >/dev/null 2>&1 && pocknix-steam   >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
