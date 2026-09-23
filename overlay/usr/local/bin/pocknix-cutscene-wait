@@ -28,4 +28,15 @@ else
   [ -n "$up" ] || exit 0
 fi
 [ "$up" -lt "$need" ] 2>/dev/null && sleep $(( need - up ))
+
+# Then hold the (static) logo until the deck session is about to launch its compositor:
+# the session supervisor touches this flag, and getty@tty1 no longer orders after
+# plymouth-quit-wait (overlay drop-in), so login + systemd --user happen under the splash
+# instead of on a black panel. Fail-safe: never hold longer than POCKNIX_SPLASH_MAX_SECS.
+flag=/run/user/1001/pocknix-session-ready
+max="${POCKNIX_SPLASH_MAX_SECS:-30}"
+i=0
+while [ ! -e "$flag" ] && [ "$i" -lt $(( max * 10 )) ]; do
+  sleep 0.1; i=$(( i + 1 ))
+done
 exit 0

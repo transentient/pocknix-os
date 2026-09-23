@@ -29,11 +29,17 @@ if [ "$(tty)" = "/dev/tty1" ] && [ -z "${SSH_CONNECTION:-}" ] && [ ! -e "${HOME}
     POCKNIX_SESSION="$(cat "${POCKNIX_STATE}" 2>/dev/null || echo gamescope)"
     pocknix_start="$(date +%s)"
     printf '\033[?25l\033[2J\033[H'
-    # The boot splash is already gone: plymouth-quit.service (root, held by the
-    # pocknix-cutscene-wait drop-in until the cutscene has played) quits it, and getty@tty1
-    # is ordered after plymouth-quit-wait. Nothing here can quit plymouthd (it ignores
-    # non-root clients — a deck-side `plymouth quit` was refused for months, which is why
-    # a masked plymouth-quit left plymouthd holding DRM master and gamescope blind, 09-23).
+    # Splash handoff: the boot splash (root's plymouth-quit.service, held by
+    # pocknix-cutscene-wait) is released the moment this flag appears, so login and
+    # systemd --user ran under the logo instead of on a black panel. Then wait for plymouthd
+    # to be gone (it holds DRM master; gamescope would get "Device or resource busy") before
+    # launching. Nothing here may call `plymouth quit` itself: plymouthd ignores non-root
+    # clients (a deck-side quit was silently refused for months, found 2026-09-23).
+    touch "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pocknix-session-ready" 2>/dev/null
+    pocknix_i=0
+    while pidof plymouthd >/dev/null 2>&1 && [ "${pocknix_i}" -lt 150 ]; do
+      sleep 0.1; pocknix_i=$(( pocknix_i + 1 ))
+    done
     case "${POCKNIX_SESSION}" in
       plasma|desktop) command -v pocknix-desktop >/dev/null 2>&1 && pocknix-desktop >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
       *)              command -v pocknix-steam   >/dev/null 2>&1 && pocknix-steam   >"${POCKNIX_SESSION_LOG}" 2>&1 ;;
