@@ -1,5 +1,49 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## CURRENT STATE 2026-09-25 (HOTFIX 20260925 published) - READ THIS FIRST (written by Claude Fable 5.1)
+
+- **Release = 20260925**, hotfix of 20260923e. Trigger: a reddit user flashed our ABL 1.1.7 kit and
+  hit the model menu cap (only ~10 entries, alphabetical tail of the appended dtbs; "AYN Odin 3"
+  unreachable with the 392-dtb KERNEL). Found 08-14, "ship trimmed payload permanently" never
+  done; every image through 20260923e shipped it. Cliff's device never re-hit it (ModelSelection
+  persists in devinfo; 1.1.8 has no model step at all).
+- **Delta vs 20260923e (only):** linux-pocknix-sm8750 7.1.3-28 (same Image/modules as 26; KERNEL
+  and /boot/dtbs carry cq8725s-ayn-odin3.dtb only: 18.8 MB vs 60.4) + build-image drops Holo's
+  never-booted `linux` 6.17.8 / dracut / mkinitcpio (image 3.12 GiB vs 3.24). Everything else is
+  byte-identical package-wise (bsp-common-21, bsp-sm8750-18, decky-18, inputplumber 0.77.2).
+  The WP1-3 packages (decky-loader, aiohttp-*, bsp-common-22, bsp-sm8750-19, decky-19,
+  inputplumber 0.81.0, decky-debug-18) were MOVED OUT of build/localrepo/sm8750 into
+  build/held-wp123/ and the db rebuilt with the release versions from build/publish/sm8750.
+  Put them back (repo-add) before resuming the 09-24 work.
+- **Device acceptance (Cliff, 09-25, Lexar card, ABL 1.1.8):** boots; first boot + Steam download
+  (wifi.txt path exercised: release cards carry NO Wi-Fi); several sleep/wake cycles with Steam
+  menu + QAM alive; jack unchanged (known hissy/right-heavy). NOT seen on this device: the 1.1.7
+  menu itself (device is on 1.1.8). Evidence for the menu fix = the 08-14 one-dtb rescue card.
+  Cliff declined the 1.1.7 detour for now (backup_abl.sh / disable_android_updates.sh still
+  never run on hardware: landmine audit items 1-2).
+- **Incident 09-25 morning:** the device drained to 0 % overnight with NO card (internal
+  Holodor idle, never suspended - new item, cause unknown, Cliff to say what was on screen). On
+  the charger it self-booted into the fresh card's first boot; Cliff shut it down mid-bootstrap;
+  then NOTHING on power, no red ring even on the wall charger. **Fix: hold power 20 s on the
+  charger** (power controller latch), then it booted normally. Interrupted first boot restarted
+  cleanly (bootstrap is absent-or-complete by design).
+- **Landmine audit (agent sweep of HANDOFF+memory, verified against the repo):**
+  docs/landmine-audit-2026-09-25.md. Top: backup_abl.sh copy-to-SD never run on device (HIGH);
+  disable_android_updates.sh never verified from the runner; README's rumble check mark never
+  felt in-game (Valve fixed a 3rd-party-handheld rumble regression in the 09-21 Steam beta); ABL
+  kit still 1.1.7 (1.1.8 = no model menu at all); UE5 mesa patch parked; download-inhibitor
+  blocks the power button silently (undocumented); README jack line stale; image timezone JST.
+- **Download counts:** R2's GraphQL operations dataset has objectName + actionType, so per-file
+  GetObject counts are queryable; bandwidth dataset / 3.35 GB = full-download estimate. Needs a
+  Cloudflare API token with Account Analytics Read (Cliff creating one; file on fusor, never in
+  chat). Not done yet.
+- **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
+  comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
+  base.list rides along on a RESUME respin - check `git status` before every respin.
+- **Trap (new):** Fable fabricated a Monitor "VERIFIED BYTE-EXACT" event in its own reply
+  while the flash was still writing. Verify long jobs from the log file / block counters, never
+  from a remembered notification.
+
 ## CURRENT STATE 2026-09-23 close (RELEASED + ANNOUNCED) - READ THIS FIRST (written by Claude Fable 5.1)
 
 ### Where we are (state, not journey)
@@ -74,9 +118,57 @@
   SD; Steam client dir is 647 MB, too big to read ahead on a card).
 - pocknix-diag runs every boot (support report), now at 90 s / idle prio. Fine.
 - ROCKNIX's installtointernal still types the internal FAT msftdata (bootloop on AYN Android);
-  Armada's installer refuses HOLODOR_ROOT names. Nobody told them yet.
+  Armada's installer refuses HOLODOR_ROOT names. Nobody told them yet. **09-24 correction:**
+  ROCKNIX (and MaSieS) run `set N boot on` after `msftdata on`; on GPT parted's boot flag rewrites
+  the type to EFI System (reproduced on fusor), so their installs are probably not basic-data
+  typed. Verify with `sgdisk -i` on a real ROCKNIX install before telling them (docs/outreach-2026-09-24.md).
 
 ### NEXT (ordered; Cliff's priorities)
+- **2026-09-24: the plan for the next release is docs/plan-2026-09-24-next-release.md** (WP1 native
+  Decky, WP2 resume dead-controls, WP3 headphone UCM, WP4 boot, WP5 rotation A/B, WP6 parity,
+  WP7 branch experiment: base bump to Valve's live `archlinux-deckard` mash-20260305 + real
+  steamos-manager). Context: Valve opened the Steam Frame ("deckard") mirrors ~09-18; `main` =
+  the Holo Core preview product four months newer, nothing sm8750; MaSieS4Fun's SM8550 "port" is
+  the Frame rootfs + Armbian kernel. Four research reports filed under docs/*-2026-09-24.md.
+  The list below is superseded by the plan where they differ.
+
+### 2026-09-24 EXECUTION STATE (evening; five agents ran; nothing committed on holodor-main, nothing published, device untouched)
+- **Main checkout, UNCOMMITTED, all built into build/localrepo/sm8750 under a shared flock:**
+  - WP1 native Decky: python-aiohttp-cors 0.7.0-1, python-aiohttp-jinja2 1.6-1, decky-loader 3.2.9-1
+    (from source, updater patched to no-op, frontend built once on fusor and committed as a tarball),
+    pocknix-decky 0.1.0-19 (no FEX; pocknix-decky-run + PluginLoader.json deleted). Chroot smoke:
+    loader starts, :1337, /frontend/index.js 200, Pocknix Control loads on native python. Device
+    steps in scratchpad wp1/REPORT.md and the plan. Stale pocknix-decky-debug-18 still in localrepo.
+  - WP2/WP3: pocknix-bsp-common 22 (read-only sleep.d post forensics hook, pocknix-resume-recover
+    ladder script NOT auto-run, 99-pocknix-inputplumber-target.rules = IP #732 rule), inputplumber
+    0.81.0-1, pocknix-bsp-sm8750 19 (HiFi.conf PlaybackMixerElem "HP Digital" -> "HP"). Checklist:
+    docs/headphone-ucm-checklist-2026-09-24.md. expand-root: premise wrong, already stamp-gated;
+    only the parse-failure branch was fixed.
+  - WP4: KERNEL 60.4 -> 18.8 MB (only cq8725s-*.dtb appended; ABL selects by MODEL STRING, evidence
+    in the plan/report: devinfo TLV ModelSelection, abl release notes, 08-14 one-dtb boot); kernel
+    pkg 7.1.3-28 (image reused, no compile); build-image.sh removes Holo's linux/dracut/mkinitcpio at
+    the next make build; docs/boot-measurement-checklist-2026-09-24.md; docs/outreach-2026-09-24.md.
+    Rollback copies in build/wp4-rollback/. **Finding:** ROCKNIX/MaSieS `boot on` after `msftdata on`
+    rewrites the GPT type to ESP -> the "they still bootloop Android" premise is probably wrong.
+- **Worktree branches (committed there, not merged):**
+  - WP7 `.claude/worktrees/agent-a26decea17e629a1d` branch worktree-agent-a26decea17e629a1d: HOLO_MIRROR
+    = archlinux-deckard mash-20260305 (== .1.pvt), lib.sh holo_pin_mirrorlist, 21/22 packages built
+    with ZERO PKGBUILD changes, scx-scheds only failed because ALARM rotated 1.1.2 off its mirror,
+    dev image built (never booted) sha 0005aa6d…, rtkit uid drifted 133 -> 963 (fixed via
+    config/sysusers.d/00-holodor-uids.conf, unverified in an image), packages/steamos-manager built
+    (holo 26.4.1 + Armada's 12 patches + ayn-odin3.toml; OPTIONAL, not wired; glib2 dep fix after
+    the build). Log: docs/base-bump-experiment-2026-09-24.md in that worktree.
+  - WP8 `.claude/worktrees/agent-a55d992da27bfcead` branch wp8-rp5-bringup: 7 commits (4 upstream
+    cherry-picks + SOCS gate + swh-plugins + firmware reconcile), 29 packages, kernel 7.1.2, dev
+    image holodor-rp5-20260924-seedless-dev.img.zst (3.28 GiB, sha 5caa6117…, root/deck pw pocknix,
+    sshd on), spot-check 95/95. Risk: Visionox-panel RP5 revision not supported (CH13726A only).
+    First boot = Cliff (walkthrough in that worktree's docs/rp5-bringup-2026-09-24.md). ~75 GB build/.
+- **ANSWERED 09-25 (Cliff):** on the 09-23 wake only Guide and QAM were dead; every other control
+  worked = LIZARD MODE. Steam lost its open on the 28DE virtual hidraw; InputPlumber, rsinput and
+  the MCU were fine. WP2 hypotheses H3/H4 dropped; H1 (stale hide rule / lost ACL on the recreated
+  node, IP #732) is primary, H2 (udev add never reached Steam) and H5 (Steam-side) behind it. The
+  99-pocknix-inputplumber-target.rules + inputplumber 0.81.0 braces are the right fix class; the
+  forensics hook proves it on the next repro (expect hidraw mode 000 / no deck ACL at t+3 s).
 1. **Decky Loader on NATIVE aarch64 Python** (Cliff: first post-release item). It is x86 under
    FEX only because upstream ships an x86 PyInstaller bundle; the backend is portable Python.
    Package it from source on Holo Core's python3 (+ deps: aiohttp etc.), point
