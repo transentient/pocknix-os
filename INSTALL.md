@@ -49,7 +49,7 @@ This step flashes the ROCKNIX bootloader, giving you a handy menu at startup to 
 6. Flash the new bootloader: Go back to **Run script as Root** > `flash_abl.sh`.
 7. Power off the device (hold the Power button, select Power off, and wait ten seconds). Then, hold **Volume Down** and press **Power**. You should see a text-based boot menu. If Android boots up normally instead, just repeat step 6.
 8. In the new boot menu, open **System Stats**. If it lists your SD card, your card is compatible! If it says no card is inserted, unfortunately, that specific card cannot be booted from. You will need to repeat Part I with a different card (older or slower cards usually work best). If you see a device model setting in the menu, make sure it is set to **AYN Odin 3**.
-9. Turn off Android updates: Select **boot mode Android** in the menu, start the device, and run the `disable_android_updates.sh` script using the same "Run script as Root" method from step 5. (If you ever need them back, `enable_android_updates.sh` is there for you).
+9. Turn off Android updates: Select **boot mode Android** in the menu, start the device, and run the `disable_android_updates.sh` script using the same "Run script as Root" method from step 5. (If you ever need them back, `enable_android_updates.sh` is there for you). The **System update** entry under Settings > System stays: that one is Google's and cannot install AYN firmware. The script disables AYN's own updater, which is the one that would break dual boot.
 
 *To boot Android at any time going forward: open the boot menu, set the boot mode to Android, and hit start.*
 

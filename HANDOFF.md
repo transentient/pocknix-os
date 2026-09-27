@@ -94,6 +94,15 @@
   family as public issue #1 (there: ALL controls, Tennis Elbow 4). Needs a live capture: ssh
   on, reproduce (game -> overlay -> controller settings -> back), read inputplumber journal +
   ~/.steam/steam/logs/controller_ui.txt + hidraw ACLs while broken.
+- **09-27 Android updater RESOLVED:** AYN's runner is uid 0 (SELinux ctx pservice), pm works,
+  `pm disable com.odin.fota` succeeds (pm-disable.txt). The earlier "still works" was two things:
+  (1) Part IV's factory reset re-enables every app and wipes the internal rocknix_abl copy, so
+  step 9 done before Part IV is undone -> INSTALL Part IV step 7 added; (2) Settings > System >
+  System update resolves to com.google.android.gms.update.SystemUpdateActivity (Google's
+  screen, pm-update.txt), not to /system/priv-app/FOTA (com.odin.fota) -> the entry stays after
+  the disable and is harmless; INSTALL step 9 says so now. The shipped script is correct.
+  Audit item 2 closed. Evidence files: pm-debug.txt, pm-disable.txt, pm-update.txt in the repo
+  root (untracked; keep or move to build/).
 - **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
   comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
   base.list rides along on a RESUME respin - check `git status` before every respin.
