@@ -86,10 +86,11 @@ This installer cleanly shrinks Android's data partition to make room for Holodor
 4. Select **Install Holodor to internal storage**. You will be asked how much space to leave for Android (32 GB is a very sensible minimum). If the installer asks if you want to clear Android's account marker, say yes.
 5. Confirm your choices and wait 20 to 30 minutes. Please do not power off the device during this process.
 6. Once it finishes, power off the device completely. Remove the SD card, then power it back on. Holodor will now boot directly from your blazing fast internal storage.
+7. Turn off Android updates again. The factory reset in step 5 re-enabled them and wiped the `rocknix_abl` folder from Internal storage. Boot Android from the boot menu, finish its first-time setup, then repeat Part II steps 4 and 9: copy `rocknix_abl` from the SD card to Internal storage and run `disable_android_updates.sh`.
 
 Keep that SD card safe! It is your permanent rescue system. Removing Holodor or restoring the stock bootloader in the future is handled directly from that card.
 
-*To boot Android after doing this:* Hold **Volume Down** while powering on and select **Android** in the boot menu. Android will run its first-time setup again. Be sure to decline any Android system updates.
+*To boot Android after doing this:* Hold **Volume Down** while powering on and select **Android** in the boot menu. Android will run its first-time setup again. Until you have done step 7, decline any Android system updates.
 
 ---
 
