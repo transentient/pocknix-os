@@ -37,6 +37,14 @@
   types/names/labels), then write it to the 32 GB card and see if the ABL boots it. If yes,
   diff layouts and fix ours (devices/sm8250: BOOTLOADER=qcom-abl, cmdline +gpt, dtb globs
   retroidpocket-*, bootimg-firmware.list a650 = now in the worktree, uncommitted).
+- **RP5 control image inspected (00:5x):** ROCKNIX-SM8250 20260901 card = RAW Image with ONE
+  dtb appended (59.7 MB), boot/grub (cfg + 6 dtbs), EFI/BOOT/bootaa64.efi (newer build than
+  ours), rocknix_abl with ABL **1.1.8**, SYSTEM squashfs, p1 at sector 32768. So the SM8250
+  "qcom-abl" contract = raw Image + appended dtb(s), NOT mkbootimg. Our card's raw Image had no
+  dtb -> "no bootable image"; our mkbootimg file = wrong format. Prepared in
+  ~/odin3-backups/rp5-boot-experiments/ (README): A = Image + 4 retroid dtbs concatenated; B =
+  the ROCKNIX image as control (+ their 1.1.8 if 1.1.9 fails); C = their bootaa64.efi. Card
+  writes happen when the 32 GB card is back in fusor (Cliff has it in the RP5).
 - **RP5 loader note:** "boot mode Android/UEFI" is the only menu; UEFI shows the Retroid logo and
   returns to the menu with our card. ROCKNIX's RP5 page: stock loader cannot boot the SD; flash
   their ABL (model menu incl. "Retroid Pocket 5 Visionox"). Upstream pocknix's July claim (factory
