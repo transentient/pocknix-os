@@ -1,5 +1,33 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## CURRENT STATE 2026-09-27 late: RC2 = 20260927d BUILT, NOT flashed, NOT published (written by Claude Fable 5.1)
+
+- **RC2 image:** build/image/sm8750/holodor-odin3-20260927d-seedless.img.zst (3.10 GiB, sha256
+  4bfa43ad…), spot-check green. = RC 20260927 + kernel-32 (1301 MCU report-rate RESTORED after
+  measuring 9-13 count steps vs 41-53; idempotent KERNEL rebuild), gamescope 1:…-4 (0007 NaN
+  guard for GAMESCOPE_COLOR_NIGHT_MODE: Steam sent saturation NaN -> whole output red, no toggle
+  cleared it; found on the RC card 23:1x, fixed live with xprop 0,0,0), bsp-sm8750 22 (paddles
+  source + upstream stubs incl. 50-retroid_pocket6, LED daemon enabled, pocknix-input-calibration
+  + boot service), bsp-common 23 (pocknix-input-check), desktop 13 (no lock screen), decky 20
+  (STICKS zero/reset centres), inputplumber 0.81.0-2 (collision guard). All committed + pushed.
+- **Waiting on the Lexar** (in the Odin with the audio cable) to flash RC2; then Cliff's RC2
+  acceptance: A/B + paddles, Pocknix Control incl. STICKS button, LEDs animate, sticks smooth,
+  no lock screen in desktop, sleep/wake, then internal install + Android + Expedition 33 on the
+  DX12 path (mesa-7 unverified: Cliff skipped it on the card).
+- **Jack measurement rig (built, blocked):** ~/jack-measure/{jack-test.wav,measure.sh} on
+  fusor; fusor's ALC269 front mic jack captured as root via arecord (alsa-utils installed
+  09-27; cliff's PipeWire sees no devices because seat0 belongs to gdm-greeter). Blocker: the
+  Odin's MBHC does not detect the plain TRS cable ('Headphone Jack' off), the Headphones sink
+  never runs and pw-play hangs. Needs a headphone-like load (splitter + headphones, or a
+  headset) -> then `ODIN_SINK=48 ./measure.sh <label>` per mixer setting.
+- **RP5:** the known-good 32 GB card bounced the stock loader's UEFI mode too. Card retyped
+  p1 -> EF00 (EFI System) for a retry; ROCKNIX ABL 1.1.9 SM8250 kit + adapted scripts placed at
+  rocknix_abl/SM8250 on that card (README inside) as the fallback (bootloader flash, Cliff's call).
+- **RP5 loader note:** "boot mode Android/UEFI" is the only menu; UEFI shows the Retroid logo and
+  returns to the menu with our card. ROCKNIX's RP5 page: stock loader cannot boot the SD; flash
+  their ABL (model menu incl. "Retroid Pocket 5 Visionox"). Upstream pocknix's July claim (factory
+  ABL chainloads bootaa64.efi) is unconfirmed on Cliff's unit/firmware.
+
 ## CURRENT STATE 2026-09-27 evening: RC 20260927 BUILT, on the Lexar, NOT published (written by Claude Fable 5.1)
 
 - **RC image:** build/image/sm8750/holodor-odin3-20260927-seedless.img.zst (3.10 GiB, sha256
