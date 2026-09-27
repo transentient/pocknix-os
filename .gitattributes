@@ -39,3 +39,4 @@ docs/landmine-audit-2026-09-25.md        export-ignore
 docs/upstream-sweep-2026-09-27.md        export-ignore
 scripts/r2-downloads.sh                  export-ignore
 docs/stick-calibration-2026-09-27.md    export-ignore
+tools/                                   export-ignore
