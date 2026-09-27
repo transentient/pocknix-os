@@ -43,6 +43,20 @@
   Still to hear from Cliff on the RC: sleep/wake Guide+QAM, stick sweep smoothness (kernel-30),
   Expedition 33 without -dx11 (mesa-7), jack. RC2 = 20260927b (bsp-sm8750 20, bsp-common 23,
   desktop 13, inputplumber 0.81.0-2) building.
+- **STICKS, the real story (09-27 night, measured):** Cliff's left stick reads +240 (X) / -232
+  (Y) at rest and the right +76/-222, of +-1024, on kernel-28 (internal) AND kernel-30 (RC) =
+  EVIOCGABS under InputPlumber; the virtual Deck's HID report carries 7263/6719 to Steam. Steam's
+  test screen showed "0" only because of a widened Steam deadzone. So: (a) my "kernel-30 caused
+  the offset" claim was WRONG (retracted to Cliff); kernel-31 = revert anyway, harmless; (b) the
+  MCU's Android calibration does not fix the UART path; (c) rsinput axis_*_center params fix it
+  live (all four axes 0 to Steam). Shipped: pocknix-input-calibration (bsp-sm8750 22, boot
+  service Before=inputplumber, conf /etc/pocknix/input-calibration.conf) + Pocknix Control STICKS
+  "Zero stick centres" (decky 20). Cliff's conf is written on the internal install. Separately,
+  the slow-sweep sampler on kernel-28 shows steps of 41-53 counts and nothing smaller = the
+  40-count MCU threshold is REAL ("jumpy"). Whether kernel-30's 6/2 parameters remove the steps
+  is UNMEASURED: run scratchpad stick-steps.py on the RC card (kernel-30) before deciding to
+  re-add 1301. Tools on the device: /tmp/stick-sample.py, /tmp/stick-steps.py, /tmp/deck-hid.py
+  (reads the 28DE hidraw = what Steam gets).
 - **RP5 (evening):** Silicon Power 128 GB card bounced the stock loader's UEFI mode straight
   back to its menu (Retroid logo, then menu; the menu has only boot mode Android/UEFI).
   ROCKNIX's RP5 page says the stock loader cannot boot the card and their ABL must be flashed
