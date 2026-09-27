@@ -37,6 +37,21 @@
   GetObject counts are queryable; bandwidth dataset / 3.35 GB = full-download estimate. Needs a
   Cloudflare API token with Account Analytics Read (Cliff creating one; file on fusor, never in
   chat). Not done yet.
+- **09-27 OTA canary (Cliff's internal install, ssh now ON with fusor's key, deck pw holodor):**
+  the QAM Updater pulled SIX packages, all OURS (the install was still on the 09-18 set: kernel
+  25, bsp-common 20, bsp-sm8750 17, decky 17, desktop 11, boot-art 1 -> the 20260923e set +
+  kernel 28); nothing from Valve's repos. Hook rebuilt /flash/KERNEL = 18,778,112 B, 1 dtb;
+  boots into Steam. **Bug:** 90-linux-pocknix.hook AND 91-pocknix-cmdline.hook both run
+  pocknix-build-bootimg in one transaction, so KERNEL.bak = the new file too (the 60 MB
+  original is gone; rollback copy useless). Fix: cmdline hook should skip when the kernel hook
+  already ran (or one hook with both targets). Reboot took 29 s from press to off (5 s = FEX
+  decky plugin needed SIGKILL; WP1 native loader removes that). Cut-off cutscene on that
+  install = expected: no pocknix-cutscene-wait / plymouth-quit drop-in there (unpackaged 09-23
+  fix, audit item 11). Boot blame there: pocknix-flathub 30 s on the critical chain.
+- **Overnight drain (09-24/25) was NOT the internal Holodor:** the journal has no boot between
+  09-18 01:42 and 09-27 12:50. Whatever ran the battery flat was the ABL menu, the charger
+  screen, or Android. Today's boot started with the clock at the last journal time (09-18
+  01:42) = the deep discharge reset the RTC (kernel 25 had no SDAM RTC offset; 28 does).
 - **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
   comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
   base.list rides along on a RESUME respin - check `git status` before every respin.
