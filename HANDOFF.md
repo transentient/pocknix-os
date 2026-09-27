@@ -70,6 +70,14 @@
   Still open from today's checklist: triggers full travel (Armada #556), rumble in-game,
   QAM-mid-game (issue #1), Part IV internal install + Android boot on 20260925, RP5 first boot
   (SP 128 GB card written + verified 14:13, wifi.txt on it).
+- **09-27 SD label rename (next image, NOT in 20260925):** devices/sm8750/profile.conf
+  SD_FAT_LABEL=HOLODOR; pocknix-install-internal now finds the card's boot FAT via the /flash
+  mount first, then by label HOLODOR or ROCKNIX (older cards). Needs one boot + one internal
+  install test on the next RC. **Correction to older notes:** the INTERNAL boot partition is
+  NOT named HOLODOR. boards/odin3.conf sets POCKNIX_BOOT_GPT_NAME/FAT_LABEL=ROCKNIX and the
+  BSP's device.conf sources it, overriding the installer's HOLODOR default from 5056caa. Left
+  that way deliberately (the ABL's UNINSTALL CFW menu item keys on names it knows); comment
+  added in odin3.conf. Only the root is HOLODOR_ROOT.
 - **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
   comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
   base.list rides along on a RESUME respin - check `git status` before every respin.
