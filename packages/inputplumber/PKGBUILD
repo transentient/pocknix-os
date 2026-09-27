@@ -57,7 +57,7 @@ package() {
   # upstream files with stubs in /etc/inputplumber/devices.d; this guard fails the build when a
   # NEW upstream file matches our device-tree compatibles so the bump cannot ship unnoticed.
   local _ours='ayn,odin3|ayn,odin2|ayn,odin2mini|ayn,odin2portal|AYN Odin 3|AYN Odin 2|Retroid Pocket 6'
-  local _shadowed='50-ayn_odin3.yaml 50-ayn_odin2.yaml 50-ayn_odin2_mini.yaml'   # keep in sync with pocknix-bsp-sm8750
+  local _shadowed='50-ayn_odin3.yaml 50-ayn_odin2.yaml 50-ayn_odin2_mini.yaml 50-retroid_pocket6.yaml'   # keep in sync with pocknix-bsp-sm8750
   local f hit=0
   for f in "${pkgdir}"/usr/share/inputplumber/devices/*.yaml; do
     grep -qE "${_ours}" "${f}" || continue
