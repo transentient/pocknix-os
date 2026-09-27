@@ -78,6 +78,12 @@
   BSP's device.conf sources it, overriding the installer's HOLODOR default from 5056caa. Left
   that way deliberately (the ABL's UNINSTALL CFW menu item keys on names it knows); comment
   added in odin3.conf. Only the root is HOLODOR_ROOT.
+- **09-27 game findings (Cliff, fresh internal 20260925):** Expedition 33 RUNS with the `-dx11`
+  launch option (first picture ever on our stack; the 08-22 root cause = a830 64-bit image
+  atomics on the DX12/UE5 path). Ship: README known-issues line "UE5 games: -dx11", and the
+  mesa-next has_64b_image_atomics=False patch (packages/mesa-next/patches-staged/0002) for the
+  next release. Triggers: left ~29000, right ~32000 of 32767 on the Steam test screen = NOT the
+  Armada #556 70 % bug (asymmetric, likely mechanical); leave our rsinput ranges alone.
 - **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
   comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
   base.list rides along on a RESUME respin - check `git status` before every respin.
