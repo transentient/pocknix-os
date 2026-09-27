@@ -1,5 +1,40 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## CURRENT STATE 2026-09-27 evening: RC 20260927 BUILT, on the Lexar, NOT published (written by Claude Fable 5.1)
+
+- **RC image:** build/image/sm8750/holodor-odin3-20260927-seedless.img.zst (3.10 GiB, sha256
+  015350b5…), log build/respin-20260927.log, spot-check green (label HOLODOR, KERNEL 18.8 MB one
+  dtb, ABL kit 1.1.8 sha bedff34b…, UTC, no Steam tree, sshd off, native decky-loader unit).
+  Written to the Lexar 64 GB (build/flash-lexar-20260927.log). Everything below is committed and
+  pushed on holodor-main; public repo NOT synced since release-20260925 (INSTALL/README changes
+  wait for the RC to pass).
+- **Delta vs 20260925:** kernel 7.1.3-30 (idempotent KERNEL rebuild keeps KERNEL.bak; 40-holodor
+  1301 = MCU report 250 Hz / 1-count analog, Armada 475b776, for "jumpy" sticks), mesa-next +
+  vulkan-freedreno-next 26.3.0_devel-7 (pin unchanged + a8xx has_64b_image_atomics=False: the UE5
+  black-screen fix; Expedition 33 proved the diagnosis with -dx11 on 09-27), decky-loader 3.2.9
+  native python + aiohttp deps + pocknix-decky 19 (WP1; no FEX in the loader; updater patched
+  out), pocknix-bsp-common 22 (WP2 forensics hook, IP #732 target rule, resume-recover script not
+  auto-run) + inputplumber 0.81.0, pocknix-bsp-sm8750 19 (WP3 HiFi PlaybackMixerElem "HP"),
+  pocknix-bootloader-sm8750 1.1.8 (Armada's vendored ELF), rocknix-abl-releases.tsv 1.1.9 rows,
+  SD FAT label HOLODOR + installer finds the card via /flash, image timezone UTC (respin script
+  no longer passes SD_TIMEZONE), README limitations (jack auto-switch, decline Decky's updater,
+  UE5 -dx11), INSTALL Part IV step 7 (redo the update-disable after the factory reset) + step 9
+  note (Settings' System update entry is Google's).
+- **Acceptance list for Cliff (RC card, then internal):** (1) boots, first boot + Steam download
+  with wifi.txt; (2) Quick Access > Pocknix Control loads on the native loader, fan/LED/updater
+  tabs work; (3) sticks: Steam test screen slow sweep smooth (no 4 % steps), Octopath no longer
+  jumpy; (4) Expedition 33 WITHOUT -dx11 draws a picture; (5) jack plug/unplug; (6) several
+  sleep/wake cycles incl. idle s2idle, Guide/QAM alive after (if dead: ssh on, read
+  /var/lib/pocknix/input-forensics or the sleep.d hook output before power-cycling); (7) internal
+  install from the RC card (installer's new /flash lookup) + Android boot; (8) OTA canary later:
+  the internal 20260925 install takes kernel-30 and KERNEL.bak survives (ls -l /flash).
+- **Known nit:** build-image's B8 loop printed "removing unused base kernel package: linux /
+  error: target not found" on the resumed rootfs (pacman -Q guard mismatch); harmless, tidy later.
+- **Next after acceptance:** publish (image, docs, sync-public, tag release-20260927, make
+  publish), then RC2 with the Pocknix Control STICKS section (docs/stick-calibration-2026-09-27.md
+  recommendation 2) unless kernel-30 alone satisfies Cliff. RP5 first boot pending (card written,
+  RP5 charging after a deep discharge).
+
 ## CURRENT STATE 2026-09-25 (HOTFIX 20260925 published) - READ THIS FIRST (written by Claude Fable 5.1)
 
 - **Release = 20260925**, hotfix of 20260923e. Trigger: a reddit user flashed our ABL 1.1.7 kit and
