@@ -1,6 +1,23 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## CURRENT STATE 2026-09-28 01:00 (sleep-now) - READ THIS FIRST (written by Claude Fable 5.1)
+## CURRENT STATE 2026-09-28 02:40 (RELEASING 20260927d) - READ THIS FIRST (written by Claude Fable 5.1)
+
+### Release 20260927d in flight (02:35 ->)
+- Cliff accepted RC2 02:33 ("the Odin is working great") after: card boot, A/B, paddles, LEDs,
+  zero stick centres (+ survives reboot), slow sweep, idle s2idle wake (Guide/QAM ok, not red),
+  desktop-mode sleep -> wakes to desktop (no lock screen), internal install from the card OK.
+  SKIPPED by Cliff: night-mode sleep, jack (splitter arrives 09-29 -> jack session on fusor),
+  Android boot check (tonight).
+- Steps: [1] publish-image.sh as cliff via `systemd-run --user` unit holodor-publish-image-20260927d
+  (log build/publish-image-20260927d.log) -> [2] full download + sha256 -c -> [3] release commit
+  (README/INSTALL links = 20260927d, HANDOFF) + tag release-20260927d + push -> [4] sync-public
+  --push + tag in public -> [5] `make publish DEVICE=sm8750` (OTA). Tag/filename keep the build
+  letter (like 20260923e): release-20260927d, NOT release-20260927.
+- Parity fixes committed before the tag: packages/decky-loader + python-aiohttp-{cors,jinja2} were
+  UNTRACKED though RC2 ships them; overlay pocknix-expand-root (stamp on every exit) was dirty and
+  IS the byte-identical file on the RC2 card (dbbd56f). 09-24 docs committed (export-ignore).
+
+
 
 ### Where we are (state, not journey)
 - **Published = 20260925** (hotfix: one-dtb KERNEL fixes the ABL 1.1.7 model menu; confirmed on the
@@ -8,7 +25,7 @@
   sm8750 carries kernel-28. Download counts: `scripts/r2-downloads.sh 30` (token in
   ~/.config/cloudflare/analytics.token): ~28 real downloads 09-23 -> 09-27.
 - **RC2 = 20260927d** (build/image/sm8750/holodor-odin3-20260927d-seedless.img.zst, 3.10 GiB,
-  sha256 4bfa43ad…, spot-check green) is being WRITTEN to the Lexar right now by unit
+  sha256 4bfa43ad…, spot-check green) is ON THE LEXAR: VERIFIED BYTE-EXACT 01:04 09-28, wifi.txt written, card ready for Cliff. (Written by unit
   holodor-flash-lexar-20260927d (log build/flash-lexar-20260927d.log; slow reader, ~4 MB/s; at
   01:00 it had 7 of 15.5 GB). **First thing next session:** `tr '\r' '\n' < build/flash-lexar-20260927d.log | grep ===`
   must show VERIFIED BYTE-EXACT; then `sudo build/write-wifi-txt.sh` (targets /dev/sdb1; check
@@ -46,10 +63,35 @@
   Android: com.odin.fota disabled. RP5: ROCKNIX ABL 1.1.9 (SM8250) flashed 09-28 00:xx; stock ABL
   backup SHOULD be at rocknix_abl/SM8250/abl_{a,b}.img on the 32 GB card + RP5 internal storage —
   UNVERIFIED (Cliff did not report the check) -> copy to ~/odin3-backups first thing.
-- **Cards:** Lexar 64 GB = RC2 (writing). 32 GB card = RP5 dev image + rocknix_abl/SM8250 kit +
+- **Cards:** Lexar 64 GB = RC2 (verified, wifi.txt on, untested). 32 GB card = RP5 dev image + rocknix_abl/SM8250 kit +
   KERNEL = my mkbootimg attempt (KERNEL.grub-raw-image.bak = the original), p1 basic data, in
   Cliff's hands. Silicon Power 128 GB = RP5 dev image (useless: neither firmware sees it). Axe 64 GB =
   Armada 20260907.
+
+### RC2 (20260927d) acceptance on the Lexar, 2026-09-28 01:10-02:15 (Cliff drives, Claude logs)
+- GREEN: A/B correct; paddles register; boot colours normal (no red wash); LED Effect animates
+  (first image ever); Pocknix Control STICKS "Zero stick centres" -> Deck HID reads 0/0/0/0
+  (1001 reports, hands off; /etc/pocknix/input-calibration.conf = L -245/+246, R +72/-233);
+  calibration SURVIVES reboot (pocknix-input-calibration.service re-applied at 01:39:16, Deck
+  HID 0 again); slow stick sweep smooth in Steam's test screen; idle s2idle 01:58:57 -> wake
+  02:04:52 clean, Guide + QAM alive, screen not red, GAMESCOPE_COLOR_NIGHT_MODE atom sane
+  (0, 0.95, tiny-negative; no NaN). Versions on the card verified: kernel 7.1.3 built 09-27 23:31
+  (kernel-32), bsp-sm8750 22, bsp-common 23, inputplumber 0.81.0-2, gamescope -4.
+- SKIPPED by Cliff's call: sleep with night mode ON ("seems fine at the moment").
+- 02:30: desktop-mode idle sleep -> wakes to desktop, no lock screen (GREEN). Internal install from
+  the card: done, "working great" (02:33). Jack + Android boot + Expedition 33: deferred.
+- Notes: fresh card has no sshd key -> Cliff installed fusor's key; old host key for .32 replaced
+  (internal install will re-prompt). InputPlumber hides the rsinput event node (mode 000) from
+  deck, so sample as root or read the 28DE hidraw (tools/input/deck-hid.py).
+- **RP5 stock ABL backup** copied off the 32 GB card to ~/odin3-backups/rp5-stock-abl-20260928/
+  (abl_a = abl_b, real ELF, 210759 non-zero bytes). VERIFIED.
+- **RP5 boot experiments:** A (raw Image + 4 appended dtbs) = "no bootable image" (02:0x). Root
+  cause hunt (see learned): ROCKNIX ABL 1.1.8+ has NO model menu; their 09-01 KERNEL is a PLAIN
+  raw Image (no appended dtb; my README claim was wrong), dtbs come from boot/grub (6 files)
+  via the ABL's DTB SCAN + grub. Our card had 397 dtbs there. A2 applied 02:15: KERNEL = raw
+  Image again, boot/grub trimmed to the 4 retroid dtbs (all 397 saved in
+  ~/odin3-backups/rp5-card-boot-grub-dtbs-20260928/), p1 already name=system + LegacyBIOSBootable
+  + basic data (same as ROCKNIX). Result pending. If it fails: B (control) wipes the card.
 
 ### What we learned 2026-09-27/28 (not in the code)
 - **Sticks:** Cliff's left stick reads ~22 % off-centre at rest (raw +240/-232; right +76/-222) on
