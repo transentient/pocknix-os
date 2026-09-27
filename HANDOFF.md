@@ -23,6 +23,20 @@
 - **RP5:** the known-good 32 GB card bounced the stock loader's UEFI mode too. Card retyped
   p1 -> EF00 (EFI System) for a retry; ROCKNIX ABL 1.1.9 SM8250 kit + adapted scripts placed at
   rocknix_abl/SM8250 on that card (README inside) as the fallback (bootloader flash, Cliff's call).
+- **RP5, 09-28 00:xx, the real state:** ROCKNIX switched SM8250 to BOOTLOADER="qcom-abl" on
+  2026-08-20 (distribution ad843ff6; their SM8250 update.sh now deletes /boot and /EFI from the
+  FAT and runs `updateabl`). Our RP5 card (upstream pocknix's July arm-efi/GRUB layout) is the
+  OLD contract. Cliff flashed ROCKNIX ABL 1.1.9 (SM8250) on the RP5 from the kit on the card
+  (backup taken). ABL menu: boot source SDcard/USB/Auto, System Stats sees the 32 GB card,
+  "no bootable image found on the selected boot device" with the raw Image; I then hand-built a
+  qcom-abl KERNEL (gzip Image + 4 sm8250-retroidpocket-*.dtb + a650 fw ramdisk + cmdline with
+  `gpt`, mkbootimg v0) onto the card (KERNEL.grub-raw-image.bak kept) -> model list STILL shows
+  no Retroid entries and (presumably) the same error. Something else about the card layout is
+  expected by that ABL. Control test queued: ROCKNIX-SM8250.aarch64-20260901.img.gz downloading
+  to ~/odin3-backups/rocknix-sm8250/ -> inspect its FAT (files, KERNEL format, partition
+  types/names/labels), then write it to the 32 GB card and see if the ABL boots it. If yes,
+  diff layouts and fix ours (devices/sm8250: BOOTLOADER=qcom-abl, cmdline +gpt, dtb globs
+  retroidpocket-*, bootimg-firmware.list a650 = now in the worktree, uncommitted).
 - **RP5 loader note:** "boot mode Android/UEFI" is the only menu; UEFI shows the Retroid logo and
   returns to the menu with our card. ROCKNIX's RP5 page: stock loader cannot boot the SD; flash
   their ABL (model menu incl. "Retroid Pocket 5 Visionox"). Upstream pocknix's July claim (factory
