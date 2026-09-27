@@ -52,6 +52,24 @@
   09-18 01:42 and 09-27 12:50. Whatever ran the battery flat was the ABL menu, the charger
   screen, or Android. Today's boot started with the clock at the last journal time (09-18
   01:42) = the deep discharge reset the RTC (kernel 25 had no SDAM RTC offset; 28 does).
+- **09-27 fresh-install run from stock (Cliff, Lexar 20260925 card, video abandoned as tedious):**
+  Remove Holodor + Restore stock bootloader from the GUI both worked again (stock abl_a/b came
+  from ~/odin3-backups/armada_rocknix_abl-20260915-stock/SM8750, verified non-ROCKNIX).
+  Part II results: **backup_abl.sh VERIFIED** (after deleting every abl_?.img copy, the run put
+  them on Internal storage AND the SD card) -> audit item 1 closed. **disable_android_updates.sh
+  DOES NOTHING** (Settings > System > System update still opens and works after it) -> audit
+  item 2 is a real failure; next Android visit: run a script through the same runner that
+  writes `pm list packages` to a file on the card to learn the real FOTA package name / whether
+  `pm` works there. **Model menu on ABL 1.1.7 with the one-dtb KERNEL shows only "AYN Odin 3"**
+  = the hotfix confirmed on the real menu. Findings for the docs: (a) wifi.txt over USB/MTP:
+  Windows can "create" a file on the card but it is a phantom (cannot be opened); make the
+  file on the PC and drag it across; (b) the SD boot FAT is still labelled ROCKNIX
+  (devices/sm8750/profile.conf SD_FAT_LABEL, cosmetic, inherited) -> rename to HOLODOR next
+  image + one boot test; (c) a card that already completed first boot and was last used in
+  Desktop Mode boots straight to desktop (SteamOS behaviour), which surprised Cliff.
+  Still open from today's checklist: triggers full travel (Armada #556), rumble in-game,
+  QAM-mid-game (issue #1), Part IV internal install + Android boot on 20260925, RP5 first boot
+  (SP 128 GB card written + verified 14:13, wifi.txt on it).
 - **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
   comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
   base.list rides along on a RESUME respin - check `git status` before every respin.
