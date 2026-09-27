@@ -87,6 +87,13 @@
   **Rumble in-game VERIFIED** (Death Stranding intro) -> audit item 3 closed; README's check mark
   is true. QAM + Steam menu mid-game (Expedition 33) fine -> issue #1 is game-specific (Tennis
   Elbow 4), the README "overlay glitches in some heavier games" line covers it.
+  **Second variant, same day (Cliff, Octopath Traveler):** opened Steam's controller settings
+  from the in-game overlay, went back to the game -> Guide + QAM dead (other controls fine),
+  stayed dead after exiting via the game's menu, came back at the library carousel. Not a
+  resume; Steam-side Steam Input config switch on our deck-uhid bridge is the suspect. Same
+  family as public issue #1 (there: ALL controls, Tennis Elbow 4). Needs a live capture: ssh
+  on, reproduce (game -> overlay -> controller settings -> back), read inputplumber journal +
+  ~/.steam/steam/logs/controller_ui.txt + hidraw ACLs while broken.
 - **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
   comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
   base.list rides along on a RESUME respin - check `git status` before every respin.
