@@ -84,6 +84,9 @@
   mesa-next has_64b_image_atomics=False patch (packages/mesa-next/patches-staged/0002) for the
   next release. Triggers: left ~29000, right ~32000 of 32767 on the Steam test screen = NOT the
   Armada #556 70 % bug (asymmetric, likely mechanical); leave our rsinput ranges alone.
+  **Rumble in-game VERIFIED** (Death Stranding intro) -> audit item 3 closed; README's check mark
+  is true. QAM + Steam menu mid-game (Expedition 33) fine -> issue #1 is game-specific (Tennis
+  Elbow 4), the README "overlay glitches in some heavier games" line covers it.
 - **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
   comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
   base.list rides along on a RESUME respin - check `git status` before every respin.
