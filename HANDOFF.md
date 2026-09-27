@@ -28,6 +28,29 @@
   /var/lib/pocknix/input-forensics or the sleep.d hook output before power-cycling); (7) internal
   install from the RC card (installer's new /flash lookup) + Android boot; (8) OTA canary later:
   the internal 20260925 install takes kernel-30 and KERNEL.bak survives (ls -l /flash).
+- **RC 20260927 device findings (Cliff, evening) and the RC2 fixes (commit "RC 20260927 fixes"):**
+  (1) A/B SWAPPED: InputPlumber 0.81's own 50-ayn_odin3.yaml took gpio-keys-paddles (our config
+  only named "gpio-keys" = the volume rocker) and then the gamepad (xbox-elite target, no
+  South/East swap). Fix live-verified on the card via /etc/inputplumber/devices.d: paddles source
+  added + upstream files shadowed by stubs -> one composite, 3 sources, A/B correct. (2) LED
+  modes did nothing: pocknix-stick-leds.service was never enabled by anything (also true on
+  20260925; static colour worked because `save` writes sysfs). Started it live: rings animate.
+  (3) Native Decky loader + Pocknix Control: WORK (fan too). (4) Desktop Mode: lock screen on
+  wake is unusable (too big, password field flaky, no OSK) -> kscreenlockerrc off in desktop-13;
+  Kickoff's footer bar overlaps the panel at scale 1.5 -> open. (5) sshd enable needed a second
+  try (first `systemctl enable --now sshd` as deck did nothing visible; second worked) -> watch.
+  Guards added: inputplumber PKGBUILD collision check, pocknix-input-check boot self-check.
+  Still to hear from Cliff on the RC: sleep/wake Guide+QAM, stick sweep smoothness (kernel-30),
+  Expedition 33 without -dx11 (mesa-7), jack. RC2 = 20260927b (bsp-sm8750 20, bsp-common 23,
+  desktop 13, inputplumber 0.81.0-2) building.
+- **RP5 (evening):** Silicon Power 128 GB card bounced the stock loader's UEFI mode straight
+  back to its menu (Retroid logo, then menu; the menu has only boot mode Android/UEFI).
+  ROCKNIX's RP5 page says the stock loader cannot boot the card and their ABL must be flashed
+  (model menu incl. "Retroid Pocket 5 Visionox"); upstream pocknix's July notes say the factory
+  ABL's UEFI chainloads bootaa64.efi with no flash. Same-family firmware could not see this SP
+  card on the Odin either, so the card is suspect #1: the dev image is now on the known-good
+  32 GB card (verified, wifi.txt on it) for a retry before any RP5 bootloader flash. If it
+  bounces too: ROCKNIX ABL 1.1.9 SM8250 ELF is in ~/odin3-backups/rocknix-abl-20260927/.
 - **Known nit:** build-image's B8 loop printed "removing unused base kernel package: linux /
   error: target not found" on the resumed rootfs (pacman -Q guard mismatch); harmless, tidy later.
 - **Next after acceptance:** publish (image, docs, sync-public, tag release-20260927, make
