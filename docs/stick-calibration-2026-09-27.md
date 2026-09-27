@@ -59,7 +59,18 @@ the templates for sliders + a live readout.
 4. Not reaching full deflection / weak diagonals: raw max < 1024 -> per-axis min/max +
    update_params + IP restart (#326/#423 family).
 
-## Recommendation for the next RC
+## OUTCOME 2026-09-27 evening: recommendation 1 is WRONG for Holodor
+Kernel-30 shipped the 0x06/0x02 pair on RC 20260927. Measured with EVIOCGABS while InputPlumber
+held the grab: left stick at rest LX +240 / LY -240, right stick RY +230 (of the advertised
++-1024), full deflection +-1320. Same board on kernel-28 (internal install): all zeros at rest.
+So on MCU firmware V02.10.001.01 with our 7.1.3 rsinput, the "1-count / 250 Hz" parameters change
+the analog report scale/centre, and Armada's driver (7.2.x, different frame handling) must be
+compensating somewhere we do not carry. Reverted in kernel-31. The original "jumpy" complaint
+(Octopath) is still open: measure the 40-count stepping on kernel-28 with the sampler first
+(scratchpad stick-sample.py: polls absinfo at 50 Hz), then try dz 0 / antideadzone before any
+MCU parameter change.
+
+## Recommendation for the next RC (as written before the outcome above)
 1. Kernel, one variable: 40-holodor/1301 flipping 0x28,0x07 -> 0x06,0x02 in rsinput_init_commands
    (never edit 20-sm8750/0031; sync.sh regenerates it). Risk low-medium: 5x UART frame rate
    through the resume path + checksum/reassembly; Armada has shipped it since 09-18.
