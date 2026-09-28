@@ -48,12 +48,12 @@ source=('device.conf'
         '01-rsinput-controller.yaml' 'sm8750-gamepad.yaml'
         'AYN-Odin3.conf' 'HiFi.conf'
         '10-pocknix-deeponly.conf' '30-pocknix-cpuidle.conf'
-        '50-no-sink-suspend.conf'
+        '50-no-sink-suspend.conf' '52-pocknix-default-volume.conf'
         'kernel-cmdline' '91-pocknix-cmdline.hook'
         'pocknix-stick-leds' 'pocknix-stick-ledsd' 'pocknix-stick-leds.service'
         '50-holodor-ip-stub.yaml'
         'pocknix-input-calibration' 'pocknix-input-calibration.service')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # Runtime device facts: the model dispatcher + per-board files. boards/ is
@@ -73,6 +73,8 @@ package() {
   # re-asserted every boot via systemd-tmpfiles.
   install -Dm644 "${srcdir}/50-no-sink-suspend.conf" \
     "${pkgdir}/usr/share/wireplumber/wireplumber.conf.d/50-no-sink-suspend.conf"
+  install -Dm644 "${srcdir}/52-pocknix-default-volume.conf" \
+    "${pkgdir}/usr/share/wireplumber/wireplumber.conf.d/52-pocknix-default-volume.conf"
 
   install -Dm644 "${srcdir}/30-pocknix-cpuidle.conf" \
     "${pkgdir}/usr/lib/tmpfiles.d/30-pocknix-cpuidle.conf"
