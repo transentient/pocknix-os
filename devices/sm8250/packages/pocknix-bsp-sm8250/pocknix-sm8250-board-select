@@ -29,8 +29,8 @@ esac
 
 booted=""
 case "$model" in
-  "Retroid Pocket 5")     booted=rp5 ;;
-  "Retroid Pocket Flip2") booted=rpflip2 ;;
+  "Retroid Pocket 5"|"Retroid Pocket 5 Visionox")         booted=rp5 ;;
+  "Retroid Pocket Flip2"|"Retroid Pocket Flip2 Visionox") booted=rpflip2 ;;
 esac
 [ "$want" = "$booted" ] && exit 0             # correct dtb already
 
