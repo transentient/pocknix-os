@@ -18,6 +18,7 @@ model="$(cat /proc/device-tree/model 2>/dev/null | tr -d '\0')"
 vb=/dev/disk/by-partlabel/vbmeta_system_a
 [ -e "$vb" ] || exit 0                       # no Android alongside: nothing to detect from
 mountpoint -q "$FLASH" || exit 0
+[ -f "$GRUBENV" ] || exit 0                    # qcom-abl card (no GRUB): the ABL menu picks the dtb; never create /flash/boot (the ABL scans \boot\grub\*.dtb first)
 
 content="$(tr -cd '[:print:]' < "$vb" 2>/dev/null)"
 want=""
