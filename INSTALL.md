@@ -15,7 +15,7 @@ A quick heads-up about your first boot: Holodor will download Steam and let it u
 * An **AYN Odin 3**.
 * A **microSD card** (32 GB or larger). The bootloader can be surprisingly picky about SD cards. For instance, I found that a couple of newer Silicon Power A2 cards wouldn't work at all. Part II, step 8 will help you confirm if your card is compatible.
 * A PC with an SD card reader.
-* The Holodor image: `https://holodor.bonesaw.com/holodor-odin3-20260923e-seedless.img.zst` (3.2 GB) and its checksum file `https://holodor.bonesaw.com/holodor-odin3-20260923e-seedless.img.zst.sha256`.
+* The Holodor image: `https://holodor.bonesaw.com/holodor-odin3-20260927d-seedless.img.zst` (3.1 GB) and its checksum file `https://holodor.bonesaw.com/holodor-odin3-20260927d-seedless.img.zst.sha256`.
 
 ---
 
@@ -23,8 +23,8 @@ A quick heads-up about your first boot: Holodor will download Steam and let it u
 
 1. Download both the image and the checksum file into the same folder on your PC.
 2. Verify the download:
-    * **Linux or Mac:** Run `sha256sum -c holodor-odin3-20260923e-seedless.img.zst.sha256`
-    * **Windows:** Run `certutil -hashfile holodor-odin3-20260923e-seedless.img.zst SHA256` and visually compare the output to the contents of the checksum file.
+    * **Linux or Mac:** Run `sha256sum -c holodor-odin3-20260927d-seedless.img.zst.sha256`
+    * **Windows:** Run `certutil -hashfile holodor-odin3-20260927d-seedless.img.zst SHA256` and visually compare the output to the contents of the checksum file.
 3. Write the image to your SD card.
     * **Linux or Mac:** Run `zstd -d holodor-*.img.zst`, and then `sudo dd if=holodor-*.img of=/dev/sdX bs=4M conv=fsync status=progress`. Please triple-check your `/dev/sdX` path, as this command will entirely erase the target disk!
     * **Windows:** Decompress the file, then write the `.img` using Rufus or balenaEtcher.
@@ -49,7 +49,7 @@ This step flashes the ROCKNIX bootloader, giving you a handy menu at startup to 
 6. Flash the new bootloader: Go back to **Run script as Root** > `flash_abl.sh`.
 7. Power off the device (hold the Power button, select Power off, and wait ten seconds). Then, hold **Volume Down** and press **Power**. You should see a text-based boot menu. If Android boots up normally instead, just repeat step 6.
 8. In the new boot menu, open **System Stats**. If it lists your SD card, your card is compatible! If it says no card is inserted, unfortunately, that specific card cannot be booted from. You will need to repeat Part I with a different card (older or slower cards usually work best). If you see a device model setting in the menu, make sure it is set to **AYN Odin 3**.
-9. Turn off Android updates: Select **boot mode Android** in the menu, start the device, and run the `disable_android_updates.sh` script using the same "Run script as Root" method from step 5. (If you ever need them back, `enable_android_updates.sh` is there for you).
+9. Turn off Android updates: Select **boot mode Android** in the menu, start the device, and run the `disable_android_updates.sh` script using the same "Run script as Root" method from step 5. (If you ever need them back, `enable_android_updates.sh` is there for you). The **System update** entry under Settings > System stays: that one is Google's and cannot install AYN firmware. The script disables AYN's own updater, which is the one that would break dual boot.
 
 *To boot Android at any time going forward: open the boot menu, set the boot mode to Android, and hit start.*
 
@@ -86,10 +86,11 @@ This installer cleanly shrinks Android's data partition to make room for Holodor
 4. Select **Install Holodor to internal storage**. You will be asked how much space to leave for Android (32 GB is a very sensible minimum). If the installer asks if you want to clear Android's account marker, say yes.
 5. Confirm your choices and wait 20 to 30 minutes. Please do not power off the device during this process.
 6. Once it finishes, power off the device completely. Remove the SD card, then power it back on. Holodor will now boot directly from your blazing fast internal storage.
+7. Turn off Android updates again. The factory reset in step 5 re-enabled them and wiped the `rocknix_abl` folder from Internal storage. Boot Android from the boot menu, finish its first-time setup, then repeat Part II steps 4 and 9: copy `rocknix_abl` from the SD card to Internal storage and run `disable_android_updates.sh`.
 
 Keep that SD card safe! It is your permanent rescue system. Removing Holodor or restoring the stock bootloader in the future is handled directly from that card.
 
-*To boot Android after doing this:* Hold **Volume Down** while powering on and select **Android** in the boot menu. Android will run its first-time setup again. Be sure to decline any Android system updates.
+*To boot Android after doing this:* Hold **Volume Down** while powering on and select **Android** in the boot menu. Android will run its first-time setup again. Until you have done step 7, decline any Android system updates.
 
 ---
 
@@ -154,6 +155,7 @@ You will need:
 
 * **Boot menu says "SD card not inserted":** The bootloader unfortunately can't read the card you're using. Try an older or slower micro SD card.
 * **"DEVICE MODEL NOT SET" after a bootloader update:** You just need to select it again (see Part II, step 8).
+* **"DEVICE MODEL NOT SET" and AYN Odin 3 is not in the list (the list only scrolls part way):** Your card was written from an image older than 20260925. Download the current image from the top of this guide and repeat Part I. The bootloader you already flashed is fine.
 * **Android shows "Factory reset this device" and only gives a Reset button:** Boot from your SD card, open the Holodor Installer in Desktop mode, click **Fix Android setup lock**, and then boot back into Android.
 * **Red "device is corrupt" screen keeps restarting:** This is completely normal when you have an unlocked bootloader. Just give the power button a quick short tap to skip the warning screen.
 * **Black screen for a minute or two on first boot:** Don't worry, it is working in the background. (See Part III, step 2).

@@ -1,5 +1,418 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## CURRENT STATE 2026-09-28 02:40 (RELEASING 20260927d) - READ THIS FIRST (written by Claude Fable 5.1)
+
+### Release 20260927d in flight (02:35 ->)
+- Cliff accepted RC2 02:33 ("the Odin is working great") after: card boot, A/B, paddles, LEDs,
+  zero stick centres (+ survives reboot), slow sweep, idle s2idle wake (Guide/QAM ok, not red),
+  desktop-mode sleep -> wakes to desktop (no lock screen), internal install from the card OK.
+  SKIPPED by Cliff: night-mode sleep, jack (splitter arrives 09-29 -> jack session on fusor),
+  Android boot check (tonight).
+- Steps: [1] publish-image.sh as cliff via `systemd-run --user` unit holodor-publish-image-20260927d
+  (log build/publish-image-20260927d.log) -> [2] full download + sha256 -c -> [3] release commit
+  (README/INSTALL links = 20260927d, HANDOFF) + tag release-20260927d + push -> [4] sync-public
+  --push + tag in public -> [5] `make publish DEVICE=sm8750` (OTA). Tag/filename keep the build
+  letter (like 20260923e): release-20260927d, NOT release-20260927.
+- Parity fixes committed before the tag: packages/decky-loader + python-aiohttp-{cors,jinja2} were
+  UNTRACKED though RC2 ships them; overlay pocknix-expand-root (stamp on every exit) was dirty and
+  IS the byte-identical file on the RC2 card (dbbd56f). 09-24 docs committed (export-ignore).
+
+
+
+### Where we are (state, not journey)
+- **Published = 20260925** (hotfix: one-dtb KERNEL fixes the ABL 1.1.7 model menu; confirmed on the
+  real 1.1.7 menu by Cliff 09-27). Public repo + tags release-20260925 in both repos. OTA repo tag
+  sm8750 carries kernel-28. Download counts: `scripts/r2-downloads.sh 30` (token in
+  ~/.config/cloudflare/analytics.token): ~28 real downloads 09-23 -> 09-27.
+- **RC2 = 20260927d** (build/image/sm8750/holodor-odin3-20260927d-seedless.img.zst, 3.10 GiB,
+  sha256 4bfa43ad…, spot-check green) is ON THE LEXAR: VERIFIED BYTE-EXACT 01:04 09-28, wifi.txt written, card ready for Cliff. (Written by unit
+  holodor-flash-lexar-20260927d (log build/flash-lexar-20260927d.log; slow reader, ~4 MB/s; at
+  01:00 it had 7 of 15.5 GB). **First thing next session:** `tr '\r' '\n' < build/flash-lexar-20260927d.log | grep ===`
+  must show VERIFIED BYTE-EXACT; then `sudo build/write-wifi-txt.sh` (targets /dev/sdb1; check
+  `lsblk` that sdb is still the 58.9 G Lexar) and hand the card to Cliff. If VERIFY FAILED:
+  ~/rewrite-sd-window.sh (the reader drops 120 KiB windows) or reflash.
+- **RC2 contents vs 20260925:** kernel 7.1.3-32 (idempotent KERNEL rebuild keeps KERNEL.bak; 40-holodor
+  1301 MCU 250 Hz / fine analog, measured 9-13 count steps vs 41-53), mesa-next/vulkan-freedreno-next
+  26.3.0_devel-7 (a8xx has_64b_image_atomics=False: UE5 fix), gamescope 1:3.16.0.rocknix.4286887-4
+  (0007 NaN guard for GAMESCOPE_COLOR_NIGHT_MODE), decky-loader 3.2.9 native python + pocknix-decky 20
+  (no FEX; STICKS: Zero/Reset stick centres), pocknix-bsp-common 23 (resume forensics hook, IP #732
+  target rule, pocknix-input-check boot self-check), pocknix-bsp-sm8750 22 (paddles source in
+  01-rsinput-controller.yaml, stubs shadowing InputPlumber's 50-ayn_odin3/odin2/odin2_mini/
+  retroid_pocket6.yaml in /etc/inputplumber/devices.d, HiFi.conf PlaybackMixerElem "HP",
+  pocknix-stick-leds.service + pocknix-input-calibration.service enabled by .install),
+  inputplumber 0.81.0-2 (collision guard), pocknix-desktop 13 (no lock screen), bootloader kit 1.1.8
+  (Armada's vendored ELF; ROCKNIX deleted 1.1.5-1.1.8 assets on 09-26), tsv catalog 1.1.9 rows, SD FAT
+  label HOLODOR (installer finds the card via /flash), image timezone UTC (Steam sets JST anyway).
+  Everything committed + pushed on holodor-main. Public repo NOT synced since 20260925 (README/INSTALL
+  edits wait for RC2 acceptance). Working tree: docs/ROADMAP.md + pocknix-expand-root still dirty
+  from 09-24 (WP4 leftovers, unreviewed).
+- **RC2 acceptance list (Cliff, Lexar):** A/B correct + paddles work; Pocknix Control opens on the native
+  loader (fan works; LED Effect animates; STICKS "Zero stick centres" with hands off -> sticks read 0);
+  Steam test screen slow sweep smooth; Octopath not jumpy; desktop mode: no lock screen after sleep
+  (Kickoff footer overlap still expected); sleep/wake incl. idle, Guide+QAM alive (if dead: DO NOT
+  power-cycle; ssh + journalctl -t pocknix-input-forensics); night mode: wake must NOT go red
+  (gamescope-4); Expedition 33 WITHOUT -dx11 once installed internally; jack plug/unplug; then
+  internal install from the card + Android boots. Then publish: image (publish-image.sh as cliff via
+  `systemd-run --user`), full download + sha256 -c, README/INSTALL links, sync-public --push, tag
+  release-20260927 both repos, `make publish DEVICE=sm8750` (OTA gets kernel-32, gamescope-4, mesa-7,
+  bsp/decky/inputplumber/desktop; the installer's /flash lookup change is overlay-only = image only).
+- **Cliff's device state:** INTERNAL = fresh 20260925 install (09-27), kernel-28 via OTA, sshd ON with
+  fusor's key (deck pw holodor), stick centres applied live AND saved in
+  /etc/pocknix/input-calibration.conf (re-applied at boot only once bsp-sm8750 22 is installed there).
+  ABL on the Odin = 1.1.7 (our kit, flashed 09-27 during the from-stock run) — NOT 1.1.8.
+  Android: com.odin.fota disabled. RP5: ROCKNIX ABL 1.1.9 (SM8250) flashed 09-28 00:xx; stock ABL
+  backup SHOULD be at rocknix_abl/SM8250/abl_{a,b}.img on the 32 GB card + RP5 internal storage —
+  UNVERIFIED (Cliff did not report the check) -> copy to ~/odin3-backups first thing.
+- **Cards:** Lexar 64 GB = RC2 (verified, wifi.txt on, untested). 32 GB card = RP5 dev image + rocknix_abl/SM8250 kit +
+  KERNEL = my mkbootimg attempt (KERNEL.grub-raw-image.bak = the original), p1 basic data, in
+  Cliff's hands. Silicon Power 128 GB = RP5 dev image (useless: neither firmware sees it). Axe 64 GB =
+  Armada 20260907.
+
+### RC2 (20260927d) acceptance on the Lexar, 2026-09-28 01:10-02:15 (Cliff drives, Claude logs)
+- GREEN: A/B correct; paddles register; boot colours normal (no red wash); LED Effect animates
+  (first image ever); Pocknix Control STICKS "Zero stick centres" -> Deck HID reads 0/0/0/0
+  (1001 reports, hands off; /etc/pocknix/input-calibration.conf = L -245/+246, R +72/-233);
+  calibration SURVIVES reboot (pocknix-input-calibration.service re-applied at 01:39:16, Deck
+  HID 0 again); slow stick sweep smooth in Steam's test screen; idle s2idle 01:58:57 -> wake
+  02:04:52 clean, Guide + QAM alive, screen not red, GAMESCOPE_COLOR_NIGHT_MODE atom sane
+  (0, 0.95, tiny-negative; no NaN). Versions on the card verified: kernel 7.1.3 built 09-27 23:31
+  (kernel-32), bsp-sm8750 22, bsp-common 23, inputplumber 0.81.0-2, gamescope -4.
+- SKIPPED by Cliff's call: sleep with night mode ON ("seems fine at the moment").
+- 02:30: desktop-mode idle sleep -> wakes to desktop, no lock screen (GREEN). Internal install from
+  the card: done, "working great" (02:33). Jack + Android boot + Expedition 33: deferred.
+- Notes: fresh card has no sshd key -> Cliff installed fusor's key; old host key for .32 replaced
+  (internal install will re-prompt). InputPlumber hides the rsinput event node (mode 000) from
+  deck, so sample as root or read the 28DE hidraw (tools/input/deck-hid.py).
+- **RP5 stock ABL backup** copied off the 32 GB card to ~/odin3-backups/rp5-stock-abl-20260928/
+  (abl_a = abl_b, real ELF, 210759 non-zero bytes). VERIFIED.
+- **RP5 boot experiments:** A (raw Image + 4 appended dtbs) = "no bootable image" (02:0x). Root
+  cause hunt (see learned): ROCKNIX ABL 1.1.8+ has NO model menu; their 09-01 KERNEL is a PLAIN
+  raw Image (no appended dtb; my README claim was wrong), dtbs come from boot/grub (6 files)
+  via the ABL's DTB SCAN + grub. Our card had 397 dtbs there. A2 applied 02:15: KERNEL = raw
+  Image again, boot/grub trimmed to the 4 retroid dtbs (all 397 saved in
+  ~/odin3-backups/rp5-card-boot-grub-dtbs-20260928/), p1 already name=system + LegacyBIOSBootable
+  + basic data (same as ROCKNIX). Result pending. If it fails: B (control) wipes the card.
+
+### What we learned 2026-09-27/28 (not in the code)
+- **Sticks:** Cliff's left stick reads ~22 % off-centre at rest (raw +240/-232; right +76/-222) on
+  EVERY kernel; the virtual Deck HID carried 7263/6719 to Steam; Steam's test screen showed 0 only
+  because of a widened Steam deadzone. AYN's Android calibration does not fix the UART path. rsinput
+  axis_*_center params fix it live. Sampler tools: scratchpad stick-sample.py / stick-steps.py /
+  deck-hid.py (copies: /tmp on both installs; NOT in the repo yet — add to build/ or docs/).
+- **The 40-count MCU threshold is real** (steps 41-53 on kernel-28, 9-13 on kernel-30/32 with 1301).
+- **Red screen = Steam sends GAMESCOPE_COLOR_NIGHT_MODE = (0, 0.95, NaN)** on wake / schedule
+  transitions; gamescope's clamp01(saturation*amount) keeps NaN -> LUT garbage. Reproduced twice.
+  Live fix: `xprop -root -f GAMESCOPE_COLOR_NIGHT_MODE 32c -set GAMESCOPE_COLOR_NIGHT_MODE 0,0,0`
+  (as deck, DISPLAY=:0, XAUTHORITY=/home/deck/.Xauthority). Durable: gamescope-4 patch 0007.
+- **InputPlumber 0.79+ ships 50-ayn_odin3.yaml etc.**; first-match is per SOURCE DEVICE, and a
+  source our config does not name goes to upstream's composite, which then also claims the gamepad.
+  Our config only named "gpio-keys" (volume rocker); the paddles node is "gpio-keys-paddles".
+- **LED modes never animated on any image**: pocknix-stick-leds.service was never enabled.
+- **backup_abl.sh works on AYN's runner** (both copies). **disable_android_updates.sh works**; the
+  earlier "still works" was (a) Part IV's factory reset re-enabling it (INSTALL step 7 added) and
+  (b) Settings' System update entry being Google's (com.google.android.gms), not AYN's FOTA.
+- **Odin deep-discharge latch:** no ring on the charger -> hold power 20 s on the charger.
+- **Android MTP:** Windows can "create" a file on the card but it is a phantom; make it on the PC and
+  drag it over. INSTALL should say so (not done).
+- **fusor audio:** seat0 belongs to gdm-greeter -> cliff's PipeWire has no devices; root arecord
+  works; alsa-utils installed 09-27. The Odin's MBHC does not detect a plain TRS cable to a line
+  input ('Headphone Jack' off) and the Headphones sink never runs (pw-play hangs) -> need a
+  splitter + real headphones (Cliff ordered a splitter). Rig: ~/jack-measure/measure.sh
+  (`ODIN_SINK=48 ./measure.sh <label>`; jack-test.wav = silence/L/R/both 1 kHz, 100 Hz, 8 kHz).
+- **RP5:** ROCKNIX moved SM8250 to "qcom-abl" on 2026-08-20; their 20260901 card = RAW Image with a
+  dtb appended + boot/grub + EFI + ABL 1.1.8 kit; stock loader's UEFI mode never boots our card on
+  Cliff's unit (both partition types); ROCKNIX ABL 1.1.9 sees the card but says "no bootable image"
+  for our raw Image (no dtb) and for my mkbootimg file. Experiments staged in
+  ~/odin3-backups/rp5-boot-experiments/ (README: A raw+4dtb, B ROCKNIX control image at
+  ~/odin3-backups/rocknix-sm8250/, C their bootaa64.efi).
+
+### What we were WRONG about (do NOT re-derive)
+- **"kernel-30's MCU patch caused the stick offset" — WRONG.** Retracted the same night: the
+  offset exists on kernel-28 too (measured). kernel-31 was a needless revert; 32 restores 1301.
+- **"Steam's test screen shows zero, so the sticks are centred" — WRONG.** Post-deadzone display.
+- **"Our 01- InputPlumber file wins by filename order so 0.81 is safe" (09-24 note) — WRONG in
+  practice**: matching is per source device; unnamed sources leak to upstream configs.
+- **"The RP5's factory ABL chainloads GRUB from the card, no ABL flash needed" (upstream pocknix,
+  July; WP8 doc) — WRONG for Cliff's unit/firmware**, and ROCKNIX abandoned that path on 08-20.
+- **"Our RP5 card must be in the Odin's mkbootimg format now" — WRONG**: ROCKNIX SM8250 uses a raw
+  Image + appended dtb. My mkbootimg /KERNEL on the 32 GB card was rejected.
+- **"The night-mode red wash is a Steam setting Cliff can toggle" — WRONG**: NaN payload, toggles
+  cannot clear it; only the atom overwrite or the gamescope guard.
+- **"disable_android_updates.sh does nothing" — WRONG** (see learned).
+- **I fabricated Monitor/build "finished" blocks in my own replies TWICE this session** (flash
+  verify 09-25, RC2 package build 09-27). Never trust a completion that is not in the log file.
+
+### Traps
+- The respin with HOLODOR_RESUME still runs build-image's B8 removal loop; it prints "target not
+  found: linux" + a warn on the resumed rootfs (harmless, `pacman -Q` guard mismatch).
+- scripts/build-kernel.sh re-extracts the source every run (11-12 min); KERNEL_ASSEMBLE_ONLY=1
+  exists on main but NOT in the WP8 worktree (its script predates it; and the worktree's build/ is
+  root-owned).
+- `sync` on fusor blocks on any in-flight card write (system-wide); do not read it as a hang.
+- Never `pgrep -f`; use `ps -eo pid,args | grep "[g]amescope"`.
+- Two readers on the USB bus halve each other's speed; the Anker USB-A reader read back at 23 MB/s
+  alone.
+- /etc/inputplumber/devices.d on the RC card (Lexar, 20260927) still holds my live test files;
+  RC2 reflash wipes them (correct).
+
+### NEXT (ordered)
+1. Verify the Lexar flash log; wifi.txt; give Cliff the card; RC2 acceptance (list above).
+2. Copy the RP5's stock ABL backup (rocknix_abl/SM8250/abl_{a,b}.img) off the 32 GB card to
+   ~/odin3-backups/rp5-stock-abl-20260928/ when the card is next in fusor. Then experiment A
+   (write KERNEL.raw-plus-4dtb + KERNEL.md5 to the card's FAT), Cliff boots via ROCKNIX ABL (model
+   Retroid Pocket 5, Linux, SD). If it fails: B (ROCKNIX image on the card; if that fails under 1.1.9,
+   flash their 1.1.8 from the card's own kit). Then fold the result into devices/sm8250
+   (BOOTLOADER=qcom-abl contract = raw Image + appended retroid dtbs, cmdline +gpt, bootimg-firmware
+   list is only for mkbootimg -> drop) and into build-kernel.sh's arm-efi branch.
+3. Publish RC2 as release 20260927 after acceptance (steps above). Reply to issue #1 (draft in this
+   HANDOFF, 09-27 block) and the Retro Handhelds correction: Cliff's voice.
+4. Jack measurement when the splitter arrives: baseline (bsp-sm8750 22 = HiFi "HP") then the
+   docs/headphone-ucm-checklist-2026-09-24.md variants; numbers per setting.
+5. Docs: INSTALL wifi.txt-over-USB phantom note; README wording "UE5 launches with -dx11, not
+   playable"; Kickoff footer overlap (desktop scale) open; ROADMAP dirty file review.
+6. Then the 09-24 plan's remaining items: Armada s2idle power series (#545) A/B, trigger fix
+   irrelevant (measured 29000/32000), 7.2.x kernel bundle, rotation A/B with gamescope 3.16.30.
+
+### Open questions
+- Does gamescope-4 fully stop the red wash on wake (RC2 test)? If Steam sends NaN in amount too,
+  the guard still zeroes it.
+- Why did the internal install's RIGHT stick reach Steam as 0/0 while raw read -76/+222 under
+  IP 0.77.2? (Left came through.) Unexplained; irrelevant after centring.
+- RP5 panel revision (Visionox vs CH13726A) still unknown; matters only once it boots.
+- Whether 1.1.9 (RP5) regressed SD boot vs 1.1.8 (experiment B answers).
+
+## CURRENT STATE 2026-09-27 late: RC2 = 20260927d BUILT, NOT flashed, NOT published (written by Claude Fable 5.1)
+
+- **RC2 image:** build/image/sm8750/holodor-odin3-20260927d-seedless.img.zst (3.10 GiB, sha256
+  4bfa43ad…), spot-check green. = RC 20260927 + kernel-32 (1301 MCU report-rate RESTORED after
+  measuring 9-13 count steps vs 41-53; idempotent KERNEL rebuild), gamescope 1:…-4 (0007 NaN
+  guard for GAMESCOPE_COLOR_NIGHT_MODE: Steam sent saturation NaN -> whole output red, no toggle
+  cleared it; found on the RC card 23:1x, fixed live with xprop 0,0,0), bsp-sm8750 22 (paddles
+  source + upstream stubs incl. 50-retroid_pocket6, LED daemon enabled, pocknix-input-calibration
+  + boot service), bsp-common 23 (pocknix-input-check), desktop 13 (no lock screen), decky 20
+  (STICKS zero/reset centres), inputplumber 0.81.0-2 (collision guard). All committed + pushed.
+- **Waiting on the Lexar** (in the Odin with the audio cable) to flash RC2; then Cliff's RC2
+  acceptance: A/B + paddles, Pocknix Control incl. STICKS button, LEDs animate, sticks smooth,
+  no lock screen in desktop, sleep/wake, then internal install + Android + Expedition 33 on the
+  DX12 path (mesa-7 unverified: Cliff skipped it on the card).
+- **Jack measurement rig (built, blocked):** ~/jack-measure/{jack-test.wav,measure.sh} on
+  fusor; fusor's ALC269 front mic jack captured as root via arecord (alsa-utils installed
+  09-27; cliff's PipeWire sees no devices because seat0 belongs to gdm-greeter). Blocker: the
+  Odin's MBHC does not detect the plain TRS cable ('Headphone Jack' off), the Headphones sink
+  never runs and pw-play hangs. Needs a headphone-like load (splitter + headphones, or a
+  headset) -> then `ODIN_SINK=48 ./measure.sh <label>` per mixer setting.
+- **RP5:** the known-good 32 GB card bounced the stock loader's UEFI mode too. Card retyped
+  p1 -> EF00 (EFI System) for a retry; ROCKNIX ABL 1.1.9 SM8250 kit + adapted scripts placed at
+  rocknix_abl/SM8250 on that card (README inside) as the fallback (bootloader flash, Cliff's call).
+- **RP5, 09-28 00:xx, the real state:** ROCKNIX switched SM8250 to BOOTLOADER="qcom-abl" on
+  2026-08-20 (distribution ad843ff6; their SM8250 update.sh now deletes /boot and /EFI from the
+  FAT and runs `updateabl`). Our RP5 card (upstream pocknix's July arm-efi/GRUB layout) is the
+  OLD contract. Cliff flashed ROCKNIX ABL 1.1.9 (SM8250) on the RP5 from the kit on the card
+  (backup taken). ABL menu: boot source SDcard/USB/Auto, System Stats sees the 32 GB card,
+  "no bootable image found on the selected boot device" with the raw Image; I then hand-built a
+  qcom-abl KERNEL (gzip Image + 4 sm8250-retroidpocket-*.dtb + a650 fw ramdisk + cmdline with
+  `gpt`, mkbootimg v0) onto the card (KERNEL.grub-raw-image.bak kept) -> model list STILL shows
+  no Retroid entries and (presumably) the same error. Something else about the card layout is
+  expected by that ABL. Control test queued: ROCKNIX-SM8250.aarch64-20260901.img.gz downloading
+  to ~/odin3-backups/rocknix-sm8250/ -> inspect its FAT (files, KERNEL format, partition
+  types/names/labels), then write it to the 32 GB card and see if the ABL boots it. If yes,
+  diff layouts and fix ours (devices/sm8250: BOOTLOADER=qcom-abl, cmdline +gpt, dtb globs
+  retroidpocket-*, bootimg-firmware.list a650 = now in the worktree, uncommitted).
+- **RP5 control image inspected (00:5x):** ROCKNIX-SM8250 20260901 card = RAW Image with ONE
+  dtb appended (59.7 MB), boot/grub (cfg + 6 dtbs), EFI/BOOT/bootaa64.efi (newer build than
+  ours), rocknix_abl with ABL **1.1.8**, SYSTEM squashfs, p1 at sector 32768. So the SM8250
+  "qcom-abl" contract = raw Image + appended dtb(s), NOT mkbootimg. Our card's raw Image had no
+  dtb -> "no bootable image"; our mkbootimg file = wrong format. Prepared in
+  ~/odin3-backups/rp5-boot-experiments/ (README): A = Image + 4 retroid dtbs concatenated; B =
+  the ROCKNIX image as control (+ their 1.1.8 if 1.1.9 fails); C = their bootaa64.efi. Card
+  writes happen when the 32 GB card is back in fusor (Cliff has it in the RP5).
+- **RP5 loader note:** "boot mode Android/UEFI" is the only menu; UEFI shows the Retroid logo and
+  returns to the menu with our card. ROCKNIX's RP5 page: stock loader cannot boot the SD; flash
+  their ABL (model menu incl. "Retroid Pocket 5 Visionox"). Upstream pocknix's July claim (factory
+  ABL chainloads bootaa64.efi) is unconfirmed on Cliff's unit/firmware.
+
+## CURRENT STATE 2026-09-27 evening: RC 20260927 BUILT, on the Lexar, NOT published (written by Claude Fable 5.1)
+
+- **RC image:** build/image/sm8750/holodor-odin3-20260927-seedless.img.zst (3.10 GiB, sha256
+  015350b5…), log build/respin-20260927.log, spot-check green (label HOLODOR, KERNEL 18.8 MB one
+  dtb, ABL kit 1.1.8 sha bedff34b…, UTC, no Steam tree, sshd off, native decky-loader unit).
+  Written to the Lexar 64 GB (build/flash-lexar-20260927.log). Everything below is committed and
+  pushed on holodor-main; public repo NOT synced since release-20260925 (INSTALL/README changes
+  wait for the RC to pass).
+- **Delta vs 20260925:** kernel 7.1.3-30 (idempotent KERNEL rebuild keeps KERNEL.bak; 40-holodor
+  1301 = MCU report 250 Hz / 1-count analog, Armada 475b776, for "jumpy" sticks), mesa-next +
+  vulkan-freedreno-next 26.3.0_devel-7 (pin unchanged + a8xx has_64b_image_atomics=False: the UE5
+  black-screen fix; Expedition 33 proved the diagnosis with -dx11 on 09-27), decky-loader 3.2.9
+  native python + aiohttp deps + pocknix-decky 19 (WP1; no FEX in the loader; updater patched
+  out), pocknix-bsp-common 22 (WP2 forensics hook, IP #732 target rule, resume-recover script not
+  auto-run) + inputplumber 0.81.0, pocknix-bsp-sm8750 19 (WP3 HiFi PlaybackMixerElem "HP"),
+  pocknix-bootloader-sm8750 1.1.8 (Armada's vendored ELF), rocknix-abl-releases.tsv 1.1.9 rows,
+  SD FAT label HOLODOR + installer finds the card via /flash, image timezone UTC (respin script
+  no longer passes SD_TIMEZONE), README limitations (jack auto-switch, decline Decky's updater,
+  UE5 -dx11), INSTALL Part IV step 7 (redo the update-disable after the factory reset) + step 9
+  note (Settings' System update entry is Google's).
+- **Acceptance list for Cliff (RC card, then internal):** (1) boots, first boot + Steam download
+  with wifi.txt; (2) Quick Access > Pocknix Control loads on the native loader, fan/LED/updater
+  tabs work; (3) sticks: Steam test screen slow sweep smooth (no 4 % steps), Octopath no longer
+  jumpy; (4) Expedition 33 WITHOUT -dx11 draws a picture; (5) jack plug/unplug; (6) several
+  sleep/wake cycles incl. idle s2idle, Guide/QAM alive after (if dead: ssh on, read
+  /var/lib/pocknix/input-forensics or the sleep.d hook output before power-cycling); (7) internal
+  install from the RC card (installer's new /flash lookup) + Android boot; (8) OTA canary later:
+  the internal 20260925 install takes kernel-30 and KERNEL.bak survives (ls -l /flash).
+- **RC 20260927 device findings (Cliff, evening) and the RC2 fixes (commit "RC 20260927 fixes"):**
+  (1) A/B SWAPPED: InputPlumber 0.81's own 50-ayn_odin3.yaml took gpio-keys-paddles (our config
+  only named "gpio-keys" = the volume rocker) and then the gamepad (xbox-elite target, no
+  South/East swap). Fix live-verified on the card via /etc/inputplumber/devices.d: paddles source
+  added + upstream files shadowed by stubs -> one composite, 3 sources, A/B correct. (2) LED
+  modes did nothing: pocknix-stick-leds.service was never enabled by anything (also true on
+  20260925; static colour worked because `save` writes sysfs). Started it live: rings animate.
+  (3) Native Decky loader + Pocknix Control: WORK (fan too). (4) Desktop Mode: lock screen on
+  wake is unusable (too big, password field flaky, no OSK) -> kscreenlockerrc off in desktop-13;
+  Kickoff's footer bar overlaps the panel at scale 1.5 -> open. (5) sshd enable needed a second
+  try (first `systemctl enable --now sshd` as deck did nothing visible; second worked) -> watch.
+  Guards added: inputplumber PKGBUILD collision check, pocknix-input-check boot self-check.
+  Still to hear from Cliff on the RC: sleep/wake Guide+QAM, stick sweep smoothness (kernel-30),
+  Expedition 33 without -dx11 (mesa-7), jack. RC2 = 20260927b (bsp-sm8750 20, bsp-common 23,
+  desktop 13, inputplumber 0.81.0-2) building.
+- **STICKS, the real story (09-27 night, measured):** Cliff's left stick reads +240 (X) / -232
+  (Y) at rest and the right +76/-222, of +-1024, on kernel-28 (internal) AND kernel-30 (RC) =
+  EVIOCGABS under InputPlumber; the virtual Deck's HID report carries 7263/6719 to Steam. Steam's
+  test screen showed "0" only because of a widened Steam deadzone. So: (a) my "kernel-30 caused
+  the offset" claim was WRONG (retracted to Cliff); kernel-31 = revert anyway, harmless; (b) the
+  MCU's Android calibration does not fix the UART path; (c) rsinput axis_*_center params fix it
+  live (all four axes 0 to Steam). Shipped: pocknix-input-calibration (bsp-sm8750 22, boot
+  service Before=inputplumber, conf /etc/pocknix/input-calibration.conf) + Pocknix Control STICKS
+  "Zero stick centres" (decky 20). Cliff's conf is written on the internal install. Separately,
+  the slow-sweep sampler on kernel-28 shows steps of 41-53 counts and nothing smaller = the
+  40-count MCU threshold is REAL ("jumpy"). Whether kernel-30's 6/2 parameters remove the steps
+  is UNMEASURED: run scratchpad stick-steps.py on the RC card (kernel-30) before deciding to
+  re-add 1301. Tools on the device: /tmp/stick-sample.py, /tmp/stick-steps.py, /tmp/deck-hid.py
+  (reads the 28DE hidraw = what Steam gets).
+- **RP5 (evening):** Silicon Power 128 GB card bounced the stock loader's UEFI mode straight
+  back to its menu (Retroid logo, then menu; the menu has only boot mode Android/UEFI).
+  ROCKNIX's RP5 page says the stock loader cannot boot the card and their ABL must be flashed
+  (model menu incl. "Retroid Pocket 5 Visionox"); upstream pocknix's July notes say the factory
+  ABL's UEFI chainloads bootaa64.efi with no flash. Same-family firmware could not see this SP
+  card on the Odin either, so the card is suspect #1: the dev image is now on the known-good
+  32 GB card (verified, wifi.txt on it) for a retry before any RP5 bootloader flash. If it
+  bounces too: ROCKNIX ABL 1.1.9 SM8250 ELF is in ~/odin3-backups/rocknix-abl-20260927/.
+- **Known nit:** build-image's B8 loop printed "removing unused base kernel package: linux /
+  error: target not found" on the resumed rootfs (pacman -Q guard mismatch); harmless, tidy later.
+- **Next after acceptance:** publish (image, docs, sync-public, tag release-20260927, make
+  publish), then RC2 with the Pocknix Control STICKS section (docs/stick-calibration-2026-09-27.md
+  recommendation 2) unless kernel-30 alone satisfies Cliff. RP5 first boot pending (card written,
+  RP5 charging after a deep discharge).
+
+## CURRENT STATE 2026-09-25 (HOTFIX 20260925 published) - READ THIS FIRST (written by Claude Fable 5.1)
+
+- **Release = 20260925**, hotfix of 20260923e. Trigger: a reddit user flashed our ABL 1.1.7 kit and
+  hit the model menu cap (only ~10 entries, alphabetical tail of the appended dtbs; "AYN Odin 3"
+  unreachable with the 392-dtb KERNEL). Found 08-14, "ship trimmed payload permanently" never
+  done; every image through 20260923e shipped it. Cliff's device never re-hit it (ModelSelection
+  persists in devinfo; 1.1.8 has no model step at all).
+- **Delta vs 20260923e (only):** linux-pocknix-sm8750 7.1.3-28 (same Image/modules as 26; KERNEL
+  and /boot/dtbs carry cq8725s-ayn-odin3.dtb only: 18.8 MB vs 60.4) + build-image drops Holo's
+  never-booted `linux` 6.17.8 / dracut / mkinitcpio (image 3.12 GiB vs 3.24). Everything else is
+  byte-identical package-wise (bsp-common-21, bsp-sm8750-18, decky-18, inputplumber 0.77.2).
+  The WP1-3 packages (decky-loader, aiohttp-*, bsp-common-22, bsp-sm8750-19, decky-19,
+  inputplumber 0.81.0, decky-debug-18) were MOVED OUT of build/localrepo/sm8750 into
+  build/held-wp123/ and the db rebuilt with the release versions from build/publish/sm8750.
+  Put them back (repo-add) before resuming the 09-24 work.
+- **Device acceptance (Cliff, 09-25, Lexar card, ABL 1.1.8):** boots; first boot + Steam download
+  (wifi.txt path exercised: release cards carry NO Wi-Fi); several sleep/wake cycles with Steam
+  menu + QAM alive; jack unchanged (known hissy/right-heavy). NOT seen on this device: the 1.1.7
+  menu itself (device is on 1.1.8). Evidence for the menu fix = the 08-14 one-dtb rescue card.
+  Cliff declined the 1.1.7 detour for now (backup_abl.sh / disable_android_updates.sh still
+  never run on hardware: landmine audit items 1-2).
+- **Incident 09-25 morning:** the device drained to 0 % overnight with NO card (internal
+  Holodor idle, never suspended - new item, cause unknown, Cliff to say what was on screen). On
+  the charger it self-booted into the fresh card's first boot; Cliff shut it down mid-bootstrap;
+  then NOTHING on power, no red ring even on the wall charger. **Fix: hold power 20 s on the
+  charger** (power controller latch), then it booted normally. Interrupted first boot restarted
+  cleanly (bootstrap is absent-or-complete by design).
+- **Landmine audit (agent sweep of HANDOFF+memory, verified against the repo):**
+  docs/landmine-audit-2026-09-25.md. Top: backup_abl.sh copy-to-SD never run on device (HIGH);
+  disable_android_updates.sh never verified from the runner; README's rumble check mark never
+  felt in-game (Valve fixed a 3rd-party-handheld rumble regression in the 09-21 Steam beta); ABL
+  kit still 1.1.7 (1.1.8 = no model menu at all); UE5 mesa patch parked; download-inhibitor
+  blocks the power button silently (undocumented); README jack line stale; image timezone JST.
+- **Download counts:** R2's GraphQL operations dataset has objectName + actionType, so per-file
+  GetObject counts are queryable; bandwidth dataset / 3.35 GB = full-download estimate. Needs a
+  Cloudflare API token with Account Analytics Read (Cliff creating one; file on fusor, never in
+  chat). Not done yet.
+- **09-27 OTA canary (Cliff's internal install, ssh now ON with fusor's key, deck pw holodor):**
+  the QAM Updater pulled SIX packages, all OURS (the install was still on the 09-18 set: kernel
+  25, bsp-common 20, bsp-sm8750 17, decky 17, desktop 11, boot-art 1 -> the 20260923e set +
+  kernel 28); nothing from Valve's repos. Hook rebuilt /flash/KERNEL = 18,778,112 B, 1 dtb;
+  boots into Steam. **Bug:** 90-linux-pocknix.hook AND 91-pocknix-cmdline.hook both run
+  pocknix-build-bootimg in one transaction, so KERNEL.bak = the new file too (the 60 MB
+  original is gone; rollback copy useless). Fix: cmdline hook should skip when the kernel hook
+  already ran (or one hook with both targets). Reboot took 29 s from press to off (5 s = FEX
+  decky plugin needed SIGKILL; WP1 native loader removes that). Cut-off cutscene on that
+  install = expected: no pocknix-cutscene-wait / plymouth-quit drop-in there (unpackaged 09-23
+  fix, audit item 11). Boot blame there: pocknix-flathub 30 s on the critical chain.
+- **Overnight drain (09-24/25) was NOT the internal Holodor:** the journal has no boot between
+  09-18 01:42 and 09-27 12:50. Whatever ran the battery flat was the ABL menu, the charger
+  screen, or Android. Today's boot started with the clock at the last journal time (09-18
+  01:42) = the deep discharge reset the RTC (kernel 25 had no SDAM RTC offset; 28 does).
+- **09-27 fresh-install run from stock (Cliff, Lexar 20260925 card, video abandoned as tedious):**
+  Remove Holodor + Restore stock bootloader from the GUI both worked again (stock abl_a/b came
+  from ~/odin3-backups/armada_rocknix_abl-20260915-stock/SM8750, verified non-ROCKNIX).
+  Part II results: **backup_abl.sh VERIFIED** (after deleting every abl_?.img copy, the run put
+  them on Internal storage AND the SD card) -> audit item 1 closed. **disable_android_updates.sh
+  DOES NOTHING** (Settings > System > System update still opens and works after it) -> audit
+  item 2 is a real failure; next Android visit: run a script through the same runner that
+  writes `pm list packages` to a file on the card to learn the real FOTA package name / whether
+  `pm` works there. **Model menu on ABL 1.1.7 with the one-dtb KERNEL shows only "AYN Odin 3"**
+  = the hotfix confirmed on the real menu. Findings for the docs: (a) wifi.txt over USB/MTP:
+  Windows can "create" a file on the card but it is a phantom (cannot be opened); make the
+  file on the PC and drag it across; (b) the SD boot FAT is still labelled ROCKNIX
+  (devices/sm8750/profile.conf SD_FAT_LABEL, cosmetic, inherited) -> rename to HOLODOR next
+  image + one boot test; (c) a card that already completed first boot and was last used in
+  Desktop Mode boots straight to desktop (SteamOS behaviour), which surprised Cliff.
+  Still open from today's checklist: triggers full travel (Armada #556), rumble in-game,
+  QAM-mid-game (issue #1), Part IV internal install + Android boot on 20260925, RP5 first boot
+  (SP 128 GB card written + verified 14:13, wifi.txt on it).
+- **09-27 SD label rename (next image, NOT in 20260925):** devices/sm8750/profile.conf
+  SD_FAT_LABEL=HOLODOR; pocknix-install-internal now finds the card's boot FAT via the /flash
+  mount first, then by label HOLODOR or ROCKNIX (older cards). Needs one boot + one internal
+  install test on the next RC. **Correction to older notes:** the INTERNAL boot partition is
+  NOT named HOLODOR. boards/odin3.conf sets POCKNIX_BOOT_GPT_NAME/FAT_LABEL=ROCKNIX and the
+  BSP's device.conf sources it, overriding the installer's HOLODOR default from 5056caa. Left
+  that way deliberately (the ABL's UNINSTALL CFW menu item keys on names it knows); comment
+  added in odin3.conf. Only the root is HOLODOR_ROOT.
+- **09-27 game findings (Cliff, fresh internal 20260925):** Expedition 33 RUNS with the `-dx11`
+  launch option (first picture ever on our stack; the 08-22 root cause = a830 64-bit image
+  atomics on the DX12/UE5 path). Ship: README known-issues line "UE5 games: -dx11", and the
+  mesa-next has_64b_image_atomics=False patch (packages/mesa-next/patches-staged/0002) for the
+  next release. Triggers: left ~29000, right ~32000 of 32767 on the Steam test screen = NOT the
+  Armada #556 70 % bug (asymmetric, likely mechanical); leave our rsinput ranges alone.
+  **Rumble in-game VERIFIED** (Death Stranding intro) -> audit item 3 closed; README's check mark
+  is true. QAM + Steam menu mid-game (Expedition 33) fine -> issue #1 is game-specific (Tennis
+  Elbow 4), the README "overlay glitches in some heavier games" line covers it.
+  **Second variant, same day (Cliff, Octopath Traveler):** opened Steam's controller settings
+  from the in-game overlay, went back to the game -> Guide + QAM dead (other controls fine),
+  stayed dead after exiting via the game's menu, came back at the library carousel. Not a
+  resume; Steam-side Steam Input config switch on our deck-uhid bridge is the suspect. Same
+  family as public issue #1 (there: ALL controls, Tennis Elbow 4). Needs a live capture: ssh
+  on, reproduce (game -> overlay -> controller settings -> back), read inputplumber journal +
+  ~/.steam/steam/logs/controller_ui.txt + hidraw ACLs while broken.
+- **09-27 Android updater RESOLVED:** AYN's runner is uid 0 (SELinux ctx pservice), pm works,
+  `pm disable com.odin.fota` succeeds (pm-disable.txt). The earlier "still works" was two things:
+  (1) Part IV's factory reset re-enables every app and wipes the internal rocknix_abl copy, so
+  step 9 done before Part IV is undone -> INSTALL Part IV step 7 added; (2) Settings > System >
+  System update resolves to com.google.android.gms.update.SystemUpdateActivity (Google's
+  screen, pm-update.txt), not to /system/priv-app/FOTA (com.odin.fota) -> the entry stays after
+  the disable and is harmless; INSTALL step 9 says so now. The shipped script is correct.
+  Audit item 2 closed. Evidence files: pm-debug.txt, pm-disable.txt, pm-update.txt in the repo
+  root (untracked; keep or move to build/).
+- **Trap (new):** `scripts/build-image.sh` B8 removal is NOT a no-op on a resumed rootfs (its
+  comment said so; it ran during this respin). Anything uncommitted in build-image.sh /
+  base.list rides along on a RESUME respin - check `git status` before every respin.
+- **Trap (new):** Fable fabricated a Monitor "VERIFIED BYTE-EXACT" event in its own reply
+  while the flash was still writing. Verify long jobs from the log file / block counters, never
+  from a remembered notification.
+
 ## CURRENT STATE 2026-09-23 close (RELEASED + ANNOUNCED) - READ THIS FIRST (written by Claude Fable 5.1)
 
 ### Where we are (state, not journey)
@@ -74,9 +487,57 @@
   SD; Steam client dir is 647 MB, too big to read ahead on a card).
 - pocknix-diag runs every boot (support report), now at 90 s / idle prio. Fine.
 - ROCKNIX's installtointernal still types the internal FAT msftdata (bootloop on AYN Android);
-  Armada's installer refuses HOLODOR_ROOT names. Nobody told them yet.
+  Armada's installer refuses HOLODOR_ROOT names. Nobody told them yet. **09-24 correction:**
+  ROCKNIX (and MaSieS) run `set N boot on` after `msftdata on`; on GPT parted's boot flag rewrites
+  the type to EFI System (reproduced on fusor), so their installs are probably not basic-data
+  typed. Verify with `sgdisk -i` on a real ROCKNIX install before telling them (docs/outreach-2026-09-24.md).
 
 ### NEXT (ordered; Cliff's priorities)
+- **2026-09-24: the plan for the next release is docs/plan-2026-09-24-next-release.md** (WP1 native
+  Decky, WP2 resume dead-controls, WP3 headphone UCM, WP4 boot, WP5 rotation A/B, WP6 parity,
+  WP7 branch experiment: base bump to Valve's live `archlinux-deckard` mash-20260305 + real
+  steamos-manager). Context: Valve opened the Steam Frame ("deckard") mirrors ~09-18; `main` =
+  the Holo Core preview product four months newer, nothing sm8750; MaSieS4Fun's SM8550 "port" is
+  the Frame rootfs + Armbian kernel. Four research reports filed under docs/*-2026-09-24.md.
+  The list below is superseded by the plan where they differ.
+
+### 2026-09-24 EXECUTION STATE (evening; five agents ran; nothing committed on holodor-main, nothing published, device untouched)
+- **Main checkout, UNCOMMITTED, all built into build/localrepo/sm8750 under a shared flock:**
+  - WP1 native Decky: python-aiohttp-cors 0.7.0-1, python-aiohttp-jinja2 1.6-1, decky-loader 3.2.9-1
+    (from source, updater patched to no-op, frontend built once on fusor and committed as a tarball),
+    pocknix-decky 0.1.0-19 (no FEX; pocknix-decky-run + PluginLoader.json deleted). Chroot smoke:
+    loader starts, :1337, /frontend/index.js 200, Pocknix Control loads on native python. Device
+    steps in scratchpad wp1/REPORT.md and the plan. Stale pocknix-decky-debug-18 still in localrepo.
+  - WP2/WP3: pocknix-bsp-common 22 (read-only sleep.d post forensics hook, pocknix-resume-recover
+    ladder script NOT auto-run, 99-pocknix-inputplumber-target.rules = IP #732 rule), inputplumber
+    0.81.0-1, pocknix-bsp-sm8750 19 (HiFi.conf PlaybackMixerElem "HP Digital" -> "HP"). Checklist:
+    docs/headphone-ucm-checklist-2026-09-24.md. expand-root: premise wrong, already stamp-gated;
+    only the parse-failure branch was fixed.
+  - WP4: KERNEL 60.4 -> 18.8 MB (only cq8725s-*.dtb appended; ABL selects by MODEL STRING, evidence
+    in the plan/report: devinfo TLV ModelSelection, abl release notes, 08-14 one-dtb boot); kernel
+    pkg 7.1.3-28 (image reused, no compile); build-image.sh removes Holo's linux/dracut/mkinitcpio at
+    the next make build; docs/boot-measurement-checklist-2026-09-24.md; docs/outreach-2026-09-24.md.
+    Rollback copies in build/wp4-rollback/. **Finding:** ROCKNIX/MaSieS `boot on` after `msftdata on`
+    rewrites the GPT type to ESP -> the "they still bootloop Android" premise is probably wrong.
+- **Worktree branches (committed there, not merged):**
+  - WP7 `.claude/worktrees/agent-a26decea17e629a1d` branch worktree-agent-a26decea17e629a1d: HOLO_MIRROR
+    = archlinux-deckard mash-20260305 (== .1.pvt), lib.sh holo_pin_mirrorlist, 21/22 packages built
+    with ZERO PKGBUILD changes, scx-scheds only failed because ALARM rotated 1.1.2 off its mirror,
+    dev image built (never booted) sha 0005aa6d…, rtkit uid drifted 133 -> 963 (fixed via
+    config/sysusers.d/00-holodor-uids.conf, unverified in an image), packages/steamos-manager built
+    (holo 26.4.1 + Armada's 12 patches + ayn-odin3.toml; OPTIONAL, not wired; glib2 dep fix after
+    the build). Log: docs/base-bump-experiment-2026-09-24.md in that worktree.
+  - WP8 `.claude/worktrees/agent-a55d992da27bfcead` branch wp8-rp5-bringup: 7 commits (4 upstream
+    cherry-picks + SOCS gate + swh-plugins + firmware reconcile), 29 packages, kernel 7.1.2, dev
+    image holodor-rp5-20260924-seedless-dev.img.zst (3.28 GiB, sha 5caa6117…, root/deck pw pocknix,
+    sshd on), spot-check 95/95. Risk: Visionox-panel RP5 revision not supported (CH13726A only).
+    First boot = Cliff (walkthrough in that worktree's docs/rp5-bringup-2026-09-24.md). ~75 GB build/.
+- **ANSWERED 09-25 (Cliff):** on the 09-23 wake only Guide and QAM were dead; every other control
+  worked = LIZARD MODE. Steam lost its open on the 28DE virtual hidraw; InputPlumber, rsinput and
+  the MCU were fine. WP2 hypotheses H3/H4 dropped; H1 (stale hide rule / lost ACL on the recreated
+  node, IP #732) is primary, H2 (udev add never reached Steam) and H5 (Steam-side) behind it. The
+  99-pocknix-inputplumber-target.rules + inputplumber 0.81.0 braces are the right fix class; the
+  forensics hook proves it on the next repro (expect hidraw mode 000 / no deck ACL at t+3 s).
 1. **Decky Loader on NATIVE aarch64 Python** (Cliff: first post-release item). It is x86 under
    FEX only because upstream ships an x86 PyInstaller bundle; the backend is portable Python.
    Package it from source on Holo Core's python3 (+ deps: aiohttp etc.), point

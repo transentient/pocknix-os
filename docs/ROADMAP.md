@@ -186,7 +186,8 @@ these right after the release, in this order.
    Linux 7.2 bump was deliberately parked in August (HANDOFF, 08-28 sync notes). Take
    it as one cycle: kernel first, then Mesa, harness A/B before deploy, per the
    existing pin rules.
-3. **Dock to a TV.** External display over USB-C (Armada advertises external monitor
+3. **Dock to a TV** (2026-09-24: promoted to WP9 in docs/plan-2026-09-24-next-release.md;
+   Cliff: "make the docked-to-your-TV experience as good as possible"). External display over USB-C (Armada advertises external monitor
    output in Game Mode, so the kernel path exists upstream). USB host mode is proven on
    our side (the ethernet hub, 09-07). Open questions: DisplayPort alt mode on this
    kernel, gamescope output switching, audio over the dock.
