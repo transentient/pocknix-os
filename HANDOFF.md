@@ -8,6 +8,7 @@ The 09-28 02:40 block below it is the release-night record; everything from 09-2
 the consolidated state; the bullets are the evidence trail.
 
 ### Where we are (state, not journey)
+- (00:4x 09-30: GitHub Releases also created for 20260925 and 20260923e with minimal bodies so the landing page's "notes" links resolve.)
 - **Odin 3: release 20260927d is PUBLIC.** Image on R2 (sha 4bfa43ad…), verified by a full public
   download; dev tag + public tag release-20260927d; GitHub Release with the .sha256 asset and notes
   (docs/release-notes/20260927d.md); OTA repo published twice (release set, then bsp-sm8750 23).
