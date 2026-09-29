@@ -51,7 +51,7 @@ cat > "${OUT}" <<EOF
   body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
   h1 { font-size: 2rem; margin: 0 0 4px; } .sub { color: var(--muted); margin: 0 0 28px; }
-  .logo { display:block; width: 100%; height: auto; border-radius: 12px; image-rendering: pixelated; image-rendering: crisp-edges; margin: 0 0 18px; background:#000; }
+  .logo { display:block; width: 320px; max-width: 60%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; margin: 0 0 18px; }
   .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 20px 16px; margin-bottom: 24px; }
   .btn { display:inline-block; background: var(--accent); color:#fff; text-decoration:none; font-weight:600; padding: 14px 22px; border-radius: 10px; font-size: 1.1rem; }
@@ -65,7 +65,7 @@ cat > "${OUT}" <<EOF
 </head>
 <body>
 <main>
-  <img class="logo" src="${BASE}/holodor-title.png" width="1920" height="1080" alt="Holodor">
+  <img class="logo" src="${BASE}/holodor-character.png" width="64" height="64" alt="Holodor">
   <h1 class="visually-hidden">Holodor</h1>
   <p class="sub">A SteamOS Linux distro for the AYN Odin 3. Boots from an SD card next to Android.</p>
 
