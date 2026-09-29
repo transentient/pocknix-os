@@ -365,6 +365,12 @@
   silent below ~20 %, loud at 100). The "software volume = silence at 35 %" reading was taken while
   the loud chain sat at 45 % (MY wpctl set-volume hit "Speakers (Loud)" via grep "Speaker"). Live on
   the RP5 = bsp 20 state; Cliff's ear verdict at 50/100/20 pending. Never grep sinks by "Speaker".
+- **00:0x 09-30 RP5 speaker: OPEN = the slider curve.** Cliff: at PA 10 "50 a bit quiet, nothing below
+  ~25 %"; at PA 12 "100 a bit too loud". Cubic (pulse) curve: 25 % = -36 dB -> inaudible on these
+  small speakers, fine on the Odin's. Set PA 11 for now (bsp 20). NEXT: read PipeWire/WirePlumber
+  docs for a per-sink volume curve / range (NOT guess): candidates to check = pipewire-pulse
+  `pulse.properties`, spa alsa `api.alsa.*` volume range, WirePlumber `node.*` volume settings, or
+  a limited-range remapped digital control. Do not touch it live again without a documented knob.
 - Release-note trail: 1.1.7 "Menu: read only the appended DTB region", 1.1.8 "config: boot
   kernel" + "menu: allow grub selection" + no model menu; 1.1.9 "bootcfw: simplify".
 
