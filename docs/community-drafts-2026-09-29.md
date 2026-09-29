@@ -8,7 +8,7 @@ Post them only after editing. Neither belongs in INSTALL.md (steps only).
 Title: **Start here: download, install, known issues, where to ask**
 
 > **Download:** the current image and its checksum are at the top of the README and on
-> https://holodor.bonesaw.com/index.html . Every build also has a GitHub Release with the
+> https://holodor.bonesaw.com/ . Every build also has a GitHub Release with the
 > checksum attached: https://github.com/transentient/holodor/releases
 >
 > **Install:** INSTALL.md, top to bottom. Part I writes the SD card, Part II is a one-time
@@ -54,9 +54,9 @@ project's package repo; you don't reflash for updates.
 **What about the Retroid Pocket 5 / other devices?** RP5 support is in progress (it boots as of
 2026-09-29). Other Snapdragon handhelds are not supported yet.
 
-## 3. One-time Cloudflare step (Cliff)
+## 3. Cloudflare step — DONE 2026-09-29 via API (URL rewrite "/" -> "/index.html" in the http_request_transform ruleset)
 
 holodor.bonesaw.com/ (bare) returns 404 because the bucket doesn't serve index documents. In the
 Cloudflare dashboard for bonesaw.com: Rules → Redirect Rules → new rule: if URI Path equals `/`
-(hostname holodor.bonesaw.com), redirect to `https://holodor.bonesaw.com/index.html`, 302. Then
+(hostname holodor.bonesaw.com), redirect to `https://holodor.bonesaw.com/`, 302. Then
 the bare domain works as the download page.
