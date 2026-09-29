@@ -65,7 +65,7 @@ cat > "${OUT}" <<EOF
 </head>
 <body>
 <main>
-  <img class="logo" src="${BASE}/holodor-splash.png" width="1920" height="1080" alt="Holodor">
+  <img class="logo" src="${BASE}/holodor-title.png" width="1920" height="1080" alt="Holodor">
   <h1 class="visually-hidden">Holodor</h1>
   <p class="sub">A SteamOS Linux distro for the AYN Odin 3. Boots from an SD card next to Android.</p>
 
