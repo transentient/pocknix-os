@@ -2,7 +2,7 @@
 
 ## CURRENT STATE 2026-09-28 02:40 (RELEASING 20260927d) - READ THIS FIRST (written by Claude Fable 5.1)
 
-### Release 20260927d in flight (02:35 ->)
+### Release 20260927d DONE 02:50 (image on R2 + public download sha OK; commit 35737dd; tags release-20260927d in both repos; public main d40f69a; OTA sm8750 = 30 new packages)
 - Cliff accepted RC2 02:33 ("the Odin is working great") after: card boot, A/B, paddles, LEDs,
   zero stick centres (+ survives reboot), slow sweep, idle s2idle wake (Guide/QAM ok, not red),
   desktop-mode sleep -> wakes to desktop (no lock screen), internal install from the card OK.
@@ -92,6 +92,254 @@
   Image again, boot/grub trimmed to the 4 retroid dtbs (all 397 saved in
   ~/odin3-backups/rp5-card-boot-grub-dtbs-20260928/), p1 already name=system + LegacyBIOSBootable
   + basic data (same as ROCKNIX). Result pending. If it fails: B (control) wipes the card.
+
+### RP5 boot contract SETTLED 03:0x (Cliff: "look at how Armada and rocknix do it")
+- ABL 1.1.9 Verbose log on ROCKNIX's OWN 20260901 card: "found boot image at \KERNEL / invalid boot
+  image magic / no boot image via simplefs - choosing FAT / failed to load image not found". So
+  1.1.9 wants an ANDROID! boot image at \KERNEL; the 09-01 release (raw Image + grub) is
+  incompatible with its own current loader. All 4 of my raw-Image variants were doomed.
+- **Ground truth = ROCKNIX nightly-20260927 SM8250** (~/odin3-backups/rocknix-sm8250-nightly-20260927/):
+  p1 FAT holds ONLY KERNEL (+.md5), SYSTEM (+.md5), rocknix_abl/ (ELF sha e8ada32f = EXACTLY the
+  1.1.9 on Cliff's RP5). KERNEL = mkbootimg v0, page 2048, kernel blob = gzip Image + 9 dtbs
+  appended, ramdisk = 5-byte "dummy", cmdline "boot=LABEL=ROCKNIX disk=LABEL=STORAGE quiet rootwait
+  console=tty0 video=efifb:off gpt". No boot/grub, no EFI.
+- **Armada preview 20260927** (~/odin3-backups/armada-preview-20260927/, head.img = first 800 MB):
+  MBR table, p1 FAT bootable, ONE KERNEL for all SoCs = mkbootimg v0, gzip Image + 26 dtbs, 50 MB
+  initramfs, EFI folder renamed EFI.disabled, rocknix_abl/{SM8250,SM8550,SM8650,SM8750} kits.
+- Our KERNEL.bootimg-4dtb (built 00:27, NEVER tested) matches: gzip ends exactly at dtb #1, 4
+  retroid dtbs (flip2, rp5, rpmini, rpminiv2), a650 fw ramdisk, cmdline root=PARTUUID=…0002 … gpt.
+  DONE 04:08: dev image 20260924 on the card (verified), KERNEL = KERNEL.bootimg-4dtb (md5 OK, raw
+  kept as KERNEL.grub-raw-image.bak), EFI -> EFI.disabled, wifi.txt on. Handed to Cliff. Was: that file as /KERNEL +
+  md5. ONE swap. Then fold into devices/sm8250 (KERNEL via pocknix-build-bootimg like sm8750;
+  drop grub/EFI/397 dtbs from the FAT) and build-kernel.sh.
+- 04:1x: bootimg card -> ABL 1.1.9 accepted the image but "DEVICE MODEL NOT SET"; the menu's
+  "Set device model" list is CONSTANT since day 1 (no Retroid entries; contents not yet reported)
+  -> 1.1.9 strings: "Set Model: menu request but boot source is not USB - ignoring". Armada
+  (preview 20260927) ships ABL **1.1.8** for SM8250 (sha 76cee62a = ROCKNIX 09-01 kit) + mkbootimg
+  KERNEL, and its README's menu sequence = Set device model / boot mode Linux / Start. 11:01: put
+  Armada's kit on the card at rocknix_abl/SM8250 (+ README) — Cliff flashes 1.1.8 from Android,
+  then Set device model -> Retroid Pocket 5 -> Linux -> Start. Kit copy: ~/odin3-backups/
+  armada-abl-1.1.8-sm8250/. Stock ABL backup: ~/odin3-backups/rp5-stock-abl-20260928/.
+- **11:2x ROOT CAUSE of the model list (Cliff read it out at last):** "Qualcomm Technologies APQ8016
+  SBC / Schneider Electric HMIBSC / Square T2 Devkit / ..." = the ALPHABETICAL HEAD of our card's
+  boot/grub/*.dtb (apq8016-sbc, apq8016-schneider-hmibsc, apq8039-t2, ...). The ABL (1.1.8 AND
+  1.1.9) builds "Set device model" from \boot\grub\*.dtb when that dir exists, capped (~10), so the
+  4 sm8250-retroidpocket-*.dtb near the end never appear. ROCKNIX nightly / Armada cards have NO
+  boot/ dir. Fix: delete boot/ (+ EFI.disabled) from the FAT -> the scan falls back to the 4 dtbs
+  appended in KERNEL. Lesson: ask for the list CONTENTS before any experiment (I asked twice,
+  never insisted). Cliff now runs Armada's ABL 1.1.8 (flashed ~11:0x).
+- **Inquisitor report 11:4x (agent, disassembled 1.1.9 + 1.1.8 LinuxLoader.efi):** model scanner opens
+  \boot\grub first and feeds every .dtb to ModelImageCb; only if that dir is absent does it read
+  \KERNEL (then \boot\Image, \kernel.img, \boot.img) and scan the <=4 MiB tail of the kernel blob;
+  63-model cap; our Retroid dtbs were FAT-dir entries #308-311 -> predicted list = exactly what
+  Cliff read out. Boot gate: ModelSelection NV var empty -> "DEVICE MODEL NOT SET"; set -> the dtb's
+  /model must StrCmp-equal it. 1.1.8 has the identical branch (+ an \EFI\BOOT\BOOTAA64.EFI path).
+  Our KERNEL.bootimg-4dtb == nightly KERNEL structurally; it was right at 00:36. 7 process failures
+  listed (never got the menu contents; Verbose mode unused until swap 5; 09-01 "control"; 3
+  unverified claims written to memory; 14 GB rewrite restored the 397 dtbs; bootloader flashed to
+  fix a card problem). Artifacts: scratchpad abl/ll.ann, xrefs.txt, predicted-menu.txt, kcmp/.
+  11:3x: boot/ + EFI.disabled removed -> model list shows Retroid Pocket 5 -> selected -> Linux ->
+  START -> BLANK screen, RP5 not on LAN (.30 never appears). Our kernel has only the CH13726A panel
+  driver (CONFIG_DRM_PANEL_DDIC_CH13726A=y, no VTDR6130); ROCKNIX ships a separate "Retroid Pocket
+  5 Visionox" dtb (compatible vtdr6130,rp5) + patch 0105. Panel revision of Cliff's unit UNKNOWN.
+  12:4x CONTROL RESULT (ROCKNIX nightly on the Lexar): model "Retroid Pocket 5" -> stick LEDs green
+  (Linux up) but BLANK screen; model "Retroid Pocket 5 Visionox" -> BOOTS WITH DISPLAY.
+  **=> Cliff's RP5 panel = Visionox VTDR6130 (compatible "vtdr6130,rp5").** Our kernel has only
+  CH13726A. Fix: ROCKNIX SM8250 patch 0105 (visionox-vtdr6130 add sm8250) + CONFIG_DRM_PANEL_
+  VISIONOX_VTDR6130=y + the rp5-visionox dts, KERNEL = bootimg with rp5 + rp5-visionox dtbs.
+  ABL-menu recovery when a Linux boot goes blank: hold power until the stick LEDs die, card OUT,
+  power on -> "no card" error -> menu; insert the card only with the menu on screen.
+- **13:1x Visionox kernel built** (WP8 worktree, unit holodor-kernel-sm8250-visionox): added ROCKNIX
+  SM8250 patches 0104 (visionox-vtdr6130-cog driver) + 0105 (sm8250 hook), dts
+  sm8250-retroidpocket-rp5-visionox.dts, CONFIG_DRM_PANEL_VISIONOX_VTDR6130_COG=y (uncommitted in
+  the worktree). Both patches applied cleanly on 7.1.2. KERNEL.bootimg-rp5x2 = gzip Image + rp5 +
+  rp5-visionox dtbs (a650 ramdisk, same cmdline) -> on the 32 GB card as /KERNEL + panel-probe.sh
+  (Android root runner: dumps /proc/cmdline, getprop, dmesg panel lines, dt panel node to
+  panel-probe.txt on the card) + wifi.txt. Card FAT: KERNEL, KERNEL.md5, rocknix_abl/, wifi.txt,
+  panel-probe.sh only. EVIDENCE our kernel booted at 04:xx: p2 auto-expanded 12.8G -> 29.5G and
+  wifi.txt was consumed = pocknix first-boot services ran; only the panel was dark.
+  Panel facts: CH13726A = 1080x1920@60 only; Visionox VTDR6130 = 1080x1920@120+60 with DSC
+  (Cliff's unit). ROCKNIX added Visionox RP5 on 2026-09-10; our SM8250 stack was vendored 07-15.
+  Plan (Cliff's call): auto-pick the panel from Android's cmdline in the install script -> one-dtb
+  KERNEL -> ABL auto-selects the model (no menu); fallback = two-dtb menu like ROCKNIX/Armada.
+- **RP5 boots Holodor (Visionox) 12:4x device-clock / ~14:xx real:** logo -> Steam setup. No tone, "no
+  wireless networks", hub ethernet dead, A/B swapped. Card journal (journalctl -D p2) says why:
+  **"failed to validate module [snd_soc_lpass_*] BTF: -22"** = EVERY module (ath11k, r8152, snd)
+  rejected: the rootfs carried the 09-24 module set while /KERNEL was today's rebuilt Image (Cliff
+  called this; I wrongly dismissed it on the strength of the same release string). Plus:
+  CONFIG_FW_LOADER_COMPRESS unset in BOTH sm8250 and sm8750 configs while the rootfs ships Arch's
+  *.zst firmware (ath11k QCA6390 blobs could never load; Odin's wifi works only because its blobs
+  arrive another way — CHECK). Plus: 4 exact-model gates in bsp-sm8250 (controller yaml x2,
+  device.conf, board-select) never fired on "Retroid Pocket 5 Visionox" -> raw gamepad to Steam.
+  Card fix-up (15:xx-): today's modroot rsynced over p2 /usr/lib/modules/7.1.2; deck
+  authorized_keys (fusor key; deck uid 1001) + deck password = holodor; sshd already enabled;
+  uncompressed ath11k/QCA6390 blobs added; bsp-sm8250 12 (Visionox gates) being built ->
+  installed into p2. Worktree wp8 commits: 5e71d9e (Visionox kernel + gates), FW_LOADER_COMPRESS.
+  No panel-probe.txt appeared on the card (Retroid runner wrote nowhere we can see; retry later).
+  NEXT: card back to RP5, START, hub ethernet -> ssh deck@<lan ip> -> finish over ssh; then fold
+  into the sm8250 build: qcom-abl KERNEL (bootimg, 2 rp5 dtbs), no boot/EFI on the FAT, kernel pkg
+  == running kernel, FW compression, Visionox gates; then a fresh image must boot first time.
+- **RP5 = WORKING over ssh (session 2, ~14:xx-15:xx real):** deck@192.168.1.47 (hub) / .68 (wifi),
+  root via systemd-run --wait --pipe. Fixed live: speaker sink volume was 0.00 at boot (wpctl
+  set-volume 58 1.0 -> sound OK; root cause still open: heal plants PA gains 12 but WirePlumber's
+  route volume read 0 — check whether it survives a reboot; candidate fix = UCM-side default or a
+  wireplumber rule); A/B: our rp5-gamepad.yaml passed South/East straight -> swapped (live + bsp 13
+  commit 0992ce5 in the wp8 worktree); zst firmware decompressed in place (a650_zap, adsp, cdsp).
+  Facts: InputPlumber matches our 01-retroid-controller.yaml on "Retroid Pocket 5 Visionox" (bsp 12);
+  GPU = Turnip Adreno 650, GMU fw v2.1.8 loaded (a650 sqe/gmu come uncompressed from our bootimg
+  ramdisk), devfreq 305-800 MHz; panel 1080x1920@120; "slow" = the SanDisk SU32G reads 23 MB/s
+  (rootfs + Steam on it) -> internal install is the cure, not software. slpi.mbn missing (sensors).
+  soundwire "din-ports mismatch" warnings (dtsi vs controller; ROCKNIX's common.dtsi differs by 88
+  lines — check theirs). Steam setup reached; Cliff confirms buttons + sound good 15:0x.
+  NEXT (fold-in, wp8 worktree): devices/sm8250 -> qcom-abl contract (KERNEL = bootimg gzip Image +
+  the 6 retroid dtbs incl. both Visionox, a650 ramdisk, cmdline; FAT = KERNEL + md5 + rocknix_abl
+  + wifi.txt, NO boot/ NO EFI/), kernel pkg rebuilt with FW_LOADER_COMPRESS (modules == Image),
+  bsp 13, speaker-volume boot fix -> fresh image -> ONE boot test. Panel auto-detect from Android
+  cmdline still unverified (Retroid's runner wrote no file we could find).
+- **Fold-in committed in the wp8 worktree (branch wp8-rp5-bringup, merged holodor-main 3cffa28;
+  commit bdaad8b):** sm8250 profile BOOTLOADER=qcom-abl + label HOLODOR; build-kernel
+  BOOTIMG_DTB_GLOBS sm8250 = sm8250-retroidpocket-*.dtb; linux-pocknix-sm8250 3 (board dtbs only,
+  mkbootimg + pocknix-build-bootimg hook, no GRUB update-boot); pocknix-bootloader-sm8250 1.1.9-1
+  (ABL ELF + ROCKNIX scripts at /usr/share/bootloader/rocknix_abl, GRUB payload removed);
+  bsp-sm8250 14 (kernel-cmdline + 91 hook, 52-pocknix-default-volume.conf WirePlumber
+  default-sink-volume 1.0, board-select exits without grubenv); build-sd-image dies without the
+  kit on sm8250. Kernel v2 build (FW_LOADER_COMPRESS) running: unit holodor-kernel-sm8250-v2 —
+  NOTE it started before the glob edit, so after it finishes run KERNEL_ASSEMBLE_ONLY=1 make kernel
+  (DEVICE=sm8250) to get the 6-dtb KERNEL. Then: build-packages.sh linux-pocknix-sm8250
+  pocknix-bsp-sm8250 pocknix-bootloader-sm8250 -> make build -> build-sd-image -> card -> ONE
+  boot test (loader model already stored: Retroid Pocket 5 Visionox).
+- **01:55 09-29: NEW RP5 IMAGE BUILT** — wp8 worktree build/image/sm8250/pocknix-sm8250-sd.img (17.5 GB
+  raw; p1 = KERNEL (ANDROID!, 5 retroid dtbs incl. rp5-visionox) + md5 + rocknix_abl (1.1.9), p2 =
+  kernel 7.1.2-3 / bsp 14 / bootloader 1.1.9, sshd enabled, no key baked). Writer armed:
+  build/flash-lexar-rp5-v2.sh fires (unit holodor-flash-lexar-rp5-v2) when the 64 GB Lexar shows up
+  in fusor's reader; after verify it injects fusor's key + deck pw + wifi.txt. Then ONE trip: Lexar
+  into the RP5 (model already stored = Retroid Pocket 5 Visionox), START -> should reach Steam with
+  A/B, sound (default route volume 1.0), wifi, 120 Hz. The 32 GB card = the hand-patched working
+  fallback. Rootfs build note: xemu-bin failed prepare(); several emulator -bin packages had no
+  artifact (armsx2 azahar dolphin eden es-de rpcs3 vita3k) — the image built anyway (they are not
+  in the sm8250 set?) — check.
+- **Jack rig 01:3x:** Odin awake (internal RC2, bsp 22, inhibitor held), splitter + headphones + cable to
+  fusor FRONT mic: SW_HEADPHONE_INSERT stayed 0 (MBHC did not detect) and fusor's capture is pinned
+  full-scale (~340-500 Hz, peak 32767) even with the Odin idle and even at Boost 0 / Capture 40% —
+  the 1 kHz test tone never appears. Next: splitter out of the Odin (cable still in fusor) ->
+  record 3 s; headphones straight into the Odin -> read the switch. rec-baseline-bsp22.wav = junk.
+- **02:2x 09-29 ODIN JACK CRACKED (not a cable, not gain):** with headphones plugged (SW_HEADPHONE_INSERT 1)
+  pw-play to the Headphones sink hangs: pcm1 (MultiMedia2) state RUNNING since boot+144 s, hw_ptr
+  frozen; DAPM: MultiMedia2 Playback in 1 out 0, RX_CODEC_DMA_RX_0 Audio Mixer Off in 0 although
+  the route control reads on. With user pipewire/wireplumber STOPPED, `aplay -D hw:0,1` plays at
+  48 kHz (Cliff heard L then R); after restarting WirePlumber with the jack in, PipeWire plays too.
+  Root cause = OUR 50-no-sink-suspend.conf (suspend-timeout 0 for every alsa_output.*): the
+  Headphones PCM opened at boot with nothing plugged and the DSP route off, and could never
+  close/reopen. Fix: bsp-sm8750 23 (commit 0d25e67, main) matches the Speaker sink only; live on
+  Cliff's Odin as ~deck/.config/wireplumber/wireplumber.conf.d/51-holodor-hp-suspend.conf.
+  Still to verify: cold boot -> plug -> play (the real failure path), and the Headphones route
+  volume reading 0.00 after a WirePlumber restart (same never-seen-route zero as the RP5 — the
+  52-pocknix-default-volume.conf idea applies to sm8750 too). Ear tests at 30 % (pw-play --volume).
+  fusor capture on the front mic jack is unusable for the rig (broadband ~-23 dBFS at min gain with
+  the Odin idle; mic bias vs the amp?) — measure by ear or find a line-in.
+- **02:5x jack, continued:** (1) plug -> tones at 30 % heard L then R = the pinned-open fix works on the
+  replug path (bsp-sm8750 23: Speaker-only no-suspend). (2) "faint pulsing beat" ~1.2 s regular at
+  idle: gone while a 20 s silence stream plays -> a stopped-but-open HP PCM on a gated soundwire link
+  ticks; fix = Headphones sink node.always-process=true + pause-on-idle=false (+ no suspend) — live
+  (~deck/.config/wireplumber/.../51-holodor-hp-suspend.conf) and in bsp 23 (5d02fa7). Cliff: "the tick is
+  gone". (3) Both-channel segments are heard on ONE side, side depends on frequency = antiphase
+  crosstalk / shared return -> suspect the plug seating or the jack; kernel logged "cross connection
+  found, Plug type 4" at plug time but with no typec mux the driver flips nothing and finally
+  reports HEADPHONE. Next: reseat / other headphones, replay both-1k. (4) Hiss: slider 0.5 -> HPHL
+  register 1 (near-min PA) and Cliff heard MORE hiss than at 1.0 — the bogus HPH TLV mapping
+  (checklist WP3 step 2: fixed analog gain + software volume). (5) 52-pocknix-default-volume.conf
+  added to bsp-sm8750 23 (ccdd431): HP route came up 0.00 after a WirePlumber restart. Armada's Odin
+  3 jack does not work either (Cliff) -> share (1)+(2) with them once cold-boot verified.
+- **03:0x jack rig verdict:** fusor's FRONT jack is a headset combo = MONO mic input with bias:
+  identical L/R in every capture, a constant ~-22 dBFS junk floor at 0 % gain (peak fixed 4479),
+  saturated at 40 %, the Odin's 1 kHz only ~10-20 dB above the junk and only on one side; mic bias
+  off (hda-verb pins 0x18/0x19 -> 0x20, alsa-tools installed) changed nothing. => the splitter
+  method needs a STEREO LINE input (USB audio capture dongle); fusor cannot measure the Odin's
+  jack. matrix.sh (~/jack-measure) is ready for such a device: 4 slider steps x 6 segments +
+  idle-tick capture, no ears. Open by ear: both-channel segments land on one side (plug/jack
+  contact or codec?), hiss vs the bogus HPH TLV slider mapping (WP3 step 2).
+- **03:3x 09-29 discoverability (Cliff: "no build to test" feedback):** README got a Download block at the
+  top (link + direct URL + checksum + date), a latest-release badge, INSTALL got links at the download
+  step + .zst tool facts (7-Zip 24.01+/PeaZip; USBImager writes .img.zst) — public main 665fa1d+.
+  GitHub Release release-20260927d created (checksum asset, notes = docs/release-notes/20260927d.md).
+  Landing page live at https://holodor.bonesaw.com/index.html (scripts/publish-landing.sh; bare "/"
+  needs a Cloudflare redirect rule -> Cliff, see docs/community-drafts-2026-09-29.md §3).
+  scripts/publish-release.sh <build> [notes] = release + landing in one go (run after publish-image
+  and after pushing the tag to the public repo). Drafts for Cliff's voice: start-here pinned issue,
+  README FAQ (docs/community-drafts-2026-09-29.md, export-ignored). Discord: no (Opus review).
+  Lexar (new RP5 image) READY in fusor since 02:54 — awaiting the card trip.
+- **11:4x 09-29 RP5 FRESH IMAGE BOOTS (Lexar, no card patching):** screen, boot, A/B, wifi (.68), Steam
+  setup + login OK. Cliff's jank list: (a) no static boot logo -> sm8250 lacked the 40-holodor
+  0800/0801 logo patches + fbcon=logo-pos:center; added in the worktree (bsp 15), NOT built yet.
+  (b) UI lag + stuttery Steam-animation sound during setup/login: gamescope at 99 % of a core /
+  load 5.9 at 5 min uptime, 10 % / load 0.8 once setup finished -> first-boot load on a slow SD,
+  not a standing bug; re-check on the internal install. (c) Steam asks Built-in Audio vs
+  pocknix_speaker_loud: the loudness chain is a filter.smart inserted in front of the Speaker sink,
+  correct pick = Built-in Audio; hiding the filter node from clients is a small follow-up (my
+  priority.session tweak was pointless, reverted on device). (d) login slow = SD.
+  Odin bsp-sm8750 23 (jack fixes) is committed on main but NOT built/published; cold-boot verify
+  first, then `make packages PKG=pocknix-bsp-sm8750` + `make publish DEVICE=sm8750`.
+- **12:1x 09-29:** holodor.bonesaw.com/ (bare) now serves the landing page: Cloudflare URL-rewrite rule
+  created via API (token ~/.config/cloudflare/rules.token, zone id ~/.config/cloudflare/bonesaw.zoneid).
+  bsp-sm8750 23 BUILT and INSTALLED on Cliff's Odin (internal), live override removed -> needs a
+  cold boot + plug + play to verify, then `make publish DEVICE=sm8750` (OTA) on Cliff's go.
+  RP5 kernel v3 (boot logo) built in the worktree; bsp-sm8250 15 + image respin still to run.
+- **13:4x 09-29 RP5 black screen after idle = MY inhibitor:** Steam idled at 13:22 (logind IdleHint),
+  faded to black and called Suspend(); login1 answered BlockedByInhibitorLock (my sleep:idle block)
+  -> Steam stuck in its "asleep" black UI on a lit panel (Guide/QAM still drew). Not a display bug.
+  Inhibitor switched to --what=idle; recovery = power button (suspend) + power button (resume) =
+  the RP5's first s2idle test. Also: gamescope's log is /home/deck/pocknix-steam.log (root-readable
+  fds), the panel is DSI command mode (INTF_MODE_CMD) so it only repaints on new frames.
+- **14:2x 09-29 RP5 suspend FAILS: "vhci_hcd vhci_hcd.0: PM: failed to suspend: error -16".** USB/IP
+  (CONFIG_USBIP_CORE/VHCI_HCD=m) is enabled by build-kernel.sh's config deltas on BOTH SoCs; the
+  Odin has the module but never loads it; on the RP5 something attached a high-speed USB/IP device
+  at boot (11:42:27, sockfd 15, "usb 1-1") and its vhci_rx/tx threads also burned ~5 % CPU each.
+  /usr/bin/inputplumber contains vhci/usbip strings (suspect). modprobe -r vhci_hcd worked;
+  suspend retried 14:2x (device off the network = suspended?) -> Cliff wakes it. TODO: identify
+  the attacher from the boot journal's "usb 1-1: New USB device" lines; then blacklist vhci_hcd on
+  sm8250 (bsp modprobe.d) or drop the USBIP delta. NOTE: FW_LOADER_COMPRESS(+ZSTD) is ALSO in those
+  deltas -> my config edit was redundant; the dead wifi/audio on the first fresh boot was the BTF
+  module mismatch alone.
+- **14:3x ROOT CAUSE of the RP5 suspend blocker + vhci CPU: InputPlumber target "deck" = USB/IP-backed
+  virtual Steam Deck controller in 0.81** ("Ensuring vhci_hcd kernel module is loaded", serial
+  1NPU7PLUMB3R). The Odin config uses "deck-uhid" (uhid, no vhci). Fix = deck-uhid in both RP5
+  yamls: live on the device (inputplumber restarted) + bsp-sm8250 16 in the worktree. First RP5
+  s2idle: entry 14:14:18 -> exit 14:16:49 clean, wifi (ath11k) back, audio back, wake shows Steam.
+- **14:5x 09-29 RP5 state: GOOD on the live Lexar** (A/B, sound, wifi, 120 Hz, power-button
+  suspend/resume all pass after: bsp 12-16 gates/A-B/deck-uhid, module set, no vhci). Unattended
+  chain running: bsp-sm8250 16 -> make build (rootfs v3) -> make sd-image (v3: bsp 16 + logo kernel
+  7.1.2-3) -> build/flash-card-rp5-v3.sh fires when a 32 GB card or the Lexar appears in fusor
+  (verify + key + pw + wifi.txt). Then ONE boot: logo should show, no menu prompt for audio (still
+  expected: the smart-filter sink is listed — follow-up), suspend by button.
+  Odin: bsp-sm8750 23 installed, awaiting Cliff's cold boot + plug + play; then make publish.
+- **17:12 09-29: v3 RP5 image on the 32 GB card** (bsp 16 + logo kernel 7.1.2-3, sha 44303e6c…,
+  verified; key + pw + wifi.txt added). First writer run misfired (waited on Result of a not-yet-
+  existing unit -> wrote the old image during the build; stopped, rewritten cleanly). Awaiting ONE
+  boot: expect the static logo at boot, uhid controller (no vhci), suspend by button. Odin: put to
+  sleep at 14:24 after 11 h in Steam's denied-suspend black state (my sleep:idle inhibitor again;
+  now idle-only); awaiting Cliff's wake + cold-boot jack check.
+- **18:0x 09-29 RP5 v3 card boots clean:** static logo shows (slow first boot on the SanDisk = root
+  expand + Steam seed unpack), bsp 16 + kernel 7.1.2-3, no vhci, deck-uhid, model Visionox, root
+  28.8G, FAT = KERNEL + kit only. Steam first-run in progress; power-button sleep test pending ->
+  then merge wp8-rp5-bringup into holodor-main. Odin: bsp-sm8750 23 PUBLISHED (OTA, 2 new pkgs),
+  release notes/landing/public updated; jack verified from cold (tones, no tick); LEFT CHANNEL QUIET
+  vs right on the headphones (file + all L/R mixer pairs symmetric) -> analog/jack/headphones ->
+  UCA202 measurement (matrix.sh ready) or a different pair of headphones. Odin inhibitor now idle-only.
+- **RP5 follow-up (audio device prompt):** Steam lists both the raw Speaker sink and the
+  pocknix_speaker_loud smart-filter sink on first boot. module-protocol-pulse has no hide property;
+  leads = WirePlumber `filter.smart.targetable` (scripts/filters) and the software-DSP hook
+  (scripts/node/software-dsp.lua: `node.software-dsp.*` hides the raw ALSA node and exposes only the
+  DSP sink, Steam-Deck style) — check what it does to the Headphones route before adopting.
+  Correct pick meanwhile = Built-in Audio (filter inserted transparently; jack auto-switch kept).
+- **18:3x 09-29 RP5 MERGED into holodor-main (f7f6e05) and synced public.** Clean v3 card: logo, smooth
+  Steam animation/sound (no vhci threads), A/B, wifi, power-button suspend (entry "takes a little
+  while" — measure: NetworkManager/UPower delay inhibitors + Steam pre-suspend; not a blocker) and
+  instant resume. Open RP5 items: audio-device prompt (smart-filter sink visible), first-boot
+  slowness on slow cards (SD-bound), Flip2 Visionox dts not carried, internal install untested,
+  RP5 kernel 7.1.2 vs ROCKNIX 7.2 (sync later), soundwire din-ports warnings (their common.dtsi
+  differs). The 64 GB Lexar still holds the v2 hand-patched image; the 32 GB card = v3 (in the RP5).
+- Release-note trail: 1.1.7 "Menu: read only the appended DTB region", 1.1.8 "config: boot
+  kernel" + "menu: allow grub selection" + no model menu; 1.1.9 "bootcfw: simplify".
 
 ### What we learned 2026-09-27/28 (not in the code)
 - **Sticks:** Cliff's left stick reads ~22 % off-centre at rest (raw +240/-232; right +76/-222) on
