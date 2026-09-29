@@ -338,6 +338,12 @@
   slowness on slow cards (SD-bound), Flip2 Visionox dts not carried, internal install untested,
   RP5 kernel 7.1.2 vs ROCKNIX 7.2 (sync later), soundwire din-ports warnings (their common.dtsi
   differs). The 64 GB Lexar still holds the v2 hand-patched image; the 32 GB card = v3 (in the RP5).
+- **19:xx 09-29 RP5 INTERNAL INSTALL DONE** (userdata 1 GiB, #24 FAT ROCKNIX 512 MiB esp, #25 POCKNIX_ROOT
+  111 GiB; frp cleared; stock ABL backup kept at /var/lib/holodor/abl-backup + on the card). First
+  run died: boards/rp5.conf POCKNIX_BOOT_STYLE=arm-efi -> installer looked for EFI/BOOT on the SD;
+  fixed live + bsp-sm8250 17 (249a378, main + public) + installer GUI folds long messages (the
+  error text was cut off again). Re-run with --replace --yes succeeded. NEXT for Cliff: power off,
+  pull the SD, ABL menu -> boot source Internal (or Auto), START. Then verify over ssh (root = sda25).
 - Release-note trail: 1.1.7 "Menu: read only the appended DTB region", 1.1.8 "config: boot
   kernel" + "menu: allow grub selection" + no model menu; 1.1.9 "bootcfw: simplify".
 
