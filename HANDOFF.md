@@ -359,6 +359,12 @@
   volume; heal keeps the fixed analog gain. Verify after a reboot: slider == loudness from first sound.
   Steam's post-boot CPU burst settles in ~4 min (steamwebhelper 95 % -> 1.5 %). ABL was NOT in
   Verbose; 3 s pre-kernel is the floor.
+- **23:xx 09-29 RP5 SPEAKER VOLUME, settled design = the Odin model (bsp 20, 21511b0->this):** Speaker sink
+  software volume, heal plants WSA digital 124 + PA 10 (12 = a bit loud at 100 %), pocknix_speaker_loud
+  at unity. Wrong turns: slider->PA (0..+18 dB: too loud everywhere), slider->WSA digital (-84..+40:
+  silent below ~20 %, loud at 100). The "software volume = silence at 35 %" reading was taken while
+  the loud chain sat at 45 % (MY wpctl set-volume hit "Speakers (Loud)" via grep "Speaker"). Live on
+  the RP5 = bsp 20 state; Cliff's ear verdict at 50/100/20 pending. Never grep sinks by "Speaker".
 - Release-note trail: 1.1.7 "Menu: read only the appended DTB region", 1.1.8 "config: boot
   kernel" + "menu: allow grub selection" + no model menu; 1.1.9 "bootcfw: simplify".
 

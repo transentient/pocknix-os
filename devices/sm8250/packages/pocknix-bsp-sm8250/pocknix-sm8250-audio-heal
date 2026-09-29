@@ -29,8 +29,8 @@ apply_gains() {
   # speakers: WSA path
   set_c "WSA_RX0 Digital Volume" 124
   set_c "WSA_RX1 Digital Volume" 124
-  set_c "SpkrLeft PA Volume" 10     # bsp 20: 12 was "a bit too loud" at 100 % on Cliff's RP5 (Visionox)
-  set_c "SpkrRight PA Volume" 10
+  set_c "SpkrLeft PA Volume" 11     # bsp 20: 12 "a bit too loud" at 100 %, 10 "50 a bit quiet" (Cliff, RP5 Visionox)
+  set_c "SpkrRight PA Volume" 11
   set_c "SpkrLeft Smart Boost Level" "8.500 V"
   set_c "SpkrRight Smart Boost Level" "8.500 V"
   # headphones: wcd938x analog + rx-macro digital
