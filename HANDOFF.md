@@ -131,6 +131,12 @@ the consolidated state; the bullets are the evidence trail.
   publish-image.sh and after pushing the tag to the public repo.
 
 ### NEXT (ordered)
+0. **Instrumented audio, both devices (Cliff, 09-30):** UCA202 arrives 09-30. Odin jack first (splitter
+   leg -> 3.5 mm-to-RCA -> UCA202 line-in; ~/jack-measure/matrix.sh pointed at the new ALSA card).
+   Then Cliff's Rode mic -> UCA202 for the RP5 SPEAKERS: write a speaker variant of matrix.sh (slider
+   sweep 10/25/50/75/100 %, tones L/R/both, idle-tick capture, mic at a fixed position, quiet room;
+   mic-level into line-in reads low but relative dB is what matters; XLR Rodes need a preamp). Cliff's
+   intent: no more "check this a thousand times" — numbers first, one ear test last.
 1. **RP5 speaker slider curve** (Cliff's spec: 0 = mute, 100 = a chosen ceiling, an EVEN PERCEIVED ramp
    between, 10 % still audible). Read the PipeWire (spa alsa mixer, pipewire-pulse) and WirePlumber
    docs FIRST; candidate = map the slider onto the WSA digital control through a BOUNDED window
