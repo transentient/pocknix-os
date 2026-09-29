@@ -344,6 +344,21 @@
   fixed live + bsp-sm8250 17 (249a378, main + public) + installer GUI folds long messages (the
   error text was cut off again). Re-run with --replace --yes succeeded. NEXT for Cliff: power off,
   pull the SD, ABL menu -> boot source Internal (or Auto), START. Then verify over ssh (root = sda25).
+- **22:1x 09-29 RP5 boots from INTERNAL (root sda25, /flash sda24, no SD).** Boot timeline (kernel
+  start = 0): logo 3.1 s, autologin 6.4 s, cutscene done / plymouth quit 13.1 s, gamescope 13.5 s,
+  steam 14.5 s, controller configs 17-25 s. Cliff's stopwatch: 6 s power->logo (ABL ~3 s, Verbose
+  mode ON — switch to Normal), 31 s power->Steam logo => Steam takes ~14 s from its process start.
+  At rest after boot: gamescope-wl ~10 %, steamwebhelper 95 %+65 % (CEF busy; re-sample later).
+  Not on Steam's path but noisy: pocknix-flathub 30 s (network fetch every boot; add a skip-when-
+  registered condition), pocknix-diag (sleep 90 + dump, idle class), pocknix-input-check (sleep 20).
+  Levers: ABL Normal; optionally shorten the 7 s cutscene hold; UI refresh cap (120 Hz CEF cost?).
+- **22:4x 09-29 RP5 speaker volume mismatch (too loud at boot, slider ~50):** pocknix-sm8250-audio-heal
+  plants SpkrLeft/Right PA Volume 12/12 AFTER WirePlumber mapped the slider onto that same control
+  (route read back 100 %); and the mapping itself is broken (slider 0.5 -> PA 0/12). Fix (bsp-sm8250
+  18, 5ad079a, live on the RP5): HiFi-RP.conf Speaker device without PlaybackMixerElem -> software
+  volume; heal keeps the fixed analog gain. Verify after a reboot: slider == loudness from first sound.
+  Steam's post-boot CPU burst settles in ~4 min (steamwebhelper 95 % -> 1.5 %). ABL was NOT in
+  Verbose; 3 s pre-kernel is the floor.
 - Release-note trail: 1.1.7 "Menu: read only the appended DTB region", 1.1.8 "config: boot
   kernel" + "menu: allow grub selection" + no model menu; 1.1.9 "bootcfw: simplify".
 
