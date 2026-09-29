@@ -146,9 +146,14 @@ the consolidated state; the bullets are the evidence trail.
 4. RP5 follow-ups: hide the smart-filter sink from Steam's device list; carry the Flip2-Visionox dts;
    sync the RP5 kernel toward ROCKNIX 7.2 + their common.dtsi (soundwire din-ports warnings);
    pocknix-flathub 30 s network fetch every boot (skip when registered); measure suspend-entry time.
-5. Community: Cliff rewrites docs/community-drafts-2026-09-29.md (start-here issue, README FAQ) in
+5. **RP5 public image (NOT yet: 20260927d is Odin-only).** After the slider curve: build the sm8250
+   image through the seedless respin recipe (holodor-rp5-<build>-seedless.img.zst), give
+   publish-image/publish-release/publish-landing a device axis (they assume holodor-odin3-*), write
+   an RP5 INSTALL (ROCKNIX ABL kit via Retroid's "run script as root", model menu incl. Visionox,
+   Android warnings), one clean-card boot on Cliff's unit; a CH13726A-panel report is untested.
+6. Community: Cliff rewrites docs/community-drafts-2026-09-29.md (start-here issue, README FAQ) in
    his voice; screenshots/video are his; badge/release/landing are automated now.
-6. Housekeeping: build-kernel.sh USBIP deltas are pointless (nothing uses vhci; InputPlumber must use
+7. Housekeeping: build-kernel.sh USBIP deltas are pointless (nothing uses vhci; InputPlumber must use
    deck-uhid) — consider dropping; add sm8750 FW_LOADER_COMPRESS note (already in the deltas).
 
 ### Open questions
