@@ -71,6 +71,26 @@
 - TRAP: hammering the audio stack (PCM-mode toggles + register pokes + many PipeWire restarts) wedged
   the ADSP: qcom-apm "CMD timeout", "Failed to prepare Graph -110" on RX_CODEC_DMA_RX_0, every open
   times out; only a reboot recovers. One "CMD timeout" at every boot is normal (pre-existing).
+- PUBLISHED 01:1x 10-01 (Cliff OK): bsp-sm8750 24 on the sm8750 OTA tag (sha 8d6245a2, verified by
+  public download + device pacman -Si). Cliff wants the fix upstreamed: plan = (a) alsa-ucm-conf PR:
+  wcd939x HeadphoneEnableSeq HPHL/HPHR_COMP 0 (wcd938x already 0; cite #595/#670 + our data) from
+  Cliff's GitHub; (b) kernel: only once the full COMP framing is understood (offset2 alone is not
+  enough); Cliff signs off, disclose AI assistance per kernel policy. Write docs/upstream-plan first.
+- STEP 3 (HPH PCM path, ROCKNIX d2b337c320 order: rx-macro seq, PCM switches, wcd939x seq) = SILENT
+  on our stack from a cold boot (matrix, all volumes). Kernel side = ROCKNIX's 0072/0073/0074 byte-
+  identical + our 0604 (DT pcm-ports-mask 0x200 present, PCM_PORT_CTRL@0x1954 = 3). SoundWire: codec
+  DP6 ChEn 3, wl 0x18, si 0x31, lane 1, BlockCtrl3 1; master port 9 en 3, si 0x31, lane 1, HCTRL
+  0xf0 but master BLOCK_CTRL3 reads 0 although DT bp_mode=1 (write at qcom.c:1096) -> packing
+  mismatch? Poking codec DP6 BlockCtrl3=0 untested (that probe had no tone file). DP1 (PDM) also
+  stayed enabled in PCM mode. Codec analog went Android-like (ANA_HPH 0xfc, comp CTL0 0x61).
+  Suspects: port-9 packing, SWR bus clock (PCM needs 9.6 MHz via rx-macro TOP_SWR_CTRL).
+  BEST NEXT: control = ROCKNIX's own current Odin 3 build on SD + the UCA202 rig (does their PCM
+  path actually play on this unit?) before chasing differences.
+- TRAPS (step 3): (1) alsactl stores HPH PCM Switch at shutdown -> a test leaves the jack SILENT on
+  the shipped UCM after reboot; fix = PCM switches off, HPHL/HPHR Switch off->on, alsactl store,
+  cold boot. (2) After PCM mode was used, the PDM path stayed silent until a cold boot (rx-macro PCM
+  refcount latched?). (3) /tmp is wiped on reboot: re-scp tone files before probe-comp.sh (it doesn't
+  copy them; matrix-uca.sh does).
 - Fingerprint (Cliff asked 10-01): Android vendor ships android.hardware.fingerprint + the fingerprint
   HAL; FocalTech SPI node only in Qualcomm QRD reference overlays -> unconfirmed for the Odin itself;
   settle with `adb shell dumpsys fingerprint` under Android. No Linux driver either way.
