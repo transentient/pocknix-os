@@ -1,5 +1,44 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-09-30 afternoon/evening session (Claude Opus 5.5) - RP5 DXVK freeze + Odin jack L/R, READ FIRST
+
+### RP5: whole-SoC hard freeze ~20-25 s into Vampire Survivors on DXVK (first 3D game ever run on it)
+- Evidence (all in ~/rp5-vs-hang/, live journal+sampler streamed to fusor per run): 4/4 freezes on
+  Proton-CachyOS 11 + DXVK 2.7 + Turnip (mesa-next 7), no kernel line, wifi dies, long-press needed.
+- RULED OUT by test: GPU OPP overclock (capped 670 MHz, froze at 400 MHz); GPU/bandwidth hardware
+  (5-min off-screen GLES stress at 800 MHz, 16 fps, ~/rp5-vs-hang/stress1, gpustress.py in scratch
+  -> copy is on the RP5 /tmp); display path + Turnip basics (native vkcube via gamescope 60 s);
+  Proton/FEX/game (WineD3D ran 8+ min, 40+ min total) -> the freeze is DXVK's Turnip workload.
+- WineD3D = playable but janky under heavy load (GPU pinned 800 MHz, load 5-7). Not acceptable (Cliff).
+- Lead: Turnip unconditionally uses msm VM_BIND on 7.1 (tu_knl_drm_msm.cc:1624); GL (freedreno) does
+  not. Nova/GameNative (Android kgsl) runs the same DXVK fine -> suspect Turnip<->drm/msm VM_BIND.
+- mesa-next pkgrel 8 (UNCOMMITTED in packages/mesa-next): + Armada/batocera 0003 (drops Turnip's
+  extra VM_BIND/sparse timeline wait+signal). Built for sm8250 (localrepo/sm8250) and INSTALLED on the
+  RP5; pkgrel-7 files snapshot at RP5:/var/lib/holodor-rollback/. NOT YET TESTED (Cliff in meetings).
+  Test: launch options `PROTON_LOG=1 %command%` (no WINED3D), capture per the run dirs.
+- Next if 8 fails: our own staged patches-staged/0004 (TU_NO_VM_BIND=1 env opt-out) -> A/B per launch.
+  If VM_BIND confirmed: kernel candidates in 7.2.6 (Armada's base): d9108bfdb7 a6xx rpmh_stop inverted
+  check (CONFIRMED present in our 7.1.2, a6xx_gmu.c:645), 8a0aab012b52 arm-smmu set_ttbr0 power,
+  83723f32cb3d evict-list pinning, b303e1d52811 recover-before-retire; + Armada 0619 submitqueue prio.
+- Also found: our 9998-gpu-opp-table.patch runs 650-800 MHz at NOM_L1 (stock 670 voltage); ROCKNIX
+  replaced it 08-02 (3f9e7f6: TURBO/TURBO_L1 + ACD + gfx-mem bw votes), Armada ships that. Not the
+  freeze cause, still adopt. lsfg-vk ships its stock example conf (vkcube profile) - clean up.
+- Cliff 09-30: prefers we write our own driver fixes over lifting patches (memory saved).
+
+### Odin 3 jack: LEFT 2.6 dB low, MEASURED (UCA202 rig works: ~/jack-measure/matrix-uca.sh)
+- Odin L lower by 3.2/1.8/2.7/2.6 dB at 100/75/50/25 %, flat 100 Hz-8 kHz; crosstalk ~-60 dB; no idle
+  tick. RCA swap at the UCA202: deficit follows the ODIN's L (not the capture). Compander off: same.
+- Cliff: left is quiet on Holodor but NOT on Android (same headphones) -> software/driver.
+- Android vendor mixer_paths (pulled ro from super vendor_a; copies in ~/jack-measure/android/) are
+  L/R symmetric and match our live controls. Codec regmap (559 regs) during playback: all L/R pairs
+  equal except HPH_L_STATUS 0xc1 vs HPH_R_STATUS 0x01 (bits 7:6, undocumented in mainline).
+  RX macro RX0 vs RX1 path blocks identical (RX1 block sits at 0x4c0 on this LPASS, header says 0x480).
+  MBHC_MECH 0x9d: L_DET_EN, HPHL_PLUG_TYPE, HS_L_PULLUP_COMP_EN, 100K_TO_GND on HPHL stay on during
+  playback (normal mech detection; too weak to cost 3 dB into 25 ohm, but it IS L-only).
+- Next: Android control on the rig (play jack-test.wav from Android, record on fusor) + Android
+  runtime dump of HPH_L_STATUS/MBHC_MECH; vendor wcd939x headers for the STATUS bits.
+- tools/vendor-archaeology/lpparse.py: removed a leftover crashing line (12).
+
 ## CURRENT STATE 2026-09-30 00:2x (sleep-now) - READ THIS FIRST (written by Claude Fable 5.1)
 
 The 09-28 02:40 block below it is the release-night record; everything from 09-28 morning to

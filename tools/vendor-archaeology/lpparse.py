@@ -9,7 +9,6 @@ print(f"geometry: metadata_max_size={mms} slots={slots} lbs={lbs}")
 base = 4096*3  # reserved + geometry + backup geometry
 hdr_off = base  # slot 0 primary
 h = f[hdr_off:hdr_off+256]
-hmagic, vmaj, vmin, hsize, hcsum = struct.unpack('<IHHI', h[:12])[0:4], None
 hmagic, vmaj, vmin, hsize = struct.unpack('<IHHI', h[:12])
 assert hmagic == 0x414C5030, hex(hmagic)
 tables_size, = struct.unpack('<I', h[44:48])
