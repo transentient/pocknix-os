@@ -35,8 +35,19 @@
   RX macro RX0 vs RX1 path blocks identical (RX1 block sits at 0x4c0 on this LPASS, header says 0x480).
   MBHC_MECH 0x9d: L_DET_EN, HPHL_PLUG_TYPE, HS_L_PULLUP_COMP_EN, 100K_TO_GND on HPHL stay on during
   playback (normal mech detection; too weak to cost 3 dB into 25 ohm, but it IS L-only).
-- Next: Android control on the rig (play jack-test.wav from Android, record on fusor) + Android
-  runtime dump of HPH_L_STATUS/MBHC_MECH; vendor wcd939x headers for the STATUS bits.
+- ANDROID CONTROL DONE (00:0x 10-01, adb-driven, ~/jack-measure/android-run + regs/android3): Android
+  L == R exactly (-55.3/-55.3 and -43.7/-43.7 dBFS, all freqs) on the same rig -> ours is software.
+  Android codec regmap during a 1k tone vs ours: symmetric-looking diffs (PA_GAIN_CTL_L/R 0->4,
+  ANA_HPH PWR_LEVEL 2->3, RX_TOP path CFG/SEC set, compander CTL6/7/12-15/17 differ, PDM WD off,
+  REFBUFF_UHQA, RDAC chop clk) + MBHC_NEW_CTL_2 0x16 vs 0x02 (MUX_CTL IN2P + M_RTH left on by us).
+  HPH_L_STATUS: linux 0xc1 / android 0x11 (R 0x01 on both) - HYPOTHESIS: [7:3] = live compander gain
+  -> our LEFT compander attenuates. UNVERIFIED. NOTE the earlier "compander off, no change" test was
+  INVALID: wcd939x_set_compander (wcd939x.c:1534) only sets comp1/comp2_enable; HW applies at DAC
+  PRE_PMU, and our no-suspend rule kept the PA up. Redo with a real PA power cycle (restart the audio
+  stack). adb recipe that worked: am start Chrome URL + tap play, MainSettingsActivity -> scroll ->
+  Run script as Root -> SELECT A SCRIPT -> Download -> file -> RUN (screencap + Read to see; the
+  runner activity itself is not exported). TRAP: dumping ALL debugfs regmaps crashed/rebooted Android
+  (a clock-gated block) - dump only wcd939x-slave.e01170223 / named audio regmaps.
 - tools/vendor-archaeology/lpparse.py: removed a leftover crashing line (12).
 
 ## CURRENT STATE 2026-09-30 00:2x (sleep-now) - READ THIS FIRST (written by Claude Fable 5.1)
