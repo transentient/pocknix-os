@@ -49,6 +49,31 @@
   runner activity itself is not exported). TRAP: dumping ALL debugfs regmaps crashed/rebooted Android
   (a clock-gated block) - dump only wcd939x-slave.e01170223 / named audio regmaps.
 - tools/vendor-archaeology/lpparse.py: removed a leftover crashing line (12).
+- ROOT CAUSE + FIX (01:0x 10-01): the PDM compander. RX-macro RX_COMP1/2 compute gain words and send
+  them over SoundWire COMP port (codec DP3 = master port 3) to the codec's HPHL/HPHR_COMP. Mainline
+  declares all WCD939x RX DPn SDW_DPN_SIMPLE -> sdw core never writes DPn_OffsetCtrl2/BlockCtrl3
+  (stream.c:243), while qcom master sends COMP with offset2 0x0b (block-per-channel): proven live with
+  an out-of-tree one-shot module (~/jack-measure/sdwpoke: sdwpoke.ko writes DP3 OffsetCtrl2, sdwregs.ko
+  pokes any sdw reg) - reg exists, R compander starts receiving gain, full-level L==R. BUT at listening
+  levels (input <= ~-29 dBFS) both stages on still cut L ~34 dB / R ~5 dB (gain words still misframed;
+  offset2 sweep moves R's read bits, never matches) -> not fixable by offset2 alone.
+- SHIPPED IN REPO: pocknix-bsp-sm8750 24 = HiFi.conf Headphones inlines the base enable seqs with
+  RX_COMP1/2 + HPHL/HPHR_COMP OFF. Verified cold boot, full matrix: L==R +-0.1 dB at 100/75/50/25 %,
+  crosstalk 45-60 dB down, no tick. Installed on Cliff's Odin via pacman -U. NOT yet published to OTA.
+- Android (hd3-tinymix): RX_COMP1/2 OFF, HPHL/HPHR_COMP OFF, RX_HPH PCM + HPH PCM Enable ON, "HPHL/HPHR
+  Compander" ON = the HPH PCM (HiFi) path with codec-local compander. Our 0072-0074 (+0604) carry it
+  (from ROCKNIX 4c58580c11 / PR #3091, which says PDM "hisses constantly and is unbalanced"). My manual
+  PCM enable gave garbled noise w/ L/R crosstalk - likely ORDER: ROCKNIX UCM = rx-macro seq, then
+  HPH PCM + RX_HPH PCM switches, then wcd939x enable seq (PCM before HPHL/HPHR Switch). NEXT = step 3.
+- Upstream: nobody has the SIMPLE/offset2 root cause (we'd be first); symptom known: alsa-ucm-conf
+  #595 (X1E "quiet sounds panned left", open; fixed by UCM disabling RX_COMP, PR #670), 2019 LKML
+  thread chose SIMPLE because WSA881x lacks OffsetCtrl2. Marek's Nov-2025 wcd93x fixes unmerged.
+- TRAP: hammering the audio stack (PCM-mode toggles + register pokes + many PipeWire restarts) wedged
+  the ADSP: qcom-apm "CMD timeout", "Failed to prepare Graph -110" on RX_CODEC_DMA_RX_0, every open
+  times out; only a reboot recovers. One "CMD timeout" at every boot is normal (pre-existing).
+- Fingerprint (Cliff asked 10-01): Android vendor ships android.hardware.fingerprint + the fingerprint
+  HAL; FocalTech SPI node only in Qualcomm QRD reference overlays -> unconfirmed for the Odin itself;
+  settle with `adb shell dumpsys fingerprint` under Android. No Linux driver either way.
 
 ## CURRENT STATE 2026-09-30 00:2x (sleep-now) - READ THIS FIRST (written by Claude Fable 5.1)
 
