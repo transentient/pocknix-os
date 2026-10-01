@@ -18,6 +18,13 @@
   kernel/sm8250/patches-staged; kernel pkgrel 6 = backports 0007/0008 only (upstream 1d234eeafc +
   1b445022d1, v7.3-rc1, smem adapted to 7.1.2; no SMEM hbb here -> 16). pkgrel 5 (HBB 15) is what the
   RP5 runs right now -> install 6 when it is back in Holodor (it is in Android with adb, Cliff booted it).
+- CORRECTION (22:2x 10-01): KGSL at RUNTIME on the RP5's Android reports HIGHEST_BANK_BIT=15, UBWC_MODE=4,
+  MIN_ACCESS_LENGTH=32 (our static aarch64 tool ~/rp5-vs-hang/src/kgslprop via adb, /dev/kgsl-3d0 is
+  0666; Android root runner = Handheld Settings > Advanced > Run script as Root, no kgsl debugfs, no
+  /dev/mem). The static DT 16 is patched at runtime -> 15 IS RIGHT; 0700/0701 RESTORED, pkgrel 5 stands
+  (pkgrel 6 withdrawn, never installed). Turnip-msm now gets the SAME UBWC params as Turnip-kgsl
+  (hbb 15, swizzle 0x6, macrotile 8ch, ubwc 4) yet still freezes -> difference is kernel GPU/memory
+  programming (KGSL a6xx_start vs mainline a6xx hw_init / set_ubwc_config / LLCC). Agent comparing.
 - NEXT for the root cause: not HBB/min-acc/ubwc-mode (match vendor). Remaining: macrotile_mode
   (mainline sm8250 = 1, RBBM_NC_MODE_CNTL), swizzle (0x6), LLCC/GPU cache slices, DPU UBWC scanout of
   game buffers (direct scanout via gamescope), UBWC_SWIZZLE. Android kgsl runtime regs need root on
