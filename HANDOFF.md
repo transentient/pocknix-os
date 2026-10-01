@@ -1,5 +1,56 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-01 session (Claude Opus 5.5) - RP5 DXVK freeze = UBWC; Odin HPH PCM path, READ FIRST
+
+### RP5 DXVK whole-SoC freeze: TRIGGER FOUND = UBWC (root cause still open)
+- Ruled out by test: VM_BIND (our mesa-next 9 0004 TU_NO_VM_BIND=1 env opt-out, sparse gone -> froze
+  ~31 s), Armada/batocera turnip sparse-sync patch (mesa 8 -> froze), all-core CPU stress (3 min ok,
+  peaks 90.7 C, throttles fine), GPU OPP cap (09-30). TU_DEBUG=noubwc -> 30+ min DXVK, no freeze (2x).
+- WORKAROUND LIVE on the RP5: /usr/share/steam/compatibilitytools.d/proton-cachyos/user_settings.py =
+  {"TU_DEBUG": "noubwc"} (Proton env file; only VS uses Proton there). Playable but stuttery/slow and
+  GPU pinned at 800 MHz (no UBWC = bandwidth). Not a fix.
+- HBB investigation: RP5 RAM = LPDDR4X (SMEM ddr_type 7 via backport debugfs qcom_smem/ddr_type; live
+  Android DT memory ddr_device_type 7); SMEM DDR record has NO hbb field (old format). Mainline sm8250
+  hardcodes HBB 16 ("TODO 15 for LP_DDR4"). Built HBB 15 (our 0700 + 0701, msm a650 GPU took its own
+  16 and only warned) -> MSM_PARAM_HIGHEST_BANK_BIT 0xf verified -> STILL FROZE with UBWC on. Then the
+  RP5's LIVE Android DT: kgsl qcom,highest-bank-bit = 16, min-access-length 32, ubwc-mode 4 (has
+  bus-accesses-ddr7/ddr8 tables, i.e. DDR-aware) -> vendor uses 16 -> 0700/0701 PARKED in
+  kernel/sm8250/patches-staged; kernel pkgrel 6 = backports 0007/0008 only (upstream 1d234eeafc +
+  1b445022d1, v7.3-rc1, smem adapted to 7.1.2; no SMEM hbb here -> 16). pkgrel 5 (HBB 15) is what the
+  RP5 runs right now -> install 6 when it is back in Holodor (it is in Android with adb, Cliff booted it).
+- NEXT for the root cause: not HBB/min-acc/ubwc-mode (match vendor). Remaining: macrotile_mode
+  (mainline sm8250 = 1, RBBM_NC_MODE_CNTL), swizzle (0x6), LLCC/GPU cache slices, DPU UBWC scanout of
+  game buffers (direct scanout via gamescope), UBWC_SWIZZLE. Android kgsl runtime regs need root on
+  RP5 Android (unknown). Precedent: ROCKNIX SM6115 0005 "a610 hbb match SoC DDR".
+- Tools: ~/rp5-vs-hang/* captures; scratch msmparam.py (DRM_IOCTL_MSM_GET_PARAM: HBB/swizzle/macrotile,
+  copy at RP5:/home/deck/msmparam.py); RP5 vendor DT dumps in ~/rp5-vs-hang/src/rp5-vendor-dt (boot_a
+  carries 3 kona dtbs; vendor_boot slots are empty). Launch VS remotely: echo "steam://run/1794680" >
+  ~/.steam/steam.pipe. TRAP: Proton user_settings.py only ADDS vars not already set by launch options.
+
+### Odin 3 HPH PCM ("HiFi", Android's path) - works at normal levels, mutes when loud; NOT shipped
+- Control: ROCKNIX nightly 20260930 (kernel 7.2.0, same 0072-0074 + 0604) on the 32 GB card: PCM path
+  L==R at 100/75/50/25 % on the UCA202 rig. (Card backed up first: ~/odin3-backups/card32-before-
+  rocknix-20261001; RP5 stock ABL dumps identical to rp5-stock-abl-20260928.)
+- Our silence cause #1 FOUND: alsa-state restores HPHL/HPHR Switch ON at boot (PDM port 1 connected);
+  0073 maps those switches to HIFI_PCM ports only while PCM mode is on, so the PDM port never got
+  released -> both ports ran, frame reshaped. Fix order: HPHL/HPHR Switch 0 (still PDM) -> HPH PCM +
+  RX_HPH PCM 1 -> wcd939x seq (HPHL/R 1 = HIFI_PCM). Test UCM: ~/jack-measure/ucm-pcm/HiFi-pcm3.conf
+  -> only DP6/port 9 active (like ROCKNIX), L==R at 50 % and 25 %.
+- Open #2: our PCM path MUTES above ~-30 dBFS input (raw aplay too, both PA gains; ROCKNIX plays full
+  scale). Codec regmap identical to ROCKNIX; RX macro differs: RX0 RX_PATH_CFG3 0x03 (the compander
+  POST_PMD value) vs 0x02, COMPANDER0_CTL6 0 vs 1, TOP_HPHL/R_COMP_WR 0x0f6f vs 0, sidetone IIR B1.
+  Kernel 7.1.3 vs ROCKNIX 7.2.0 is the other variable.
+- Odin restored to shipped bsp 24 UCM + alsactl store (PCM off) + cold boot: L==R at 100/50 % verified.
+- TRAPS: my ssh `poweroff` to ROCKNIX hung its shutdown; I reported "off" from a ping drop (wrong);
+  the Odin then would not boot until it went on the charger (power latch, see memory). After any PCM-
+  mode test the PDM path can stay silent until a cold boot. `git mv -k` skips untracked files silently.
+
+### Also 10-01
+- Odin jack fix published: bsp-sm8750 24 (compander off) on OTA, verified public download.
+- Upstream: no report of the WCD939x SIMPLE-port/offset2 root cause anywhere (we'd be first); symptom
+  known (alsa-ucm-conf #595/#670, ROCKNIX PR #3091). Plan in docs/upstream-plan (to write).
+- Fingerprint: Odin Android vendor ships the fingerprint HAL; FocalTech node only in QRD overlays.
+
 ## 2026-09-30 afternoon/evening session (Claude Opus 5.5) - RP5 DXVK freeze + Odin jack L/R, READ FIRST
 
 ### RP5: whole-SoC hard freeze ~20-25 s into Vampire Survivors on DXVK (first 3D game ever run on it)
