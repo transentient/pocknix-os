@@ -1,5 +1,77 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-02 afternoon session (Fable 5.1) - RC 20261002 BUILT (not published); RP5 mesa 10; Odin k34exp, READ FIRST
+
+Cliff 12:1x: "The Odin sounds perfect", jack work done; release now; then RP5 + try the sweep patches.
+(The previous session could not be resumed after `claude update`; his unsent prompt was recovered from
+~/.claude/history.jsonl. The old transcript 26fcfca8 is intact.)
+
+### Release 20261002 (Odin) - RC built + contents verified, NOTHING published or pushed
+- Commits (local only, holodor-main): 4c90dd6 jack (kernel 33 + bsp 27), 59a4efc ABL 1.2 tsv rows +
+  docs/release-notes/20261002.md, aec1d76 RP5 kernel 9 TEST, 2aecc52 sweep docs/staged patches.
+- bsp-sm8750 27 = 26 + `depends linux-pocknix-sm8750>=7.1.3-33` (26 on kernel 32 = mono). 25/26 never
+  published. localrepo/sm8750 == build/publish/sm8750 except kernel 33 + bsp 27 (cmp'd every file).
+- RC: build/image/sm8750/holodor-odin3-20261002-seedless.img.zst, sha256 50a8f1ac...2036c, 3.10 GiB,
+  build/respin-20261002.sh (unit holodor-respin-20261002, 2.5 min). Verified by loop-mount: kernel
+  7.1.3-33, bsp 27 (HiFi.conf == repo, depends present), tsv has the 1.2 rows, FAT KERNEL md5 = build KERNEL.
+- Lexar (64 GB, in fusor): VERIFIED BYTE-EXACT 13:28 (raw sha f61be710...880548, 15807283200 bytes),
+  wifi.txt written 13:29. Ready for Cliff. Odin was asleep all session (no ssh).
+- TO PUBLISH (after Cliff accepts the RC on the Odin: boot from card, headphones L/R, speakers, sleep/wake):
+  [1] publish-image.sh as cliff (`systemd-run --user`) [2] full download + sha256 -c [3] README/INSTALL
+  links -> 20261002 + release commit + tag release-20261002 + push [4] sync-public --push + tag in public
+  [5] `make publish DEVICE=sm8750` (OTA: kernel 33 + bsp 27 only) [6] scripts/publish-release.sh 20261002.
+  Then on Cliff's Odin: pacman -Syu must take 26 -> 27 (public-path check).
+- MY MISTAKE 12:29: ran `sudo DEVICE=sm8750 PKG=... bash scripts/build-packages.sh` - the script takes
+  the package as an ARGUMENT, PKG= is only the Makefile's variable, so it walked every package and
+  repackaged decky-loader 3.2.9-1 + fex-rootfs 20260108-3 (already published, same version, new bytes).
+  Stopped it, restored both from build/publish/sm8750 (cmp identical, repo-add, db sha == file sha);
+  the repacked files are in build/held-repack-20261002/. WHY they were not skipped as up to date: unknown.
+  Correct form: `sudo DEVICE=sm8750 bash scripts/build-packages.sh <pkg>`.
+
+### RP5 - our own UBWC fix, mesa-next 10 (sm8250) BUILT 13:15 (build/localrepo/sm8250), UNTESTED, UNCOMMITTED
+- Sweep lead = mesa !19316 (2022, unmerged): stale UBWC flags hang an a650 "entire machine". It does not
+  apply to today's turnip. The gallium driver zeroes the UBWC area of recycled BOs (freedreno_resource.c,
+  needs_ubwc_clear, "any memset value seems to" fix it); turnip has nothing equivalent at our pin. That
+  fits: WineD3D (GL) survives, DXVK (turnip, suballocated + recycled memory) freezes, noubwc avoids it.
+- OURS: packages/mesa-next/0005 - tu_image_bind zeroes each plane's UBWC flag block by CPU through a
+  private short-lived mmap (new knl hook bo_zero_range; never touches bo->map, so no clash with the
+  app's vkMapMemory / placed maps). Skips swapchain binds, external-handle images, lazy memory.
+  Default ON for a6xx only; `TU_UBWC_BIND_CLEAR=0|1` overrides per process (A/B without reinstall).
+- TEST (needs the RP5 awake; hold a time-boxed sleep block, STOP it before handing back):
+  pacman -U mesa-next/vulkan-freedreno-next 10 from build/localrepo/sm8250; remove TU_DEBUG=noubwc from
+  proton-cachyos/user_settings.py (copy kept as ~/user_settings.py.noubwc); capture-start.sh + launch VS
+  (steam://run/1794680); freeze used to hit at ~30 s. Control on the same build: TU_UBWC_BIND_CLEAR=0
+  must still freeze. A freeze needs Cliff's long-press.
+- If it holds: retest the 4x sprite glitch (was seen with noubwc + 925 MHz), GPU freq under UBWC, then
+  the plan's rest (670 MHz cap test only if sprites persist; Mesa 26.2.3 + Armada patches; 7.2.6).
+
+### Odin - experimental kernel "k34exp" (sweep batch) BUILT 13:04 in its own dirs, NOT in localrepo, UNTESTED, UNCOMMITTED
+- Series kernel/sm8750/patches/60-upstream-2026-10-02/ (OPTIONAL marker; default build unchanged):
+  0001 Armada 0619 submitqueue priority (issue #1 candidate), 0002-0004 msm-next db6a2e4a / 128a0edd /
+  eab0aff8 (GPU power votes), 0005 OURS: a830 register lists synced with msm-next 2c94d177 (+RB_CCU_DBG_
+  ECO_CNTL 0x2200, BICUBIC table(0) in pwrup, SP_HLSQ_DBG_ECO_CNTL/RBBM_PERFCTR_CNTL/PROTECT 47-62 in
+  IFPC, CGC_0_PC 0x702 on a830). Left out on purpose: chip id, speedbins, protect count_max 64 (ours
+  writes the last span to PIPE(count_max) -> must stay 15), perfmode_bw (ours 8171875 = a level in our OPPs).
+- Build: unit `holodor-k34exp` (user), KERNEL_BUILD_DIR=build/kernel/sm8750-k34exp,
+  IMAGE_DIR=build/image/sm8750-k34exp, log build/kernel-sm8750-k34exp.log. kernelrelease =
+  7.1.3-60-upstream-2026-10-02 (own modules dir). NOT packaged. Deploy idea: modules dir + /flash/KERNEL
+  by hand (KERNEL.bak = rollback), never via localrepo (make publish ships everything in it).
+- WAKE# polarity (upstream eec036783b, Armada #545): nothing in 7.1.3's PCI host code reads the root
+  port's wake-gpios -> the flip is a no-op here; do it at the 7.4 re-pin. THP/shrinker stay staged.
+- A/B plan: issue #1 repro (QAM during a game) on 33 vs k34exp; tools/ab fps; sleep-power harness.
+
+### Cliff's hardware / next workstreams (his list 10-02)
+- Rode mic = battery-powered, 3.5 mm -> works into the UCA202 line-in (needs 3.5 mm->RCA) for the RP5
+  speaker slider curve. Atom S3U (ESP32-S3, BLE only) + HDMI capture dongle arrived = the dock sensor
+  loop (NEXT item 7 below). DP alt-mode IS wired in our tree (mdss_dp0 okay, TYPEC_DP_ALTMODE,
+  UCSI_PMIC_GLINK, QMP combo PHY) - never tested on Holodor as far as the notes go; asked Cliff whether
+  he has docked it and what he saw.
+- UNCOMMITTED ON PURPOSE until release-20261002 is tagged (so the tag does not carry untested work):
+  packages/mesa-next (PKGBUILD 10 + 0005), kernel/sm8750/patches/60-upstream-2026-10-02/, this block.
+  Pre-existing gap to tell Cliff: the repo's mesa-next is pkgrel 9 since 0660bd6 while the sm8750
+  image/OTA carry 7 (9 = 7 + an opt-in env var; no default change on the Odin).
+- Stale: 6 bind mounts under .claude/worktrees/agent-aaa02742fb15ad1b4/build/pkgbuild-root-sm8750 (09-20).
+
 ## 2026-10-02 night session (Opus 5.5, then Fable 5.1) - Odin PCM path stereo FIXED; RP5 course correction, READ FIRST
 
 ### Odin 3 jack (PCM/"HiFi" path) - measured good, NOT shipped, sleep test open
