@@ -2,6 +2,16 @@
 
 ## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
 
+### 10-03 00:55 ADDENDUM - 20261002b RELEASED (current image)
+- Cliff booted the Lexar RC on the Odin, Desktop Mode keyboard "looks good!" -> published: image on R2
+  (full public download + sha256 -c OK), release commit + tag release-20261002b pushed (dev), public
+  main 72de9a8 + tag, GitHub Release created, landing page lists it. OTA already had the packages.
+  docs/release-notes/20261002b.md is my draft.
+- Cliff 10-03: he has NEVER tried dock mode on the Odin -> the dock workstream starts at "does USB-C
+  video come up at all" (DP alt-mode is wired in the tree, untested).
+- RP5: capture ~/rp5-vs-hang/ubwc-mesa10-cliff-play2 started 00:51 with sampler v2.1 for Cliff's next
+  VS run (read-only, no sleep block). Open decision put to Cliff: cap the RP5 GPU at 670 MHz by default?
+
 ### 18:30 ADDENDUM - keyboard PUBLISHED; RC 20261002b built; Odin runs k34exp; RP5 stutter data
 - Cliff 18:0x on the keyboard: "great. Let's definitely run with this" -> OTA published (sm8750:
   plasma-keyboard 0.1.0-1 (+debug), pocknix-desktop 14; db + both packages re-downloaded, sha == db),
