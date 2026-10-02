@@ -1,5 +1,51 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-02 night session (Opus 5.5, then Fable 5.1) - Odin PCM path stereo FIXED; RP5 course correction, READ FIRST
+
+### Odin 3 jack (PCM/"HiFi" path) - measured good, NOT shipped, sleep test open
+- Mono cause: ROCKNIX's 0073 skips the crosstalk coefficients (RX_TOP_HPHx_PATH_SEC0/2/3 = 0x1f/0x11/0x4f)
+  when the compander is off but still enables the crosstalk block. OUR fix = 20-sm8750/0075 (0073 kept
+  verbatim). Kernel linux-pocknix-sm8750 7.1.3-33 + bsp 26 (PCM path, both compander stages off).
+- Measured (matrix-uca.sh, 2 cold boots + 1 unplug/replug): L==R +-0.1 dB at 100/75/50/25 %, L-only/R-only
+  tones stay on their own channel (other side at the -91 dB floor), idle silent. Recordings
+  ~/jack-measure/rec-k33-*. Boot 1 had 3.5 s of loud sound before the tone ~20 s after boot: PROBABLY
+  Steam's startup sound (smooth fade; boot 2 idle at +90 s was silent) - unproven.
+- Sleep/wake PASSED 10-02 11:05: slept 03:01:53 -> 11:04:14 (8 h, s2idle), full matrix after wake = same
+  numbers. The "unresponsive Odin" Cliff reported at ~03:05 was NOT a hang: journal shows a normal boot
+  running 01:23 -> now, one power press at 03:01:53 that suspended it, next press 11:04 woke it. What he
+  saw before that press is still unknown (asked). So: 2 cold boots + replug + sleep/wake all pass.
+- OPEN: (1) Cliff's ears. (2) the boot-1 startup sound question.
+  (3) Publish needs Cliff's OK; kernel 33 and bsp 26 MUST ship together (bsp 26 on kernel 32 = mono) -
+  add a versioned depends. (4) Android/ROCKNIX run the codec compander ON; ours mutes when loud with it on.
+- ROCKNIX nightly 20260930 already measures balanced on our rig (PCM path) - "nobody has a fix" is not
+  true; ours = the root cause + the UCM-only fix (bsp 24, published). docs/upstream-plan.md written.
+- v7.1 -> v7.2 has NO change in lpass-rx-macro/wcd939x-sdw/soundwire-qcom; q6apm changed a lot.
+
+### RP5 - I was root-causing before diffing against Armada (which ships on the RP5). Corrected.
+- Armada 5915c28: kernel 7.2.6, Mesa 26.2.3 STABLE (+3 patches), ROCKNIX 9998-gpu-tuning (ACD, gfx-mem
+  bandwidth votes, TURBO voltages, OPPs to 925 MHz). We: 7.1.2, Mesa main snapshot 2026-08-09, and the
+  OLD ROCKNIX GPU table (no ACD, no bandwidth votes, 650-800 MHz at NOM_L1).
+- linux-pocknix-sm8250 7.1.2-9 (INSTALLED): 9998-gpu-tuning verbatim replaces 9998-gpu-opp-table (now
+  patches-staged/*.superseded). 0702/0703/0704 parked in kernel/sm8250/patches-staged (0704 = LLC NWA
+  MAIR 0xe4 proposal, compiled, NEVER RUN; neither ROCKNIX nor Armada carry anything like it).
+- RESULT: UBWC on + pkgrel 9 -> SAME freeze ~30 s after launch, GPU at 305 MHz
+  (~/rp5-vs-hang/ubwc-k9-gputable). The GPU table is not the freeze fix.
+- Display path ruled out by inspection: --use-rotation-shader forces gamescope full composite every
+  frame (DRMBackend.cpp bNeedsFullComposite); live plane = gamescope's XR30 linear fb, in-game too.
+- noubwc + pkgrel 9, Cliff played ~1 h (noubwc-k9-gputable): "generally okay, very occasional stutter"
+  (better than before). NEW: weapon sprites sometimes ~4x too large. GPU sat at 925 MHz most of the
+  game, peak 86 C. HYPOTHESIS (untested): the 925 MHz overclock/ACD margin miscomputes -> test with
+  devfreq max_freq 670000000 (stock), then consider trimming the table to stock OPPs + ACD + votes.
+- Cliff's "power button won't sleep / black screen on wake" = MY 90-min sleep block (journal: 9x
+  "Operation denied due to active block inhibitor"); worked the moment it expired. Not a device bug.
+- noubwc workaround is IN PLACE (proton-cachyos/user_settings.py; copy ~/user_settings.py.noubwc).
+- NEXT: (1) 670 MHz cap test for the sprite glitch; (2) build Mesa 26.2.3 + Armada's 3 patches for
+  sm8250, retest the freeze with UBWC on; (3) if it still freezes: VS on Armada itself on this RP5
+  (Axe 64 GB card = Armada 20260907; needs Cliff: boot, Steam login, install VS); (4) kernel 7.2.6.
+- Tools: ~/rp5-vs-hang/bin/capture-start.sh <run> [launch] (journal + 1 Hz sampler streamed to fusor).
+- UNCOMMITTED: everything above (bsp 25/26 UCM+PKGBUILD, 0075, both kernel PKGBUILDs, 9998 swap, staged
+  test patches, docs/upstream-plan.md, this block).
+
 ## 2026-10-01 session (Claude Opus 5.5) - RP5 DXVK freeze = UBWC; Odin HPH PCM path, READ FIRST
 
 ### RP5 DXVK whole-SoC freeze: TRIGGER FOUND = UBWC (root cause still open)

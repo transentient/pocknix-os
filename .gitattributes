@@ -42,3 +42,8 @@ docs/stick-calibration-2026-09-27.md    export-ignore
 tools/                                   export-ignore
 docs/community-drafts-2026-09-29.md export-ignore
 docs/rp5-bringup-2026-09-24.md           export-ignore
+docs/upstream-sweep-2026-10-02.md        export-ignore
+docs/upstream-plan.md                    export-ignore
+kernel/sm8750/patches-staged/upstream-2026-10-02/ export-ignore
+kernel/sm8250/patches-staged/upstream-2026-10-02/ export-ignore
+packages/mesa-next/patches-staged/upstream-2026-10-02/ export-ignore
