@@ -2,6 +2,34 @@
 
 ## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
 
+### 17:40 ADDENDUM - on-screen keyboard (Cliff: "we need a virtual keyboard and a little icon for it on the bottom bar")
+- Holo Core has NO on-screen keyboard (no maliit, no plasma-keyboard in the sync dbs; only
+  qt6-virtualkeyboard). NEW package packages/plasma-keyboard (KDE's, v0.1.0 = the Plasma 6.5-era
+  standalone release, built from source against Holo's Qt 6.10.0 because it uses Qt private headers).
+- pocknix-desktop 14: depends on plasma-keyboard; pocknix-desktop seeds kwinrc [Wayland] InputMethod +
+  VirtualKeyboardEnabled (only if unset); firstrun pins `pocknix-osk` (show/hide via KWin's
+  org.kde.kwin.VirtualKeyboard forceActivate / active=false) to the task manager's launchers through
+  plasmashell evaluateScript (stamp ~/.local/state/pocknix-osk-launcher-added). writeConfig needs a
+  JS ARRAY: a comma-joined string collapses the launcher list to one blank icon until re-written.
+- TESTED on Cliff's Odin (internal install) from the packages, clean slate, by screenshot: a touch in
+  Konsole brings the keyboard up and the window resizes above it; "ls" + Enter typed from the keys ran;
+  the panel button shows and hides it. Plasma's own tray keyboard icon only hides / toggles the
+  feature, it never shows the keyboard. KWin shows it only if TOUCH was the last input (a D-Bus
+  forceActivate over ssh alone stays invisible) -> test with tools/desktop-eye (odinshot.sh /
+  odintap.sh: KWin ScreenShot2 + uinput virtual touchscreen; README there).
+- Known gaps: no hunspell dictionary (no word prediction; harmless warning); X11 apps (Steam on the
+  desktop) not tried; lock screen still disabled (kscreenlockerrc) - could be revisited now.
+- Installed on the Odin by pacman -U (plasma-keyboard 0.1.0-1, pocknix-desktop 14). In
+  build/localrepo/sm8750, NOT published to OTA (needs Cliff's OK; then it is also respin material).
+  sm8250 build started (unit holodor-osk-sm8250, log build/osk-sm8250.log) - check it finished.
+- Odin: it is the 09-27 internal install (never re-installed from the RC card); OTA path verified on it
+  17:20: pacman -Syu took bsp 26 -> 27 from the public repo (signature valid). Left in game mode, my
+  sleep block stopped, the dev screenshot drop-in removed.
+- Cliff 17:2x: he knows no game that reliably reproduces the QAM freeze -> k34exp test = verify the
+  priority mapping directly + run it as the daily kernel, not a repro A/B.
+- RP5: second capture ~/rp5-vs-hang/ubwc-mesa10-cliff-play (Cliff playing VS, read-only, no block);
+  first run ended in a NORMAL suspend at 15:23 after 83 min (not a freeze), game survived sleep/wake.
+
 ### STATE AT 14:20 (supersedes the "not published / untested" wording further down this block)
 - **Release 20261002 DONE.** Cliff 14:1x: installed internally from the Lexar, "odin headphone and
   sleep/wake tests pass!!". Image on R2 (full public download + sha256 -c OK), release commit 56db03c
