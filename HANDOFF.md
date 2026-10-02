@@ -2,6 +2,44 @@
 
 ## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
 
+### 18:30 ADDENDUM - keyboard PUBLISHED; RC 20261002b built; Odin runs k34exp; RP5 stutter data
+- Cliff 18:0x on the keyboard: "great. Let's definitely run with this" -> OTA published (sm8750:
+  plasma-keyboard 0.1.0-1 (+debug), pocknix-desktop 14; db + both packages re-downloaded, sha == db),
+  public repo synced (1c26147). sm8250 packages built too (a STALE pacman db.lck from 01:17 in
+  build/pkgbuild-root-sm8250 blocked the build; no pacman was running; removed).
+  Cleanup for a later bump: plasma-keyboard depends on qt6-wayland, which it does not need (Qt 6.10's
+  Wayland client lives in qt6-base); harmless, pulls one small package.
+- RC **20261002b** = 20261002 + keyboard: build/image/sm8750/holodor-odin3-20261002b-seedless.img.zst,
+  sha256 3d79bda4...2c86c, contents verified by loop-mount. NOT flashed (Cliff was asked to put the
+  LEXAR in fusor; no card present at 18:30), NOT published. Next: build/flash-lexar-*.sh pattern,
+  write-wifi-txt, Cliff boot-tests Desktop Mode keyboard on a fresh card, then publish like 20261002.
+- **Odin is RUNNING k34exp** (uname 7.1.3-60-upstream-2026-10-02), installed by hand, pacman untouched:
+  files in /var/tmp/k34exp (Image, dtb, install.sh, rollback.sh, trace-*.sh), modules in
+  /usr/lib/modules/7.1.3-60-upstream-2026-10-02, /flash/KERNEL.k33 = the packaged kernel's boot image.
+  ROLLBACK: `sh /var/tmp/k34exp/rollback.sh` as root + reboot (or run pocknix-build-bootimg). Any
+  kernel/bsp package update rebuilds /flash/KERNEL from /boot/Image = back to 33 silently.
+  Verified: boots, GPU fw loads, no adreno/msm warnings, VS runs, rtcwake s2idle 80 s suspend/resume OK
+  with the game running. PRIORITY MAPPING PROVEN by kprobes (msm_submitqueue_create uprio +
+  drm_sched_entity_init sprio; ~/odin3-backups/k34exp-20261002/prio-trace-*.txt):
+  k33: Xwayland uprio 6 -> sched 2 (NORMAL), game Turnip queue uprio 8 -> sched 0 (KERNEL, top);
+  k34exp: Xwayland -> 1 (HIGH), game -> 3 (LOW); VM_BIND queues stay 0. NOT done: fps A/B (only VS is
+  installed on this install), sleep-power harness, long soak. Cliff has no reliable QAM-freeze repro.
+- **RP5 stutter** (Cliff: "generally okay, really stuttery towards the end when a lot of stuff was
+  flying around"; capture ubwc-mesa10-cliff-play, 39 min): in the busy end-game the GPU sat at
+  <=400 MHz 27-66 % of the time and at 925 MHz only 13-34 %, temps 60-62 C, memory fine, no GPU
+  errors -> not GPU-bound, not thermal. CPU side unmeasured in that capture. Sampler is now v2.1
+  (~/rp5-vs-hang/bin/rp5-sampler.sh: main_cpu, proc_cpu, main_core, core_kHz, game_gpu, shader_cpu).
+  Scheduler test (~/rp5-vs-hang/bin/frameloop.py, frame-paced python load): scx_lavd autopilot keeps
+  a LIGHT 60 fps thread on the little cores (9.3 ms/frame vs 3.2 ms in performance mode), but a
+  HEAVY one goes to prime/big in both modes with the same frame times -> autopilot is not the
+  late-game cause. Suspects left: single-thread speed under FEX, DXVK shader compiles / FEX JIT on
+  first sight of new effects (second run would be smoother). Needs one more late-game session.
+- **RP5 GPU "pinned at 925 MHz" explained:** upstream msm sets simple_ondemand upthreshold=50,
+  downdifferential=10 (msm_gpu_devfreq.c) -> any load over 50 % jumps to the top OPP, and the
+  9998-gpu-tuning table moved the top to 925 MHz TURBO. The VS title screen sits at ~55 % busy, so it
+  never drops. Not a bug in our tree; options = cap max_freq (stock 670 MHz) by default with a
+  toggle, or raise the threshold with our own patch. Costs heat/battery, not fps. Undecided.
+
 ### 17:40 ADDENDUM - on-screen keyboard (Cliff: "we need a virtual keyboard and a little icon for it on the bottom bar")
 - Holo Core has NO on-screen keyboard (no maliit, no plasma-keyboard in the sync dbs; only
   qt6-virtualkeyboard). NEW package packages/plasma-keyboard (KDE's, v0.1.0 = the Plasma 6.5-era
