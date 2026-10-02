@@ -1,6 +1,28 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## 2026-10-02 afternoon session (Fable 5.1) - RC 20261002 BUILT (not published); RP5 mesa 10; Odin k34exp, READ FIRST
+## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
+
+### STATE AT 14:20 (supersedes the "not published / untested" wording further down this block)
+- **Release 20261002 DONE.** Cliff 14:1x: installed internally from the Lexar, "odin headphone and
+  sleep/wake tests pass!!". Image on R2 (full public download + sha256 -c OK), release commit 56db03c
+  + tag release-20261002 pushed (dev), public main e328aca + tag, OTA tag sm8750 = kernel 33 + bsp 27
+  (db + both packages re-downloaded from the public URL, sha == db; old 32/24 assets removed), GitHub
+  Release created, landing page lists 20261002. README: the "hissy and right-heavy" headphone
+  limitation line was removed (my edit; Cliff has not reviewed the wording of that section).
+- **RP5 freeze: mesa-next 10 (our 0005) installed 14:00, noubwc REMOVED, VS on DXVK ran 17+ min at the
+  title screen (run ~/rp5-vs-hang/ubwc-mesa10-bindclear; the old freeze hit ~30 s after launch = the
+  moment rendering starts, 14:00:54 in this run). No msm/adreno lines in the journal. NOT yet done:
+  gameplay by Cliff (stutter, the 4x sprite glitch), the same-binary control (TU_UBWC_BIND_CLEAR=0 must
+  freeze; costs a long-press), session restart (gamescope still had mesa 9 loaded).
+  /usr/share/steam/compatibilitytools.d/proton-cachyos/user_settings.py is now an empty dict (delete
+  it once Cliff has played). Rollback files: RP5:/var/lib/holodor-rollback/mesa-next-9-files.tar.gz.
+- **RP5 perf lead:** at the VS title the GPU sits at 925 MHz (1007 of 1035 samples, 70 C) while the
+  game's own GPU time (fdinfo drm-engine-gpu) is ~40 %; governor simple_ondemand, min 305 MHz. Why the
+  governor holds the top OPP is the next thing to look at (msm devfreq busy calc vs the 9998-gpu-tuning
+  table, or uncapped fps in the menu).
+- My sleep block on the RP5 (claude-inhibit) was STOPPED 14:2x. scp trap: a local filename with ':' needs ./
+- mesa 0005 + kernel series 60 committed AFTER the release tag (see git log).
+
 
 Cliff 12:1x: "The Odin sounds perfect", jack work done; release now; then RP5 + try the sweep patches.
 (The previous session could not be resumed after `claude update`; his unsent prompt was recovered from
