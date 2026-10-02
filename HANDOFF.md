@@ -10,8 +10,8 @@
   Cleanup for a later bump: plasma-keyboard depends on qt6-wayland, which it does not need (Qt 6.10's
   Wayland client lives in qt6-base); harmless, pulls one small package.
 - RC **20261002b** = 20261002 + keyboard: build/image/sm8750/holodor-odin3-20261002b-seedless.img.zst,
-  sha256 3d79bda4...2c86c, contents verified by loop-mount. NOT flashed (Cliff was asked to put the
-  LEXAR in fusor; no card present at 18:30), NOT published. Next: build/flash-lexar-*.sh pattern,
+  sha256 3d79bda4...2c86c, contents verified by loop-mount. ON THE LEXAR: VERIFIED BYTE-EXACT 19:04 (raw sha
+  198159b6...99cc, 15817768960 bytes), wifi.txt written. NOT published. Next: build/flash-lexar-*.sh pattern,
   write-wifi-txt, Cliff boot-tests Desktop Mode keyboard on a fresh card, then publish like 20261002.
 - **Odin is RUNNING k34exp** (uname 7.1.3-60-upstream-2026-10-02), installed by hand, pacman untouched:
   files in /var/tmp/k34exp (Image, dtb, install.sh, rollback.sh, trace-*.sh), modules in
