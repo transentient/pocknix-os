@@ -1,5 +1,28 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-06 02:30: RP5 headphone jack warble FIXED (bsp-sm8250 24), measured on the UCA202
+
+- Rig: RP5 jack -> 3.5 mm/RCA -> UCA202 on fusor (`sudo arecord -D hw:CODEC,0`), no headphone load.
+  Tools: tools/rp5-audio/jack (hpq.sh = probe+bursts ducking test, hpt.sh = full-scale THD + floor,
+  env.py, thd-harm.py). Mixer switches must be set with the PCM CLOSED: the compander is latched at
+  stream start, toggling it mid-stream does nothing (cost me three runs).
+- **Root cause:** stock UCM rx-macro/HeadphoneEnableSeq turns RX_COMP1/2 ON while wcd938x
+  HeadphoneEnableSeq turns HPHL/R_COMP OFF, mode CLS_H_ULP. Result: every loud passage ducks the
+  whole signal 18 dB (probe -53.1 -> -71.1 dBFS during a burst, 200 ms recovery). Both companders
+  ON = right channel dead (-72 dB), same class as the Odin's WCD939x. Companders off in class H =
+  16-25 % THD on a full-scale tone.
+- **Fix:** HiFi-RP.conf writes the rx-macro sequence itself: RX_COMP off, `RX HPH Mode` CLS_AB
+  (upstream's newer wcd938x/HeadphoneABEnableSeq does the same for laptops); heal: RX digital 122.
+  After a cold boot, normal path: no ducking (probe -59.9 in and out of bursts), full-scale tone
+  0.01 % THD at slider 57 % and 100 %, L/R within 0.1 dB, floor -90 dBFS.
+  CLS_AB_HIFI/LOHIFI were worse (0.1 % at dig 108, 1 % at 118); plain CLS_AB is clean to 122.
+- Level change Cliff will notice: at the same slider loud content is ~11 dB LOUDER, quiet content
+  ~7 dB quieter than before (the old path boosted quiet and ducked loud).
+- **OPEN: left/right on the jack.** A left-only tone arrives on the UCA202's RIGHT input. Either
+  the jack path is swapped or the RCA plugs are crossed at the UCA202. Needs Cliff's ears once
+  (pw-play /var/tmp/spk/lr.wav: single low beep should be in the left ear).
+- Upstream candidate: alsa-ucm-conf sm8250/wcd938x phones get the same mismatched sequence.
+
 ## 2026-10-06 00:45: sm8250 package-pass triage + first RP5 release-candidate image
 
 - **Triage: nothing blocks an RP5 image.** All 8 failures are emulator packages, and

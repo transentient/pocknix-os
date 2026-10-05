@@ -43,8 +43,13 @@ apply_gains() {
   # headphones: wcd938x analog + rx-macro digital
   set_c "HPHL Volume" 24
   set_c "HPHR Volume" 24
-  set_c "RX_RX0 Digital Volume" 102
-  set_c "RX_RX1 Digital Volume" 102
+  # bsp 24 (2026-10-06, measured on a UCA202): compander off + class AB (see HiFi-RP.conf) is linear
+  # but 27 dB quieter than the old ducking path at low levels; digital 122 makes that up. A full-scale
+  # tone at slider 100 % is 0.01 % distortion there (the HIFI/LOHIFI modes reach 1 % by 118).
+  set_c "RX_COMP1 Switch" 0
+  set_c "RX_COMP2 Switch" 0
+  set_c "RX_RX0 Digital Volume" 122
+  set_c "RX_RX1 Digital Volume" 122
   # headset mic (UCM BootSequence value)
   set_c "ADC2 Volume" 10
 }
