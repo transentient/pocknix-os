@@ -1,5 +1,24 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-06 00:45: sm8250 package-pass triage + first RP5 release-candidate image
+
+- **Triage: nothing blocks an RP5 image.** All 8 failures are emulator packages, and
+  `config/packages/pocknix-emulation.list` is empty (Steam-only v0):
+  armsx2/eden/rpcs3/vita3k/xemu `-bin` = `--appimage-extract` cannot run under qemu-user binfmt
+  ("cannot execute binary file": the AppImage "AI\x02" bytes in the ELF header). FIXED in the
+  PKGBUILDs (extract from a header-cleared copy; not rebuilt yet, no pkgrel bump).
+  azahar, dolphin-emu = deps not in ALARM (enet, libspng, sfml, miniupnpc). es-de = upstream URL 404.
+  Those three are left as they are (optional, image says "ships WITHOUT it").
+- **RP5 RC image BUILT:** `build/image/sm8250/holodor-rp5-20261006rc1-seedless.img.zst` (3.19 GiB,
+  sha256 df194790...114ac3), recipe `build/respin-rp5-20261006rc1.sh` (fresh rootfs, seedless,
+  release). Contains kernel 7.1.2-10, mesa-next 10, gamescope 5, pocknix-steam 46, bsp-sm8250 23,
+  bsp-common 24. NOT flashed, NOT booted, NOT published.
+- **build/rootfs is shared between devices.** The Odin's rootfs is parked at `build/rootfs.sm8750`;
+  `build/rootfs` is now the RP5's. Swap them back before an Odin `HOLODOR_RESUME=1` respin.
+- Next for an RP5 release: clean-card boot of rc1 on Cliff's unit; publish scripts need a device
+  axis (publish-release/publish-landing hardcode holodor-odin3-*; landing page text is Odin-only) =
+  Cliff's call on how two devices are presented; RP5 INSTALL (Cliff writes); release notes.
+
 ## 2026-10-05 late: RP5 120 Hz option + game audio L/R (commit 759263c and the one after)
 
 - **120 Hz option DONE** (gamescope 5 patch 0008, pocknix-steam 46, bsp-sm8250 23; installed on the RP5).
