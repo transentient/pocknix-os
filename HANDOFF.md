@@ -2,6 +2,40 @@
 
 ## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
 
+### 10-05 afternoon ADDENDUM - RP5 frame limit with Cliff playing; SPEAKER WARBLE root-caused (mic rig)
+- **Frame limit (Cliff set the QAM limit to 60 and played):** limiter engages (swapchain gets 16.67 ms)
+  but frames come every 15.0-15.1 ms (66 fps) and slip a refresh every 5th frame. Same with
+  GAMESCOPE_WSI_FRAME_LIMITER_AWARE=0 (gamescope forcing FIFO) -> gamescope's own timing, not DXVK.
+  vblank_debug: redZone 1.65 ms + rollingMaxDrawTime 4.74 ms = wake 6.39 ms before each 8.35 ms
+  refresh (the rotation-shader composite is that slow). 16.67 - 1.65 = 15.02 matches the cadence.
+  Real vblank period (drm_vblank_event seq) = 8.352 ms. UNTESTED NEXT: the panel's 60 Hz mode
+  (vtdr6130_rp6_modes has 120 and 60; gamescopectl lists ValidRefreshRates: 120 only) - needs a session
+  restart or GAMESCOPE_DYNAMIC_REFRESH; Cliff quit the game for the audio work before I tried.
+  /usr/share/steam/compatibilitytools.d/proton-cachyos/user_settings.py on the RP5 STILL carries
+  GAMESCOPE_WSI_FRAME_LIMITER_AWARE=0 (test) - remove.
+- **Speaker warble (Cliff: "raising and lowering in volume"), MEASURED with the VideoMic NTG as a USB mic
+  on fusor (tools/rp5-audio):** probe-and-burst test, as shipped at slider 45 %: a -12 dBFS burst pulls a
+  steady -30 dBFS probe down 4.3 dB, a -6 dBFS burst 7.6 dB (probe range 10.8-14.6 dB).
+  * WSA_COMP1/2 Switch OFF (the WSA macro compander) -> 0.1 dB. That is the cause. Amp-side COMP and
+    BOOST switches: no pumping either way (they only apply at power-up).
+  * Cost: the compander was adding ~14 dB at low level (probe -36.7 -> -50.4 dBFS at the mic).
+  * The PipeWire loudness limiter (+9 dB in, -0.5 limit, 0.15 s release) was NOT acting on the game
+    (pre-limiter peaks -14 dBFS); it does pump 3.6 dB on -6 dBFS bursts. Second-order.
+  * Gain map with the compander off (live sweeps): WSA_RX0/1 Digital Volume is exactly 1 dB/step while
+    playing. Full-scale tone (DAC -1 dBFS), PA 8: digital 104 -> -31.5 dBFS at the mic, H3 -38 dBc;
+    110 -> -26.6, -33 dBc; 114 -> -23.1, -30 dBc; 118 -> -19.9, -28; 121 -> -17.5, -25; 124 saturates.
+    PA Volume: 4 -> 8 = +4 dB, 8 -> 12 = +1 dB only.
+  * TRAP (cost an hour): mixer writes while the speaker PCM is closed do not land reliably (10/20 dB
+    off); unchanged values repeat within 0.3 dB over 6 starts; writes during playback are exact. The
+    boot-time audio-heal plants its gains with the PCM closed -> suspect for "loudness differs per boot".
+  * Possible L/R swap seen in pw-link (game output_1 -> playback_2); not measured yet.
+- **RP5 audio state left:** WSA_COMP1/2 off, digital 124, PA 8, slider 45 % = no warble, ~15 dB quieter
+  than before at the same slider. NOT persistent (a reboot re-plants the old state).
+- **NEXT for the slider (Cliff: "0 % to 100 % smoothly and have those %s be reasonable"):** design by
+  numbers: compander off for good; pick the ceiling (digital ~110-114 at full scale + limiter makeup);
+  a dB-linear slider law over a bounded window (PipeWire's cubic law gives -36 dB at 25 %); make the
+  hardware gains land (write during playback / keep them constant); bsp-sm8250 21.
+
 ### 10-05 ADDENDUM (Fable 5.1) - RP5: wifi-after-sleep FIXED, stutter measured + mostly fixed, bench tooling
 Cliff 10-05: wifi down after wake (had to re-enter the password), "a tiny bit stuttery consistently",
 "I need you to step in and take measurements"; later "you can test and tune gameplay performance
