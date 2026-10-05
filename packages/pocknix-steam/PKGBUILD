@@ -4,7 +4,7 @@
 # Steam is experimental (Valve publicbeta linuxarm64).
 pkgname=pocknix-steam
 pkgver=0.1.0
-pkgrel=43   # 43: pocknix-proton-prep swaps the DXVK-2.7 donor into the downloaded Valve ARM Proton on
+pkgrel=44   # 44 (2026-10-05): pocknix-wifi-import no longer pins the profile to interface-name=wlan0 (see bsp-common 24: after a firmware reload the netdev is wlan1 and the pinned profile makes NetworkManager cancel every iwd connection). 43: pocknix-proton-prep swaps the DXVK-2.7 donor into the downloaded Valve ARM Proton on
             #     POCKNIX_GPU_DXVK3=no boards (sm8250/a650; upstream d3b4743). 42: POCKNIX_ROTATION=shader|hw
             #     switch in the launcher (docs/rotation-experiment-2026-09-20.md)
 pkgdesc="Native ARM64 Steam Big Picture (gamescope) for the RP6 — installer + launcher"
