@@ -2,6 +2,49 @@
 
 ## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
 
+### 10-05 ADDENDUM (Fable 5.1) - RP5: wifi-after-sleep FIXED, stutter measured + mostly fixed, bench tooling
+Cliff 10-05: wifi down after wake (had to re-enter the password), "a tiny bit stuttery consistently",
+"I need you to step in and take measurements"; later "you can test and tune gameplay performance
+yourself now. Feel free to install some other games ... Hades, Dark Souls, Vanquish"; wants the RP5
+cleaned up and released; Rode mic ready for the speaker work (NOT started today).
+- **Wifi (root cause, fixed on the device + in packages):** wifi-import pinned the NM profile to wlan0;
+  10-03 23:03 the AP refused the first association after a 14 h sleep; pocknix-wifi-heal escalated to a
+  PCIe reset 45 s later; the chip came back as wlan1; NM then cancelled every iwd connection ("profile
+  is not compatible with device", seen with NM debug logging). Re-entering the password added a second
+  profile and NM kept picking the stale one. Device: stale profile deleted, interface-name cleared.
+  Repo: bsp-common 24 (heal: wifi dev by type, ~1 min patience, ~2 min before the reset, re-activate
+  after it), pocknix-steam 44 (no interface-name). The hub was attached, so NO sleep test was run.
+- **Bench tooling:** tools/rp5-bench (README there). Eye = gamescope base-plane screenshot + gamescope's
+  frame messages; finger = InputPlumber SendButtonChord; steamjs.py = JS inside Steam's UI over CEF
+  debugging (port 8080). Method = alternate settings inside one auto-played VS run.
+- **Stutter cause 1 (FIXED, measured):** game threads on the A55s under every scheduler. New
+  pocknix-game-affinity.service (bsp-common 24, installed on the RP5, lavd back on autopilot): 34 fps /
+  5 % of frames > 71 ms as shipped -> 83-87 fps / 5 % > 15.5 ms. CPU governor: no effect. FEX "fast": +10 %.
+- **Cause 2 (the "slight consistent jitter"), OPEN:** the panel is 120 Hz (Visionox), the game runs
+  uncapped at 80-115 fps, so frames slip a refresh every ~65 ms (seen in the raw sequence: 21 ms then
+  4 ms). Needs a vsync-aligned cap. What I found about caps:
+  * Steam's limiter goes through gamescope_control (app refresh cycle override). The GAMESCOPE_FPS_LIMIT
+    atom is overridden at once. `gamescopectl debug_set_fps_limit` and my raw
+    SteamClient.System.Perf.UpdateSettings calls did NOT give a clean cap (once no effect, once ~14 ms
+    frames). Steam's state decodes as fps_limit=60, is_fps_limit_enabled=0, options 15/30/60/off.
+    NEXT: have Cliff set the QAM frame limit to 60 by hand and measure, or drive the QAM through CEF.
+  * DXVK_FRAME_RATE=60 (Proton user_settings) gives 60.0 fps, frame times 16.6 +-2 ms, main thread 36 %
+    (from 82-90 %), GPU 650 MHz (from 925). gamescope's "visible" times still show slips, but I do not
+    trust that column yet (values are not multiples of the refresh).
+  * MY ERROR: one block of "Steam limit" numbers was taken on a game still carrying DXVK_FRAME_RATE=60.
+- **0619 on the RP5 (kernel 7.1.2-10, hand-installed over the pkg 9 files; /var/tmp/k10/rollback.sh):**
+  kprobes showed the inversion (game queue sched prio 0, gamescope's uprio-0 queue prio 2) but the
+  benchmark did not move (83-86 fps, same slips). Kept: it is the right mapping and Armada ships it.
+  The package build of pkgrel 10 is still owed (the full sm8250 pass held the chroot).
+- **sm8250 packages:** the main localrepo had only ever held the few packages built there; the full set
+  was in the bring-up worktree. Seeded 46 from it + full pass running (unit holodor-pkgs-sm8250, log
+  build/packages-sm8250-full.log). A stale db.lck in the sm8250 chroot (10-02 01:17) had been failing builds.
+- **Auto-play incident:** a presser that also sent d-pad down reached the Power Up shop after a death
+  and spent ~67 k gold; SIGKILL before the save was written, verified 67,825 on relaunch; copy in
+  ~/rp5-vs-hang/saves. Bench runs have since added gold/playtime to Cliff's save (69,379).
+- Hades is downloading on the RP5 (4.3 of 10.8 GB at 13:0x); Dark Souls Remastered (570940) and
+  Vanquish (460810) did not queue - redo. RP5 user_settings.py test file removed.
+
 ### 10-03 00:55 ADDENDUM - 20261002b RELEASED (current image)
 - Cliff booted the Lexar RC on the Odin, Desktop Mode keyboard "looks good!" -> published: image on R2
   (full public download + sha256 -c OK), release commit + tag release-20261002b pushed (dev), public
