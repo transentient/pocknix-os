@@ -2,6 +2,34 @@
 
 ## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
 
+### 10-05 evening ADDENDUM - RP5: speaker slider REBUILT (bsp 21), 60 Hz game mode (bsp 22 + steam 45), L/R half-checked
+State of Cliff's RP5 (all from packages built in build/localrepo/sm8250, installed with pacman -U):
+pocknix-bsp-sm8250 22, pocknix-bsp-common 24, pocknix-steam 45, linux-pocknix-sm8250 7.1.2-10,
+mesa-next 10. scx_lavd autopilot, slider left at 45 %, my sleep block released, test settings removed.
+- **Speakers (Cliff: "0 % to 100 % smoothly and have those %s be reasonable"; ceiling approved = my
+  proposal):** compander off; WSA digital 114, PA 8; limiter makeup +12 dB; new user service
+  pocknix-speaker-volume plants the gains during a second of silence and drives lawL/lawR in the
+  filter chain so total gain = -30 dB * (1 - v), 0 = mute. Mic-measured: 90 % -3.0 dB, 75 % -7.4,
+  50 % -14.8, 25 % -22.7, 10 % -26.7, 5 % -28.2; 100 % repeats within 0.2 dB across a cold boot;
+  full-scale tone at 100 %: H3 -36 dBc. Pumping: 0.7-1.1 dB on a -12 dBFS burst; a -6 dBFS burst still
+  ducks a quiet tone ~6 dB (that is the +12 dB limiter, a deliberate loudness trade - lower makeup to
+  remove it). Loudness (pink noise -24 dBFS rms): old setup 45 % -31.2, old 70 % -30.1 (flat!), new
+  100 % about -30.5. So the new 100 % ~ the old setup's maximum ~ where Cliff used to listen at 45 %.
+  NOT done: Cliff's ears; headphones untouched; the other sm8250 boards share the chain (untested).
+- **Frame pacing:** RP5 Visionox panel lists 120 Hz (preferred) and 60 Hz. gamescope -r 60
+  (POCKNIX_GAMESCOPE_REFRESH=60 in boards/rp5.conf): VIS 16.73 ms constant, 98 % of frames exactly one
+  refresh, 57 fps average in the bench, main thread 45 %, GPU 650 MHz. This is now the RP5 default.
+  120 Hz stays broken for anything that cannot hold 120 (gamescope's latch margin); a per-game or
+  Pocknix Control toggle is future work. gamescopectl shows ValidRefreshRates only for the current mode.
+- **L/R:** a normal stereo stream is right: left-only tone survives muting WSA_RX1 and drops 14 dB when
+  WSA_RX0 is muted (FL -> RX0). The GAME's stream has unlabelled channels (output_1/2 [UNK]) and is
+  wired crossed (output_2 -> left) in every dump. Whether that is an audible swap is NOT proven (my
+  correlation capture recorded silence; pw-cat cannot emulate UNK channels). Needs a game with clear
+  panning, or Cliff's ears. Which physical speaker RX0 is also needs his ears.
+- Full sm8250 package pass finished with failures to triage for an RP5 image: 10x "failure in
+  prepare()", 6x unresolved dependencies, es-de download (see build/packages-sm8250-full.log).
+- Hades finished downloading? unchecked. Dark Souls Remastered / Vanquish still not queued.
+
 ### 10-05 afternoon ADDENDUM - RP5 frame limit with Cliff playing; SPEAKER WARBLE root-caused (mic rig)
 - **Frame limit (Cliff set the QAM limit to 60 and played):** limiter engages (swapchain gets 16.67 ms)
   but frames come every 15.0-15.1 ms (66 fps) and slip a refresh every 5th frame. Same with

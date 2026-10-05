@@ -140,6 +140,9 @@ case "${ROTATION}" in
           GS_ROTATE_ARGS="--use-rotation-shader" ;;
 esac
 
+# (2026-10-05: measured on the RP5/SM8250 this is NOT true there: every scheduler put game threads on
+# the A55s and games ran at half speed. Games are now pinned to the fast cores by
+# pocknix-game-affinity.service in pocknix-bsp-common; gamescope and Steam stay unpinned as below.)
 # NO core pin: scx_lavd (latency- + heterogeneity-aware, pocknix-lavd.service) places the bursty
 # game/compositor threads on the big cores itself, AND needs the A510 littles free to offload batch
 # work (e.g. in-game Steam downloads) so the UI stays responsive — a hard taskset would fight it.
@@ -170,9 +173,12 @@ GS_LOG="${HOME}/pocknix-steam.log"
 # them here was a no-op). GAMESCOPE_DISABLE_ASYNC_FLIPS=1 was a 120/3=40fps vsync staircase — dropping
 # it lets frames exceed 40. Now bare, matching ROCKNIX's launch. -noshaders matches ROCKNIX too (stops
 # Steam's fossilize background shader compile stealing CPU during play).
+# POCKNIX_GAMESCOPE_REFRESH (board conf or /etc/pocknix/device.conf): pick the panel mode with this
+# refresh rate instead of the preferred one. Only for a rate the panel really lists (the RP5 Visionox
+# panel lists 120 and 60); gamescope generates a timing for anything else, which wedged the DPU before.
 env -u WAYLAND_DISPLAY \
   GAMESCOPE_FAKE_OUTPUT_MM="${PANEL_MM}" \
-  gamescope -W "${W}" -H "${H}" --xwayland-count 2 --mangoapp --backend drm \
+  gamescope -W "${W}" -H "${H}" ${POCKNIX_GAMESCOPE_REFRESH:+-r ${POCKNIX_GAMESCOPE_REFRESH}} --xwayland-count 2 --mangoapp --backend drm \
     --force-orientation "${ORIENT}" ${GS_ROTATE_ARGS} -e -- \
     env LD_LIBRARY_PATH="${LDLP}" "${CLIENT}" -gamepadui -steamos3 -steampal -steamdeck -noverifyfiles -noshaders \
   >"${GS_LOG}" 2>&1
