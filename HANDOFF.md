@@ -18,7 +18,8 @@
   built with mingw on fusor, swapped into a Steam app's exe; lrrun.sh records the chain input;
   lran.py). Same wrapper ships on the Odin -> same bug there, fix reaches it with pocknix-steam 46
   (not built/published for sm8750 yet).
-- Still open: which PHYSICAL speaker is "left" (asked Cliff: one low beep = left), Guess What!
+- Physical left/right CONFIRMED by Cliff 10-06: left-only beep came from the left speaker (FL -> WSA_RX0 = left).
+- Still open: Guess What!
   (Max/MSP app, 3044080) hangs at launch with no window (not investigated), Dark Souls not queued.
 
 ## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
