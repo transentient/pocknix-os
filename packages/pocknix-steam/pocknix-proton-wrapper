@@ -138,6 +138,16 @@ def apply_audio_latency(settings):
         os.environ["PULSE_LATENCY_MSEC"] = value
 
 
+def apply_audio_driver():
+    # proton-cachyos turns on Wine's PipeWire audio driver for every game. Its streams carry no
+    # channel names, and WirePlumber links them into Steam's per-game audio group crossed: game left
+    # came out of the right speaker (measured 2026-10-05 on the RP5 with a left-only tone played by
+    # a Windows program launched from Steam). The PulseAudio driver names its channels, is what
+    # Valve's Proton uses, and is the one PULSE_LATENCY_MSEC above applies to.
+    # `PROTON_USE_PIPEWIRE=1 %command%` in a game's launch options still wins.
+    os.environ.setdefault("PROTON_USE_PIPEWIRE", "0")
+
+
 def apply_lsfg(settings):
     # lsfg-vk v2 env contract (LSFGVK_*, not the v1 LSFG_* names). Mobile-tuned
     # defaults per ROCKNIX: 2x, flow_scale 0.30, performance_mode on. The user
@@ -185,6 +195,7 @@ def main():
         apply_audio_latency(settings)
     except Exception as exc:
         print(f"pocknix-proton: failed to apply audio latency: {exc}", file=sys.stderr)
+    apply_audio_driver()
     try:
         apply_lsfg(settings)
     except Exception as exc:

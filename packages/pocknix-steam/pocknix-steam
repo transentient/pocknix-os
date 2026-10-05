@@ -176,8 +176,12 @@ GS_LOG="${HOME}/pocknix-steam.log"
 # POCKNIX_GAMESCOPE_REFRESH (board conf or /etc/pocknix/device.conf): pick the panel mode with this
 # refresh rate instead of the preferred one. Only for a rate the panel really lists (the RP5 Visionox
 # panel lists 120 and 60); gamescope generates a timing for anything else, which wedged the DPU before.
+# POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST=1 (board conf): on a panel with several refresh rates, a
+# frame limit picks the lowest rate it divides instead of the highest (gamescope 0008). RP5 Visionox:
+# a 60 fps limit runs the panel at 60 Hz, 120 runs it at 120 Hz.
 env -u WAYLAND_DISPLAY \
   GAMESCOPE_FAKE_OUTPUT_MM="${PANEL_MM}" \
+  ${POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST:+GAMESCOPE_DYNAMIC_REFRESH_PREFER_LOWEST=${POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST}} \
   gamescope -W "${W}" -H "${H}" ${POCKNIX_GAMESCOPE_REFRESH:+-r ${POCKNIX_GAMESCOPE_REFRESH}} --xwayland-count 2 --mangoapp --backend drm \
     --force-orientation "${ORIENT}" ${GS_ROTATE_ARGS} -e -- \
     env LD_LIBRARY_PATH="${LDLP}" "${CLIENT}" -gamepadui -steamos3 -steampal -steamdeck -noverifyfiles -noshaders \
