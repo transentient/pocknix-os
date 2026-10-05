@@ -1,5 +1,23 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-06 03:30: Hades + Vanquish on the RP5 (120 Hz, uncapped, 1080p, jack connected)
+
+Driven over ssh (tools/rp5-bench/gb.sh: launch/quit through Steam JS, screenshots, gsframes).
+Saves untouched: Hades on an empty slot (never saved), Vanquish in TUTORIAL.
+- **Hades** (DirectX default): menu 119.5 fps, 99 % of frames one 120 Hz refresh. Gameplay
+  (first chamber) 52 fps, frames a mix of 1/2/3 refreshes (16/31/51 %) = uneven. GPU at 925 MHz
+  (max). A 40 fps limit (120 Hz / 3) or the 60 Hz mode is the likely fix; NOT tested (cannot move
+  Steam's slider over ssh; the game's Steam profile is uncapped although GAMESCOPE_FPS_LIMIT reads 60).
+- **Vanquish**: title 41.8 fps (every frame 3 refreshes), tutorial gameplay a locked 24.8 fps
+  (every frame exactly 5 refreshes: the game's own vsync steps 120/4 -> 120/5). Renders correctly.
+- **Game audio on the jack** (UCA202, 60 s each): no dropouts in either game.
+- **Heat:** 86-91 C on the big cores and GPU after ~15 min, fan 3/4, light throttling started
+  (cpufreq 1/17 and 1/19, GPU 2/14). Worth a look before release (fan curve, trip points).
+- **udisksd:** Wine's winedevice.exe calls UDisks2 GetManagedObjects ~4x/s while a game runs;
+  udisksd burns 5 % of a core on average with bursts to 100 % (27 partitions on the UFS). ABAB on
+  Hades with udisksd confined to the little cores: no fps change (51.6-52.7 either way). Left alone.
+- RP5 image **rc2** (= rc1 + bsp-sm8250 24) building: build/respin-rp5-20261006rc2.sh.
+
 ## 2026-10-06 02:30: RP5 headphone jack warble FIXED (bsp-sm8250 24), measured on the UCA202
 
 - Rig: RP5 jack -> 3.5 mm/RCA -> UCA202 on fusor (`sudo arecord -D hw:CODEC,0`), no headphone load.
