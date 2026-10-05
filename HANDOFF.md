@@ -16,7 +16,8 @@ Saves untouched: Hades on an empty slot (never saved), Vanquish in TUTORIAL.
 - **udisksd:** Wine's winedevice.exe calls UDisks2 GetManagedObjects ~4x/s while a game runs;
   udisksd burns 5 % of a core on average with bursts to 100 % (27 partitions on the UFS). ABAB on
   Hades with udisksd confined to the little cores: no fps change (51.6-52.7 either way). Left alone.
-- RP5 image **rc2** (= rc1 + bsp-sm8250 24) building: build/respin-rp5-20261006rc2.sh.
+- RP5 image **rc2** (= rc1 + bsp-sm8250 24) BUILT: build/image/sm8250/holodor-rp5-20261006rc2-seedless.img.zst,
+  sha256 7ad91a9e...3bc5e5. Not flashed, not booted, not published. rc1 is superseded.
 
 ## 2026-10-06 02:30: RP5 headphone jack warble FIXED (bsp-sm8250 24), measured on the UCA202
 
