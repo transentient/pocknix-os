@@ -1,5 +1,26 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-05 late: RP5 120 Hz option + game audio L/R (commit 759263c and the one after)
+
+- **120 Hz option DONE** (gamescope 5 patch 0008, pocknix-steam 46, bsp-sm8250 23; installed on the RP5).
+  DSI panel has no EDID -> gamescope skipped its refresh list. Now `gamescopectl` shows 60, 120.
+  Steam UI runs 120 Hz; VS with Steam limit 60 switched the panel to 60 Hz live (30 s: 100 % of
+  frames one refresh, 16.73 ms); back to 120 Hz on exit. `POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST=1`
+  in rp5.conf makes limit 60 pick 60 Hz, not 120.
+  NOT tested: the limit slider at 120/off/40/30 (could not open the QAM over ssh: InputPlumber
+  `QuickAccess` chord did nothing), Cliff's eyes on the mode switch, sleep/wake at either rate.
+  gamescope is a shared package: the Odin's panel may now also list several rates. Check on the
+  Odin before any sm8750 publish.
+- **Game audio L/R swap ROOT CAUSE**: proton-cachyos forces Wine's PipeWire driver; its streams have
+  unnamed channels and WirePlumber links them into Steam's per-game audio group in random order.
+  Old: 6 launches = 2 swapped, 3 silent, 1 right. Fix (PROTON_USE_PIPEWIRE=0 default in
+  pocknix-proton-wrapper): 12 of 12 right. Test rig: tools/rp5-audio/lrtest (lr.c = winmm player
+  built with mingw on fusor, swapped into a Steam app's exe; lrrun.sh records the chain input;
+  lran.py). Same wrapper ships on the Odin -> same bug there, fix reaches it with pocknix-steam 46
+  (not built/published for sm8750 yet).
+- Still open: which PHYSICAL speaker is "left" (asked Cliff: one low beep = left), Guess What!
+  (Max/MSP app, 3044080) hangs at launch with no window (not investigated), Dark Souls not queued.
+
 ## 2026-10-02 afternoon session (Fable 5.1) - 20261002 RELEASED; RP5 UBWC freeze FIXED (mesa 10, 17 min); Odin k34exp built, READ FIRST
 
 ### 10-05 evening ADDENDUM - RP5: speaker slider REBUILT (bsp 21), 60 Hz game mode (bsp 22 + steam 45), L/R half-checked
