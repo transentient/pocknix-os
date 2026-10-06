@@ -42,7 +42,22 @@ if [ "${CPUS}" = auto ]; then
   [ "$n" -ge 2 ] || exit 0                 # never squeeze a game onto a single core
 fi
 command -v taskset >/dev/null 2>&1 || exit 0
-echo "pocknix-game-affinity: games -> cpus ${CPUS}"
+ALL_CPUS="0-$(( $(ls -d /sys/devices/system/cpu/cpu[0-9]* | wc -l) - 1 ))"
+# Threads that are better off NOT on the game's cores: DXVK's background shader compilers
+# (dxvk-shader-*) run flat out when a new scene arrives and would otherwise steal the big cores
+# from the render thread; on the little cores they only cost a longer compile, not a hitch.
+# Thread names are matched on /proc/<pid>/task/<tid>/comm every few seconds (threads inherit the
+# game's affinity when created, so a one-shot at launch cannot catch them).
+SIDE_THREADS="dxvk-shader"
+echo "pocknix-game-affinity: games -> cpus ${CPUS}; ${SIDE_THREADS}* threads -> cpus ${ALL_CPUS}"
+side_threads() {  # threads of the pids under $1 whose comm starts with a SIDE_THREADS name
+  for p in $(descendants "$1"); do
+    for t in /proc/${p}/task/*; do
+      [ -r "${t}/comm" ] || continue
+      case "$(cat "${t}/comm" 2>/dev/null)" in ${SIDE_THREADS}*) echo "${t##*/}" ;; esac
+    done
+  done
+}
 
 descendants() {  # pids under $1, including $1
   ps -e -o pid=,ppid= | awk -v root="$1" '
@@ -66,5 +81,15 @@ while :; do
   done
   # forget reapers that are gone, so the list stays short
   keep=""; for pid in ${seen}; do [ -d "/proc/${pid}" ] && keep="${keep} ${pid}"; done; seen="${keep}"
+  tick=$(( ${tick:-0} + 1 ))
+  if [ $(( tick % 5 )) = 0 ]; then
+    for pid in ${seen}; do
+      for tid in $(side_threads "${pid}"); do
+        case " ${widened} " in *" ${tid} "*) continue ;; esac
+        taskset -c -p "${ALL_CPUS}" "${tid}" >/dev/null 2>&1 && widened="${widened} ${tid}"
+      done
+    done
+    [ ${#widened} -gt 4000 ] && widened=""   # forget old tids now and then; a re-set is harmless
+  fi
   sleep 1
 done
