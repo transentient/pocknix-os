@@ -1,5 +1,31 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-06 12:30: loose ends (speaker entry hidden, Wine polling, Dark Souls, heat test running)
+
+- **Speaker loudness entry hidden:** 60-pocknix-speaker-loudness.conf capture node media.class
+  Audio/Sink/Internal (PipeWire's Pulse layer lists only Audio/Sink). Verified live: pactl shows
+  Speaker + Headphones only, playback to Speaker still goes through the filter, slider daemon fine.
+  In the repo, NOT yet built (goes into bsp-sm8250 25 with whatever the heat test decides).
+- **Wine/udisks polling:** left alone (ABAB showed no fps effect). Cost is ~5 % of one core.
+- **Dark Souls Remastered (570940):** first launch hung 12 min in "Installing Game-Specific fixes":
+  protonfixes runs `winetricks vcrun2017`; the vc_redist installer never finishes under our Wine
+  (the wine launcher sits in a pipe read, main thread gone). Killing it left the prefix with native
+  ucrtbase in system32 and no overrides -> every launch died with c000007b. Fix that worked: launch
+  options `PROTONFIXES_DISABLE=1 %command%` (set on Cliff's account for this game) + a fresh prefix
+  (old one parked at /var/tmp/compatdata-570940-broken on the RP5; it holds the cloud-synced NBGI save
+  dir, which the new prefix will re-sync). Game then runs: menus/character creation a locked 60 fps
+  (game vsync 60 on the 120 Hz panel, 2 refreshes per frame, jitter 0.6 ms). Gameplay NOT measured:
+  character creation needs a typed name; InputPlumber Keyboard:* chords reach the game but the name
+  box only took text once. Cliff: pick the name with the Steam keyboard (Steam+X) and play; it should
+  run. EULA + privacy accepted on the account by me (install + first launch).
+  **Release note candidate:** any game whose protonfix installs a winetricks verb will hang on
+  Holodor. Consider PROTONFIXES_DISABLE default or a winetricks stub (decision for Cliff).
+- Test batch additions agreed with Cliff: Celeste (native/FEX), Outer Wilds (Unity 3D), DOOM 2016
+  (Vulkan), Octopath Traveler II (UE4).
+- Heat test (Hades gameplay, 10 min quiet fan curve then 10 min performance) running; results below
+  when done. Fan is our overlay daemon pocknix-fancontrol; curves in the script; no thermal zone
+  drives the pwm-fan in DT.
+
 ## 2026-10-06 03:30: Hades + Vanquish on the RP5 (120 Hz, uncapped, 1080p, jack connected)
 
 Driven over ssh (tools/rp5-bench/gb.sh: launch/quit through Steam JS, screenshots, gsframes).
