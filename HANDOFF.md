@@ -1,5 +1,17 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-06 13:10: heat soak result (Hades gameplay, first chamber, light input)
+
+- quiet curve, 10 min: hottest zone 82.8 C avg over the last 5 min, fan pwm 196, cpu7 2811 MHz,
+  GPU 925 MHz (max), throttled 1/60 samples; 47.5 fps dead steady (21.1 ms, jitter 0.4 ms).
+- performance curve, next 10 min (already heat-soaked): 83.5 C, fan 255, no throttling, same fps.
+- So the fan curve is not the lever: at these temperatures quiet already runs the fan at 77 %, and
+  max fan buys nothing measurable. The 86-91 C seen earlier came from heavier scenes (Vanquish,
+  Hades with enemies). Throttling starts at the DT trips (GPU passive 85 C, CPU 90 C) and was mild.
+  The honest mitigation is less work per frame: a frame limit (40 or 60) on games that run the GPU
+  flat out. Nothing changed; fan-mode left at quiet.
+- bsp-sm8250 25 = loudness filter hidden; building + rc3 respin next.
+
 ## 2026-10-06 12:30: loose ends (speaker entry hidden, Wine polling, Dark Souls, heat test running)
 
 - **Speaker loudness entry hidden:** 60-pocknix-speaker-loudness.conf capture node media.class
