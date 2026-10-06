@@ -47,7 +47,10 @@ Two-installs freeze and cold-boot wifi "limited" remain open. Jusant: DX12-only,
 
 **Next:** auto frame limit in gamescope (measure sustained fps, pick 60/120/30 with hysteresis,
 default "Auto" in the plugin); winetricks: run vcrun2017 by hand inside the game env to find the hang;
-Observer: WINEDEBUG=+seh,+tid; Unity/Turnip profiling; rc4 image.
+Observer: WINEDEBUG=+seh,+tid; Unity/Turnip profiling.
+**RP5 image rc4 BUILT:** build/image/sm8250/holodor-rp5-20261006rc4-seedless.img.zst, sha256 637e4da4...247a0
+(gamescope 8, steam 48, bsp-sm8250 26, bsp-common 25, Control 21, oomd verified inside the image). rc3 deleted.
+Not flashed, not booted, not published.
 
 ## 2026-10-06 15:30: RP5 test batch, round 2 (120 Hz, uncapped unless noted; tools/rp5-bench/bench.sh)
 
