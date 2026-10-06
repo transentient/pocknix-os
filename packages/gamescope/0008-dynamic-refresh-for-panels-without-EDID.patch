@@ -13,6 +13,10 @@ GAMESCOPE_DYNAMIC_REFRESH_PREFER_LOWEST=1 makes an app fps target pick the
 lowest matching panel rate instead of the highest. On a 60/120 Hz panel a
 60 fps target then runs the panel at 60 Hz, one frame per refresh, instead
 of every second refresh at 120 Hz.
+
+GAMESCOPE_DYNAMIC_REFRESH_DEFAULT_LOWEST=1 runs the panel at its lowest rate
+when no app target is set (Steam UI, uncapped games); a target that divides
+a higher rate still switches up.
 ---
 --- a/src/Backends/DRMBackend.cpp
 +++ b/src/Backends/DRMBackend.cpp
@@ -127,3 +131,19 @@ of every second refresh at 120 Hz.
  		// Find highest mode to do refresh doubling with.
  		for ( auto rate = rates.rbegin(); rate != rates.rend(); rate++ )
  		{
+@@ -2785,9 +2801,14 @@
+ 
+ 		int nDynamicRefreshHz = g_nDynamicRefreshRate[GetBackend()->GetScreenType()];
+ 
++		// GAMESCOPE_DYNAMIC_REFRESH_DEFAULT_LOWEST=1: with no app target, run the panel at its
++		// lowest rate instead of its highest. On a 60/120 Hz panel where compositing a frame
++		// costs a large share of the 120 Hz budget, 60 Hz is the safe default and 120 Hz
++		// is used when an app target asks for it.
++		static const bool s_bDefaultLowest = env_to_bool( getenv( "GAMESCOPE_DYNAMIC_REFRESH_DEFAULT_LOWEST" ) );
+ 		int nTargetRefreshHz = nDynamicRefreshHz && steamcompmgr_window_should_refresh_switch( pFocus->focusWindow )
+ 			? nDynamicRefreshHz
+-			: int( rates[ rates.size() - 1 ] );
++			: int( s_bDefaultLowest ? rates[ 0 ] : rates[ rates.size() - 1 ] );
+ 
+ 		uint64_t now = get_time_in_nanos();
+ 

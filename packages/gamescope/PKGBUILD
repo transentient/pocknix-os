@@ -39,7 +39,7 @@
 pkgname=gamescope
 epoch=1
 pkgver=3.16.0.rocknix.4286887
-pkgrel=5  # 5 (2026-10-05): 0008 refresh rates for panels without an EDID (RP5 60/120 Hz in Steam). 4 (2026-09-27): 0007 sanitize GAMESCOPE_COLOR_NIGHT_MODE (NaN saturation from Steam painted the output red; no toggle could clear it)
+pkgrel=6  # 6 (2026-10-06): 0008 + GAMESCOPE_DYNAMIC_REFRESH_DEFAULT_LOWEST (panel at 60 Hz unless a game targets 120). 5 (2026-10-05): 0008 refresh rates for panels without an EDID (RP5 60/120 Hz in Steam). 4 (2026-09-27): 0007 sanitize GAMESCOPE_COLOR_NIGHT_MODE (NaN saturation from Steam painted the output red; no toggle could clear it)
 _commit=428688779e481681ddf6e2ea346987889527a0b7
 # Grant CAP_SYS_NICE to the installed binary (realtime scheduling) — see gamescope.install.
 install=gamescope.install
