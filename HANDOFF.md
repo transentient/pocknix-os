@@ -1,5 +1,28 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-07 01:30: Outer Wilds / Risk of Rain 2 closed out
+
+Scene: Outer Wilds "Wake Up" screen (the full 3D village, deterministic, 10.1 fps, GPU 98 %).
+- Turnip modes (launch options): TU_DEBUG=sysmem 10.3, nolrz 10.1, noubwc 9.4, gmem 7.5 fps.
+  No driver mode helps; the default is the best. DXVK HUD: 3852 draw calls, 111 render passes,
+  256 barriers, 862 pipelines, GPU 100 %. It is honest GPU work, not a slow path.
+- The game's own settings DEFAULT to Very High shadows, Very High SMAA, Very High SSAO, High water
+  (Unity picks "Fantastic" on an unknown GPU). Shadows Low + AA Low: 10 -> 19.8 fps. Plus SSAO off,
+  water low, lighting low: 22.7 fps. 1080p vs 720p: no difference at any setting (shader-bound,
+  as measured on 10-06). The game's "Resolution" line stayed 1280x720 internally with Steam's
+  override removed; the registry still says 1280x720 (Unity keeps its own) - not a lever anyway.
+- Risk of Rain 2, character select: defaults 18.0 fps; shadows low/hard, SSAO+bloom off, LOD low:
+  21.7 fps. Same story, smaller gain.
+- **Conclusion:** the Unity DX11 class is GPU-bound on honest work; the big lever is the games'
+  own quality presets, which Unity sets to maximum because it cannot rate this GPU. Nothing to fix
+  in Turnip/DXVK from this evidence. Possible Holodor help: a per-game note or a community
+  settings list; no automatic way to lower a Unity game's internal quality from outside.
+- Outer Wilds left at: shadows/AA/lighting Low, SSAO off, water High; resolution override removed.
+  RoR2 left at the low settings above (both on Cliff's profile; easy to Reset to Default in-game).
+- Menus: Outer Wilds options respond to KEYBOARD arrows (InputPlumber Keyboard:KeyLeft) but not
+  d-pad for value changes; rapid d-pad presses get swallowed (0.7 s pacing works). RoR2 is
+  touch-driven (vtap2.py: hover-then-click tap).
+
 ## 2026-10-06 20:30: three more games; native-Linux answer; disk-full freeze
 
 - **The earlier freeze was DISK, not memory.** Three installs at once took / to 399 MB free; last
