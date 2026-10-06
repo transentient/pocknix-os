@@ -1,5 +1,54 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-06 19:30: review round, top proposals shipped, more games measured
+
+**Shipped (installed on the RP5, in localrepo):** gamescope 8, pocknix-steam 48, bsp-sm8250 26,
+bsp-common 25, Pocknix Control 21, systemd-oomd (overlay + build-sd-image enable).
+- gamescope 8: convar `dynamic_refresh_default_lowest` (init from GAMESCOPE_DYNAMIC_REFRESH_DEFAULT_LOWEST,
+  set by pocknix-steam from rp5.conf POCKNIX_GAMESCOPE_REFRESH_DEFAULT_LOWEST=1). Panel at 60 Hz unless a
+  target asks for another rate. Steam's DEFAULT per-game profile sends "120 fps, change_refresh=1,
+  change_fps_cap=1" (logged now: "steamcompmgr: app target refresh cycle"), identical to a user's
+  explicit 120, so a highest-rate target counts as no preference. 120 Hz per game = Pocknix Control
+  "120 Hz Screen" toggle (tweak refresh120) -> wrapper runs `gamescopectl dynamic_refresh_default_lowest 0`
+  for the game's lifetime, restores 1 at exit (verified on Hades: 120 during, 60 after).
+- pocknix-proton-wrapper (steam 47/48): PROTONFIXES_DISABLE=1 default ("Proton Game Fixes" toggle =
+  tweak protonfixes:true; launch-option PROTONFIXES_DISABLE wins); first-launch guard: pfx absent ->
+  Popen + watch; if the game exe is not running after 300 s (POCKNIX_FIRST_LAUNCH_GRACE) kill the tree
+  and move pfx to pfx.broken-<ts>. Normal launches still exec. NOT yet exercised against a real hang.
+- bsp-common 25: game-affinity widens dxvk-shader-* threads to all cores every 5 s (verified: RoR2
+  threads show mask ff). Unity Job.Workers stay pinned (Outer Wilds menu A/B: no fps change).
+- systemd-oomd: user@.service ManagedOOMMemoryPressure=kill 50 %, 10 s. Not yet provoked.
+- `gamescopectl debug_set_fps_limit N` = remote frame limit (what Steam's slider does). Used below.
+
+**Hades gameplay, chamber 1 (the cap question):** 60 Hz uncapped 58 fps, 96 % of frames one refresh;
+cap 60 -> 60 Hz 59.6 fps 99 % one refresh; cap 40 -> 120 Hz 31 fps, 3-5 refreshes (BAD: gamescope's
+limiter cannot pace at 120 Hz with our composite cost); 120 Hz uncapped 52 fps mixed. 60 Hz is home.
+
+**Games:** Dark Souls R. gameplay (Asylum) 28 fps, frames 4-5 refreshes, cpu7 throttled to 1.86 GHz,
+GPU 717 MHz at 90 C (white screen on start = ~2 min of loading, not a bug; needs patience).
+Portal (32-bit Windows build via Proton) runs: 40 fps uneven -> 32-bit works, winetricks hang is not
+a 32-bit issue. Outer Wilds in-game: GPU 96 % busy, main thread 40 %: GPU-bound (menu is CPU-bound on
+Unity job workers). Observer: same crash on the "compatible" FEX profile (TSO on, multiblock off).
+Risk of Rain 2: menu scene 13.9 fps, GPU 95 %. Stardew Valley: 60 fps (Windows build). Celeste and
+Portal were given WINDOWS depots by this Steam client even with the compat box unticked.
+**Pattern:** Unity DX11 titles (Outer Wilds 9 fps, RoR2 14 fps) are far below UE4/DX11 ones (Octopath
+30 capped, Dark Souls 28) on Turnip a650 + DXVK 2.7, resolution-insensitive. Driver investigation #1.
+
+**Heat:** Octopath title scene 15 + 10 min: hottest zone 87 C avg (peaks 94), battery 44 C (on charger),
+fan 224/255, cpu7 throttled 26/60 samples, GPU not throttled. After the soak p95 frame time 50 ms (6 % of
+frames) vs none when cold: heat costs hitches at a 30 fps cap. skin-msm/pm8150l-pcb/xo/wifi thermal
+zones return EINVAL on our kernel (ADC channels not wired in DT) -> battery temp is the skin proxy.
+
+**Also:** Valve's "Proton 11.0 (ARM64)" tool dir has only the vdfs (tool not downloaded) yet is
+selectable; a game set to it fails with "proton-11-arm64/pocknix-proton: No such file" (lines 229/235
+of pocknix-steam.log; which game Cliff tried is unknown). Steam perf profiles in config.vdf are
+opaque ids (no fps field): the "seed a 60 cap" idea is out; the 60 Hz default covers it.
+Two-installs freeze and cold-boot wifi "limited" remain open. Jusant: DX12-only, cannot run.
+
+**Next:** auto frame limit in gamescope (measure sustained fps, pick 60/120/30 with hysteresis,
+default "Auto" in the plugin); winetricks: run vcrun2017 by hand inside the game env to find the hang;
+Observer: WINEDEBUG=+seh,+tid; Unity/Turnip profiling; rc4 image.
+
 ## 2026-10-06 15:30: RP5 test batch, round 2 (120 Hz, uncapped unless noted; tools/rp5-bench/bench.sh)
 
 | Game | Engine / path | Result |
