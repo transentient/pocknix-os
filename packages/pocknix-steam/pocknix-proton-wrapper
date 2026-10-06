@@ -206,6 +206,21 @@ def process_tree(root):
     return list(reversed(order))
 
 
+def gamescopectl(*words):
+    import subprocess
+    try:
+        subprocess.run(["gamescopectl", *words], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def wants_120hz(settings):
+    # Pocknix Control per-game toggle "refresh120": run the panel at its highest rate for this
+    # game. Default is gamescope's dynamic_refresh_default_lowest=1 (60 Hz on the RP5), set in
+    # the session; we flip the convar for the game's lifetime and restore it when it exits.
+    return settings.get("refresh120") is True
+
+
 def run_with_first_launch_guard(real_proton, args):
     # First launch of a game = its Wine prefix does not exist yet. Proton then builds the prefix
     # and (with protonfixes) may run installers before the game starts. If the game's exe is
@@ -215,7 +230,8 @@ def run_with_first_launch_guard(real_proton, args):
     compat = os.environ.get("STEAM_COMPAT_DATA_PATH", "")
     pfx = pathlib.Path(compat) / "pfx" if compat else None
     exe = game_exe_name(args)
-    if not pfx or pfx.exists() or not exe:
+    first_launch = bool(pfx and exe and not pfx.exists())
+    if not first_launch and not RESTORE_REFRESH:
         os.execv(real_proton, args)
     import signal
     import shutil
@@ -231,7 +247,7 @@ def run_with_first_launch_guard(real_proton, args):
         signal.signal(sig, forward)
 
     deadline = time.monotonic() + FIRST_LAUNCH_GRACE
-    started = False
+    started = not first_launch
     while child.poll() is None:
         if not started and exe_running(exe):
             started = True
@@ -252,7 +268,12 @@ def run_with_first_launch_guard(real_proton, args):
                 print(f"pocknix-proton: could not move the prefix: {exc}", file=sys.stderr)
             sys.exit(1)
         time.sleep(2)
+    if RESTORE_REFRESH:
+        gamescopectl("dynamic_refresh_default_lowest", "1")
     sys.exit(child.returncode)
+
+
+RESTORE_REFRESH = False
 
 
 def apply_lsfg(settings):
@@ -304,6 +325,10 @@ def main():
         print(f"pocknix-proton: failed to apply audio latency: {exc}", file=sys.stderr)
     apply_audio_driver()
     apply_protonfixes(settings)
+    if wants_120hz(settings):
+        global RESTORE_REFRESH
+        RESTORE_REFRESH = True
+        gamescopectl("dynamic_refresh_default_lowest", "0")
     try:
         apply_lsfg(settings)
     except Exception as exc:
