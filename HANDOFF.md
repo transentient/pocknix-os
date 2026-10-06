@@ -1,5 +1,31 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-06 20:30: three more games; native-Linux answer; disk-full freeze
+
+- **The earlier freeze was DISK, not memory.** Three installs at once took / to 399 MB free; last
+  time Observer+Jusant did the same. Cliff deleted Jusant+Observer, the three installs then
+  finished with <3 GB RAM used, no swap growth, oomd never fired. Release note: Steam installs
+  need headroom; consider a low-disk warning in Pocknix Control.
+- **Deep Rock Galactic (UE4):** DX11 space rig 14 fps, GPU 85 %. DX12 (vkd3d-proton) initialises the
+  device then crashes (UE crash reporter, no callstack). DX12 on a650 = no, confirmed twice.
+- **Talos Principle (Serious Engine):** runs via DXVK (its Vulkan backend not selectable here);
+  attract loop 57 fps, 89 % two-refresh frames, shader threads 26 % (compile hitches), GPU 54 %.
+  Its menu needs a real keyboard/mouse path; not benchmarked in-game.
+- **Hollow Knight:** Steam gave the WINDOWS build. Forcing "Steam Linux Runtime" fetched the Linux
+  depot (hollow_knight.x86_64) but launch stalls at "Downloading content 0 %": Steam wants
+  AppID 3127680 (sniper runtime) -> "Failed installing (Invalid platform)". **The ARM Steam client has
+  no Linux-x86 runtime, so native Linux games cannot run through Steam on this device at all**;
+  Proton is the only path. Not a seeding bug. Windows build: menu 52 fps (2D Unity, so GPU-light),
+  new-game intro = black screen forever ("Could not find supported video track in
+  sharedassets5.resource"); PROTON_MEDIA_FORCE_GST=1 played the credits video but not the new-game
+  one. Proton ships mfplat/winegstreamer + vpx/matroska plugins; Unity's own webm path fails. Open.
+- Launch options cleared on Hollow Knight, DRG, Talos. Hollow Knight compat tool set back to default.
+- VRR: neither panel has it (gamescope VRR_CAPABLE=0 on both). Same pacing arithmetic on the Odin.
+- Frame insertion: LSFG toggle exists (needs Lossless Scaling); only useful where the GPU has
+  headroom (engine-capped games like Octopath). Not tried.
+- Outer Wilds stones unturned: in-game quality presets, TU_DEBUG=sysmem/nolrz/noubwc, DXVK HUD
+  draw counts, DXVK 2.7 vs 3 (a650 lacks storageBuffer8BitAccess). Also applies to RoR2.
+
 ## 2026-10-06 19:30: review round, top proposals shipped, more games measured
 
 **Shipped (installed on the RP5, in localrepo):** gamescope 8, pocknix-steam 48, bsp-sm8250 26,
