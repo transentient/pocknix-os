@@ -1,5 +1,32 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-06 15:30: RP5 test batch, round 2 (120 Hz, uncapped unless noted; tools/rp5-bench/bench.sh)
+
+| Game | Engine / path | Result |
+|---|---|---|
+| Celeste 1.4 | Steam picked the WINDOWS build (Proton), not the Linux one, box unticked; FNA SDL_GPU -> Vulkan | 60 fps locked, 1 ms jitter. On the 120 Hz panel the 60 fps frames land unevenly (1/2/3 refreshes: 14/56/28 %). Frame limit 60 -> 60 Hz mode would make it perfect. |
+| Outer Wilds | Unity, DX11 via DXVK | 9 fps in the game, 30 fps menu. GPU at 925 MHz, main thread 21 %. **Resolution-insensitive**: 720p (Steam resolution override, via SteamClient.Apps.SetAppResolutionOverride) gives 10 fps / 48 fps menu. Not fill-rate: shader or driver bound. Turnip a650 investigation candidate. Override left at 1280x720. |
+| Octopath Traveler II | UE4, DX11 | Works. Title 3D scene 30 fps (game cap), traveler map 26 fps, ~90 C. Could not drive the map (needs stick). |
+| Jusant | UE5, **DX12 only** | Refuses to start: needs SM 6.6, int64/uint64 atomics, resource binding tier 3; no DX11 renderer shipped (-dx11 does nothing). Not runnable on the Adreno 650 driver as it stands. |
+| Observer | UE4, DX11, Qt launcher | Launcher needs a touch tap on PLAY (virtual touch `vtap.py 8540 1390` works in game mode). Game reaches the epilepsy screen, then **crashes ~2 min in**: EXCEPTION_ACCESS_VIOLATION rip=0x3c, "exception frame is not in stack limits" (thread 038c, rsp outside the thread's stack). Smells like a stack switch FEX mishandles. ~/steam-514900.log on the RP5. |
+| Dark Souls R. | DX11 | menus 60 fps (see earlier); gameplay still unmeasured |
+
+- gamescope -w/-h is NOT how to force a lower game resolution: Steam re-sets the Xwayland mode per
+  game ("Default" = native). Use the per-game Resolution setting (Properties) or the JS call above.
+- Steam's install-script vcredist (Observer) ran fine under our Wine; protonfixes' winetricks vcrun2017
+  (Dark Souls) hangs. Different code path, so the winetricks problem is winetricks-specific.
+- Launch options now set on Cliff's account: Dark Souls `PROTONFIXES_DISABLE=1 %command%` (needed);
+  Outer Wilds resolution override 1280x720. Jusant/Observer options cleared.
+- Also observed this session: the RP5 froze hard (ping yes, ssh no, journal stopped) while installing
+  Observer + Jusant at once, nothing running. One install at a time: <3 GB used, no swap. zram swap
+  is 11.3 GB vs 12 GB RAM; systemd-oomd state unchecked. Open.
+- Wifi after a cold boot came up on a 2.4 GHz BSS with LAN but no router/internet; a wifi toggle fixed
+  it. Candidate: wifi-heal bounces the connection when NM reports "limited" for >30 s.
+- Ideas for our own software, ranked by payoff: (1) frame limit 60 -> 60 Hz for 60 fps-locked games
+  (already works if the user sets it; could default per game or auto-detect a steady 60 in gamescope);
+  (2) per-game default resolution 720p for heavy 3D games (helps GPU-bound games, not Outer Wilds);
+  (3) Turnip a650: why Outer Wilds is resolution-insensitive; (4) FEX: Observer crash; (5) winetricks.
+
 ## 2026-10-06 13:10: heat soak result (Hades gameplay, first chamber, light input)
 
 - quiet curve, 10 min: hottest zone 82.8 C avg over the last 5 min, fan pwm 196, cpu7 2811 MHz,
