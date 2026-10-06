@@ -10,7 +10,9 @@
   Hades with enemies). Throttling starts at the DT trips (GPU passive 85 C, CPU 90 C) and was mild.
   The honest mitigation is less work per frame: a frame limit (40 or 60) on games that run the GPU
   flat out. Nothing changed; fan-mode left at quiet.
-- bsp-sm8250 25 = loudness filter hidden; building + rc3 respin next.
+- bsp-sm8250 25 = loudness filter hidden; installed on the RP5. **RP5 image rc3** BUILT (= rc2 + bsp 25):
+  build/image/sm8250/holodor-rp5-20261006rc3-seedless.img.zst, sha256 93c82e2e...397a51. rc1/rc2 deleted.
+  Not flashed, not booted, not published.
 
 ## 2026-10-06 12:30: loose ends (speaker entry hidden, Wine polling, Dark Souls, heat test running)
 
