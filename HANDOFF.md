@@ -1,5 +1,35 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-07 23:30: RP5 open items worked before the pivot
+
+- **First-launch guard VERIFIED (pocknix-steam 49):** keyed on compatdata/pocknix-first-run-ok,
+  written once the game's Wine process (argv[0] = Windows path) has lived 20 s. The prefix test
+  was wrong twice over: Steam's install-script pass creates the prefix before the first real
+  launch, and Proton's own argv carries the exe path (false "running"). Dark Souls + protonfixes
+  on: hang killed at 150 s, pfx -> pfx.broken-<ts>, nothing left running. Celeste: ran through
+  a 150 s grace untouched, marker written. Default grace 300 s.
+- **protonfixes toggle was a no-op:** protonfixes disables itself when PROTONFIXES_DISABLE EXISTS
+  (any value). Fixed: "on" = variable absent.
+- **wifi-heal (bsp-common 26):** NM "limited" now counts as unhealthy; runs once at boot
+  (pocknix-wifi-heal-boot.service, 45 s wait) + after resume as before. Not provoked (needs the
+  cold-boot "limited" to happen); harmless when healthy ("ok (no action)").
+- **Hollow Knight intro ROOT CAUSE (half fixed):** Proton's bundled gstreamer libav (the H.264
+  decoder) and vpx/jpeg/theora plugins DO NOT LOAD on Arch: linked against libvpx.so.9,
+  libjpeg.so.62, libtheora*.so.1; Arch ships libvpx.so.11 / libjpeg.so.8 / no theora. So every
+  H.264/VP9 game video is black. A symlink libvpx.so.9 -> /usr/lib/libvpx.so.11 in the Proton lib
+  dir (on Cliff's RP5 only, ABI-risky for VP8/9 itself) makes avdec_h264 load; Hollow Knight then
+  sees "Video Track 1920x1080 H264" and decodes 2800+ samples, but Unity's WindowsVideoMedia
+  aborts ReadSample (0x80004004, DiscardSamplesUntilTargetTime) -> still black. Next: ship real
+  libvpx 1.14 (soname 9) + libjpeg62 + libtheora in the proton-cachyos package dir; then the
+  mfplat seek issue (Wine side; check Proton upstream for WindowsVideoMedia fixes).
+- **DP AFE port (kernel 0720):** v1 (accept EALREADY) = port "started" but silent. v2 (immediate
+  STOP/START) = STOP refused EFAILED, START EALREADY, prepare fails. v3 (settle 1 s, STOP, START,
+  retry) = kernel 13 building. If v3 fails: document "first sound after docking may be silent,
+  play again" and park for the Odin dock work.
+- **Dark Souls docked:** crashes at start (null deref right after NtUserChangeDisplaySettings on
+  \\.\\DISPLAY1 returns -2 = bad mode). Runs undocked. Dock open item.
+- Dock-attached boot hang: not reproduced (3 more docked reboots fine). Still noted.
+
 ## 2026-10-07 22:30: RP5 dock test (UGREEN USB-C dock -> HDMI capture on fusor, AtomS3U present, unused)
 
 Rig: fusor sees the capture as `/dev/video0` (MACROSILICON USB3 PLUS, uvc, 1080p60 YUYV) + ALSA card
