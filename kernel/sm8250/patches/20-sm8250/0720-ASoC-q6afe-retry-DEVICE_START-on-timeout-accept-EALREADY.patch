@@ -1,0 +1,48 @@
+From: Holodor <holodor@bonesaw.com>
+Subject: [PATCH] ASoC: q6afe: retry DEVICE_START after a timeout and accept EALREADY
+
+On the Retroid Pocket 5 (SM8250) the DisplayPort AFE port (0x6020, HDMI
+over DP) often fails its first DEVICE_START after boot or after the PCM has
+been idle: the DSP does not answer within TIMEOUT_MS, the prepare fails,
+and the stream the user started is silent. The next start works. If the
+failed start is repeated the DSP answers EALREADY (status 9) from then on,
+so the port had in fact been started by the command that "timed out"; the
+acknowledgement was late or lost.
+
+Treat it that way: when DEVICE_START times out, send it once more, and take
+an EALREADY answer as success. The port's DEVICE_STOP on close resets the
+DSP side either way.
+---
+--- a/sound/soc/qcom/qdsp6/q6afe.c	2026-10-07 22:27:30.028695742 +0900
++++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-07 22:27:30.037319736 +0900
+@@ -369,6 +369,7 @@
+ #define AFE_API_VERSION_CODEC_DMA_CONFIG	1
+ 
+ #define TIMEOUT_MS 3000
++#define ADSP_EALREADY 0x9
+ #define AFE_CMD_RESP_AVAIL	0
+ #define AFE_CMD_RESP_NONE	1
+ #define AFE_CLK_TOKEN		1024
+@@ -1713,6 +1714,22 @@
+ 	start->port_id = port_id;
+ 
+ 	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_START);
++	if (ret == -ETIMEDOUT) {
++		/*
++		 * The DSP sometimes starts the port but answers late or not at
++		 * all (seen on the HDMI-over-DP port, first start after idle).
++		 * Ask once more; an "already started" answer means the first
++		 * command did go through.
++		 */
++		dev_warn(afe->dev, "AFE start for port 0x%x timed out, retrying\n",
++			 port_id);
++		ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_START);
++		if (ret == -EINVAL && port->result.status == ADSP_EALREADY) {
++			dev_info(afe->dev, "AFE port 0x%x was already started\n",
++				 port_id);
++			ret = 0;
++		}
++	}
+ 	if (ret)
+ 		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
+ 			port_id, ret);
