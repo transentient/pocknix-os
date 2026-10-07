@@ -114,6 +114,8 @@ Since you already have the custom boot menu installed, you get to skip almost al
 * **Black screen after the boot logo:** wrong screen model selected in the boot menu (Part II, step 9).
 * **No Wi-Fi networks listed on first boot:** wait a minute and try again; if it persists, boot with a wired hub.
 * **Steam says it cannot reach the internet after sleep:** toggle Wi-Fi off and on in the Steam settings.
+* **Stuck on the boot logo with a USB-C dock plugged in:** unplug the dock, hold the power button until the device turns off, boot, then plug the dock in once Steam is up.
+* **No sound from the TV through a dock:** stop and start the game or video once; the first sound after plugging in sometimes does not play.
 
 ## Appendices
 
