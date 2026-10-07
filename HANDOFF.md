@@ -1,5 +1,37 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-07 22:30: RP5 dock test (UGREEN USB-C dock -> HDMI capture on fusor, AtomS3U present, unused)
+
+Rig: fusor sees the capture as `/dev/video0` (MACROSILICON USB3 PLUS, uvc, 1080p60 YUYV) + ALSA card
+"Video" for HDMI audio; `sudo ffmpeg -f v4l2 -i /dev/video0` for frames, `arecord -D hw:Video,0` for audio.
+First frames after a mode change are black (dongle lock); grab after 1-2 s.
+- **Video: works out of the box.** DP-1 connected (EDID: "HJW HD TO USB", modes up to 4096x2160),
+  gamescope switched itself to DP-1 at 1920x1080@60, correct orientation (no rotation shader
+  artefacts), Steam UI and Hades (menu 60 fps locked) captured clean. Dock also charges.
+- **Audio: added (bsp-sm8250 27).** The card has a DisplayPort AFE port (DISPLAY_PORT_RX, "DP0 Jack",
+  ELD from the sink) but our UCM had no device. Now: SectionDevice DisplayPort on hw:0,3
+  (MultiMedia4; hw:0,2 is the headset mic capture and collides), route cset in the VERB enable
+  sequence (PipeWire probes every PCM at verb set; hw:0,3 refuses to open unrouted and the whole
+  card then fails -> Dummy Output), JackControl DP0 Jack, priority 300 so it auto-selects when docked.
+  WirePlumber 53-pocknix-displayport.conf: S16LE, disable-mmap, period 1024, headroom 0: with
+  PipeWire's defaults the first start timed out in set_hw_params. Verified: pw-play -> capture, L/R
+  correct, twice in a row after a cold boot.
+- **OPEN, kernel: DP AFE port start is flaky.** `qcom-q6afe: AFE enable for port 0x6020 failed -110`
+  (DEVICE_START timeout) on the first start after boot and after the sink suspends; that stream is
+  SILENT for its whole length (rc=0), the next stream plays. Repeated failures leave the port stuck
+  (DSP error 9 = EALREADY) until reboot. Raw aplay never failed. Hypothesis: DP audio (dp_audio
+  hdmi-codec prepare) comes up after the cpu DAI prepare and the DSP waits on it; fix = retry /
+  longer timeout in q6afe_port_start for the HDMI-over-DP port, or reorder. Same driver family on
+  the Odin 3 -> do it in the Odin dock work. session.suspend-timeout-seconds=0 did NOT help (made
+  it worse: card dropped to auto_null, 63 failures).
+- **OPEN: one boot with the dock attached hung at the boot logo** (journal ends at 2.9 s, right
+  after the flush; nothing after). 3 other docked reboots were fine. typec_displayport probe logs
+  -71 at plug. Intermittent; note for the INSTALL (boot undocked if it hangs).
+- Not tested: ESP32 pad (AtomS3U at /dev/ttyACM0, needs its firmware), Desktop Mode on the dock,
+  unplug/replug while a game runs, dock + sleep.
+- Odin requests from Cliff (reddit): **Sifu** (UE4) and **Last Epoch** (Unity) - test on the O3.
+- RP5 image 20261007 being RESPUN with bsp 27 (same staged name; not published).
+
 ## 2026-10-07 01:30: Outer Wilds / Risk of Rain 2 closed out
 
 Scene: Outer Wilds "Wake Up" screen (the full 3D village, deterministic, 10.1 fps, GPU 98 %).
