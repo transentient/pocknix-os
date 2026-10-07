@@ -69,6 +69,7 @@ I found s.salmon on /r/pixelart. It was a great experience working with them! Th
 
 - Heavy AAA games run around **20-30 fps**. The Snapdragon GPU driver is still young. FSR and frame generation help smooth it out a lot, but don't expect miracles. Indie and 2D games run flawlessly.
 - Kernel-level anti-cheat (EAC, BattlEye) doesn't work. This is an ARM-wide problem that Valve is still figuring out.
+- Holodor runs Valve's ARM64 Steam client, which Valve builds for its own hardware (the Steam Frame) and does not support anywhere else. Bugs in the client itself, as opposed to in Holodor, may stay unfixed; Valve closes ARM reports on its tracker as unsupported.
 - The Steam overlay glitches out in some heavier games. There's a workaround included; working on a real fix.
 - Decky Loader may offer you its own update. Decline it. Decky updates arrive through Pocknix Control's Updater with everything else.
 - Unreal Engine 5 games (Expedition 33 and friends) show a black screen with sound. Adding `-dx11` to the game's launch options makes them run, but not at a playable frame rate yet. A driver fix is in progress.
