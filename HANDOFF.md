@@ -29,7 +29,7 @@ First frames after a mode change are black (dongle lock); grab after 1-2 s.
   -71 at plug. Intermittent; note for the INSTALL (boot undocked if it hangs).
 - Not tested: ESP32 pad (AtomS3U at /dev/ttyACM0, needs its firmware), Desktop Mode on the dock,
   unplug/replug while a game runs, dock + sleep.
-- Odin requests from Cliff (reddit): **Sifu** (UE4) and **Last Epoch** (Unity) - test on the O3.
+- Odin requests from Cliff (reddit): **Sifu** (UE4), **Last Epoch** (Unity), **Fallout: New Vegas** (Gamebryo, DX9, 32-bit), **No Man's Sky** (Vulkan native, 64-bit) - test on the O3.
 - RP5 image 20261007 being RESPUN with bsp 27 (same staged name; not published).
 
 ## 2026-10-07 01:30: Outer Wilds / Risk of Rain 2 closed out
