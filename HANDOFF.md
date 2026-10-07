@@ -1,5 +1,25 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-08 01:40: dock-at-boot root causes; DP audio parked; Dark Souls docked lead
+
+- **Dock-attached boot hang (2 of 7): ROOT CAUSE in the journal.** Frozen boot: `pm8150b-charger:
+  Worker [853] processing SEQNUM=5011 is taking a long time` (74 s), killed at 204 s = the charger
+  driver's udev event hangs with a PD source (the dock) attached; meanwhile `User '1001' does not
+  exist` (53 s) + logind "Failed to abandon session scope: timed out" = the stuck worker starved
+  systemd's user lookups, the deck session failed, game mode never started, logo forever. Pings
+  answer, TCP is dropped. The good boot after it logged `DSI PLL(0) lock failed` + clk WARNINGs
+  (internal panel clock vs DP during bring-up) and recovered. Both are kernel USB-C/PD bring-up
+  order; not fixable tonight. INSTALL: "boot with nothing plugged into USB-C; dock after Steam is up".
+- **DP audio first-start: PARKED** (kernel/sm8250/patches-staged/dp-audio/README.md has the three
+  variants and the next ideas). Kernel back to pkgrel 10 behaviour as pkgrel 14 (building). Docs:
+  "if the dock is silent, play again".
+- **Dark Souls docked crash lead:** DXVK logs `GetMonitorFormatBpp: Unknown format: 11`
+  (DXGI_FORMAT_R16G16B16A16_UNORM) many times while docked, then NtUserChangeDisplaySettings
+  on DISPLAY1 returns -2 (bad mode) and the game null-derefs. Undocked: none of this. Likely the
+  dock display (capture dongle EDID) is presented as HDR/10-bit by gamescope and DXGI offers a
+  float/16-bit mode the game then asks for. Try: gamescope on DP without HDR (`--hdr-enabled`
+  off / sdr-only), or DXVK config `dxgi.enableHDR = False` for the game. Shared with the Odin dock.
+
 ## 2026-10-07 23:30: RP5 open items worked before the pivot
 
 - **First-launch guard VERIFIED (pocknix-steam 49):** keyed on compatdata/pocknix-first-run-ok,
