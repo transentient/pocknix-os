@@ -25,3 +25,8 @@ Notes:
 - DirectX 12 games do not run on this GPU (Jusant, Deep Rock Galactic's DX12 mode).
 - Native Linux games: the ARM Steam client has no Linux runtime, so every x86 game runs through Proton.
 - Heavy 3D games reach about 90 C after 10 to 15 minutes and throttle a little.
+
+Docked (USB-C dock, HDMI 1080p 60 Hz external screen, measured through a capture card):
+- Hades, menu: 60, locked.
+- Dark Souls Remastered, Undead Asylum cell: 34, even (29 ms frames; standing still).
+- Dock after Steam is up; the external screen takes over at 1920x1080. Audio goes to the dock; if the first sound does not play, stop and start the game once.

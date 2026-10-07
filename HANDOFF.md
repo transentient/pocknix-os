@@ -1,5 +1,44 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-08 02:20: RP5 wifi root cause + NM hook, gpt-auto /efi bug, medialibs done, Dark Souls docked runs, image 20261008 respinning
+
+- **Wifi "limited" after cold boot: ROOT CAUSE is the router, not the device.** 01:22 boot: NM
+  CONNECTED_GLOBAL at 14 s, SITE at 334 s. State at 01:45: ARP to the gateway answered, every other
+  LAN host pingable, the gateway (192.168.1.1, mini_httpd box) silent to ICMP/TCP/UDP from this
+  client only; `nmcli connection up ozma` (same BSS) fixed it in 3 s. The boot heal had passed at
+  15 s because the router was still answering then. Fix (bsp-common 27): NM dispatcher hook
+  `90-pocknix-wifi-heal` runs the heal on every connectivity-change to LIMITED/PORTAL, NM
+  re-checks every 60 s (`30-pocknix-connectivity.conf`). Hook fired by hand: heal unit ran.
+  Applies to both devices (package is `any`). Not yet seen to catch a real occurrence.
+- **systemd-gpt-auto-generator: masked (bsp-common 28).** Our /flash FAT is typed EFI System (the
+  09-17 Android-loop fix), so gpt-auto mounted it a second time at /efi as an automount; the next
+  daemon-reload (any pacman -U) no longer generated the unit, the live autofs was orphaned, and the
+  next sandboxed service start/reload failed: `NetworkManager.service: Failed to set up mount
+  namespacing: /efi: Host is down` (226/NAMESPACE). 45 units carry ProtectSystem=. Mask =
+  /etc/systemd/system-generators/systemd-gpt-auto-generator -> /dev/null. Verified: reload +
+  restart fine after daemon-reload; after reboot no efi.* units. Odin installs have the same
+  layout: ships by OTA.
+- **pocknix-proton-medialibs 1.14.1-3:** libvpx 1.14.1 (VP8+VP9, decoders AND encoders: the gst
+  plugin links `vpx_codec_vp9_cx_algo`), libjpeg-turbo 3.0.4 (`-DCMAKE_INSTALL_LIBDIR=lib`, it
+  defaults to lib64), libtheora 1.1.1 (Arch's 1.2 is soname .2, Proton wants .1). All five
+  decoders register (avdec_h264, vp9dec, vp8dec, jpegdec, theoradec). Hollow Knight intro still a
+  Wine ReadSample issue, separate. Needs an sm8750 build before the next Odin image.
+- **Dark Souls docked: runs.** Title screen and in-game at 1080p60 output, 34 fps standing in the
+  Asylum cell (29 ms, even), with AND without `DXVK_CONFIG=dxgi.enableHDR=False`. The 10-07 crash
+  (ChangeDisplaySettings -2) did not reproduce; the HDR lead is NOT confirmed. Likely culprit: the
+  10-07 run was on a fresh prefix during the first-launch-guard tests (default graphics config vs
+  the DP mode list). `Unknown format: 11` is still logged 186x and is harmless.
+- Kernel 7.1.2-14 (= pkgrel 10 behaviour, DP audio patch parked) boots on the RP5, docked boot
+  clean this time (DSI PLL lock warning again, recovered).
+- Steam kicks the other session: launching a game here while Cliff plays on his phone pops
+  "KickingOtherSession"; cancelled with B. Check before launching.
+- **Image renamed 20261008** (build/respin-rp5-20261008.sh, docs/release-notes/rp5-20261008.md):
+  steam 49, bsp-common 28, bsp-sm8250 27, kernel 14, bootloader 2, proton-medialibs 3. Respin
+  unit `respin-rp5-20261008`, log /var/tmp/respin-rp5-20261008.log. Not published; card boot by
+  Cliff first.
+- Armada comparison doc: "(documented)" tags dropped, SteamOS-ARM-Handhelds section added
+  (v1.3.0 stable 10-07, Odin 3 "Stable", 2,115 downloads in two weeks).
+
 ## 2026-10-08 01:40: dock-at-boot root causes; DP audio parked; Dark Souls docked lead
 
 - **Dock-attached boot hang (2 of 7): ROOT CAUSE in the journal.** Frozen boot: `pm8150b-charger:
@@ -80,7 +119,7 @@ First frames after a mode change are black (dongle lock); grab after 1-2 s.
 - Not tested: ESP32 pad (AtomS3U at /dev/ttyACM0, needs its firmware), Desktop Mode on the dock,
   unplug/replug while a game runs, dock + sleep.
 - Odin requests from Cliff (reddit): **Sifu** (UE4), **Last Epoch** (Unity), **Fallout: New Vegas** (Gamebryo, DX9, 32-bit), **No Man's Sky** (Vulkan native, 64-bit) - test on the O3.
-- RP5 image 20261007 being RESPUN with bsp 27 (same staged name; not published).
+- RP5 image renamed 20261008 (respun 10-08 with steam 49, bsp-common 28, bsp-sm8250 27, kernel 14, proton-medialibs 3; not published).
 
 ## 2026-10-07 01:30: Outer Wilds / Risk of Rain 2 closed out
 
