@@ -1,5 +1,22 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-09 04:00: end of night — RP5 20261008 RESPUN with bsp 28, card flashing; Odin respin deferred
+
+- RP5 image 20261008 respun (unit respin-rp5-20261008b): sha256 **e50fb490…de7e7**, 3,422,114,767
+  bytes, loop-mount verified: bsp-sm8250 28, bsp-common 29, steam 52, kernel 7.1.2-14,
+  medialibs 3. Supersedes the a957…/991b… images (bsp 27, no sound undocked). Lexar flash is
+  queued (background watcher: flashes + byte-verifies when the card appears as /dev/sdb;
+  log /var/tmp/flash-lexar-rp5-20261008c.log). **wifi.txt NOT written**: the password is not on
+  fusor (never saved; devices off). Cliff: write it or tell me the password, then clean-boot
+  undocked and check sound + wifi + sleep/wake wifi before publishing.
+- Odin: NO respin (Cliff: dock tests first, "uncover whatever we need to fix there"). The script
+  build/respin-odin3-20261009.sh is ready (swaps build/rootfs <-> rootfs.sm8750; needs the RP5
+  rootfs parked). Odin dock rig = dock -> HDMI capture /dev/video0 + ALSA "Video" on fusor.
+- Docs: Cliff's two GitHub edits to the Armada comparison pulled into dev (42add71). Memory
+  files written: feedback-test-the-fresh-undocked-boot, reference-rp5-dock-audio-ucm,
+  reference-steam-client-automation, project-state-2026-10-09.
+- Stale DisplayPort comment removed from HiFi-RP.conf (cosmetic; bsp 28 ships it, harmless).
+
 ## 2026-10-09 03:40: RP5 fresh-card boot found a RELEASE BLOCKER (fixed, bsp-sm8250 28); respin needed
 
 - **auto_null on every undocked boot = no sound (bsp-sm8250 27).** Cliff's clean boot of the
