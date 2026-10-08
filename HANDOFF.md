@@ -1,5 +1,23 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-08 20:05: Odin 3 game sweep DONE (38 titles), batch 3 findings, steam 52
+
+- Added since 18:15: Disco 27, NieR 18 (GPU-bound at its max defaults; in-game quality A/B is the
+  cheap next step, Turnip sweep the medium one), Sekiro 28 (TOS must scroll to the end), ELDEN RING
+  offline via the exe fix (EAC launcher fails; steam 51), DOOM Eternal via the exe fix (Chromium
+  launcher never starts the game; steam 52, built, NOT yet installed on the Odin), Fallout NV 60.
+  Not accepted on Cliff's account: Fallout 4 "Creations Bundle download", DOOM Eternal Bethesda.net
+  agreements -> their gameplay numbers are Cliff's to take.
+- pocknix-steam 52 game-fixes.json: Observer ini, DOOM 2016 args, ELDEN RING exe, DOOM Eternal exe.
+  Pattern proven on 4 games; the table is the place for future per-title tweaks (Discord asks).
+- Odin left: kernel 33, gamescope 8, bsp-sm8750 28 (refresh policy applies at next boot), bsp-common
+  29, steam 51 (52 pending), medialibs 3, decky 21; 12 games still installed (Balatro..Vampire
+  Survivors + Celeste, Stardew, Dark Souls, DRG, Hades, HK, Octopath 2, Portal, RoR2, Talos);
+  inhibitor released; charger on. Next: reboot for the refresh policy (boot-hang risk on the
+  charger: boot unplugged), then dock rig.
+- Steam notes: PauseAppUpdate from JS is ignored; the scheduler suspends the whole queue at times
+  (press Download on any queued game's page to kick it); EULA wizard pages = DPadLeft + A.
+
 ## 2026-10-08 18:15: Odin 3 batches 1-2 done (30 games), batch 3 downloading; audio quantum fix; per-game fixes table
 
 - **Shipped today (Odin, by hand; all in localrepo sm8750, bsp-common also sm8250):** gamescope 8,
