@@ -32,6 +32,7 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Slay the Spire | Java | | does not start | The game's bundled Java runtime exits at launch. |
 | Hades II | 2D, DX12 | opening scene | 60, flat | A DirectX 12 game that runs. Shows an "Unrecognized Controller" notice at launch; the controller works. |
 | Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation | 29 | At the launcher's own "Ultra" pick; lower it in the launcher's Options. |
+| ELDEN RING | DX12 | character creation | 60 | Offline only: the anti-cheat launcher fails. See the notes for the launch option. Gameplay not yet measured. |
 | Sekiro: Shadows Die Twice | DX11 | prologue well | 28, flat | Default settings. The terms-of-use screen must be scrolled to the end before Accept works. Starts in offline mode. |
 | Disco Elysium: The Final Cut | Unity, DX11 | Martinaise docks | 27, flat | |
 | NieR: Automata | DX11 | opening flight sequence | 18 | Default settings (the game's maximum); GPU-bound. Cutscenes and menus 60. |
@@ -44,6 +45,7 @@ Notes:
 - The 60 fps frame limit was not applied by the gamescope build in the 20261002 image (games ran at 120). The gamescope with the refresh-rate fix from the Retroid Pocket 5 build is going into the next Odin 3 image; the numbers above will be re-measured with it.
 - Observer: the crash is Unreal's HTTP thread raising an exception Wine cannot deliver. Adding `[HTTP]` / `bEnableHttp=false` to the game's `Engine.ini` kept it running in testing; a per-game fix is being prepared.
 - DOOM (2016): set `+r_renderAPI 1` in the game's launch options before the first start.
+- ELDEN RING: Easy Anti-Cheat cannot start, so the game only runs offline, by launching its real executable instead of the anti-cheat launcher. A launch option that does this is being added to Holodor; until then it is a manual step.
 - Unreal Engine 5 games need `-dx11` in their launch options.
 - Audio crackle or distortion in a game (heard in Portal 2 and No Man's Sky): fixed in the next update (the audio buffer is kept at a minimum size). Until then, raise the game's "Audio Buffer" in Pocknix Control.
 - Games whose menus want a mouse (Terraria, Subnautica, Fallout 4's launcher) work with the touchscreen.
