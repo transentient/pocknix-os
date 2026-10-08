@@ -26,7 +26,7 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Dead Cells | 2D | Prisoners' Quarters | 60, flat | Game's own cap. |
 | Terraria | XNA / .NET | menu | 60, flat | About 3 minutes of black screen at launch, then fine. |
 | Undertale | GameMaker | intro | 30 | Game's own cap. |
-| Fallout 4 | Creation Engine, DX11 | main menu | 60 with hitches | The launcher picks "Ultra" by itself; set it lower in the launcher's Options before playing. Gameplay not yet measured. |
+| Fallout 4 | Creation Engine, DX11 | pre-war house, 4 minutes of play | **60, flat** at 720p Low | The launcher picks "Ultra" by itself; choose Low and 1280x720 in its Options. Outdoors not yet measured. |
 | Subnautica | Unity, DX11 | life pod, game start | 19 at High (default), **51 at Low** | Options > Graphics > Preset. |
 | No Man's Sky | Vulkan | planet surface, game start | 18 | The game already picks its lowest quality on this GPU; only a lower resolution scale is left to try. "Hold to select" prompts need a real hold. |
 | Slay the Spire | Java | | does not start | The game's bundled Java runtime exits at launch. |
