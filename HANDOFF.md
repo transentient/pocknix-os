@@ -1,5 +1,27 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-09 01:50: Steam-button freeze CAUGHT with a core dump (Odin, issue #1 family)
+
+- Cliff in Fallout 4 (720p Low, character creation), pressed the Steam button alone: menu never
+  drew, QAM neither; panel showed Steam's reconnecting spinner over a still-running game.
+  `coredumpctl`: **steamwebhelper (--type=zygote) SIGTRAP at 01:32:00**, 156 MB core kept on the
+  device (pid 264914); Steam's main webhelper stayed up and launched a new renderer at 01:32:01 but
+  the UI never came back in 90 s. Logs around it saved to ~/crash-01-32/ on the Odin. Earlier in the
+  same boot: sekiro.exe SIGSEGV 00:01 (my Steam-side kill) and a wine-preloader SIGSEGV 00:52.
+- Recovery: `kill -TERM <gamescope>` did NOTHING this time (process S, 5 threads, wchan 0 — not
+  blocked in the kernel, just not handling SIGTERM; earlier tonight TERM worked); SIGKILL relaunched
+  the session via the autologin loop. Fallout 4 died with the TERM.
+- Reading: the "QAM freeze" is at least sometimes a steamwebhelper zygote crash (SIGTRAP = a CEF
+  CHECK failure or a JIT trap under the ARM build), with gamescope then stuck waiting on a dead
+  overlay surface. Next: symbolise the core (steamrtarm64 has no symbols; look at the faulting
+  module via `coredumpctl debug` + `info sharedlibrary`), and try to repro: game running, Steam
+  button, repeat. Cliff has never had a reliable repro; this is one data point with a dump.
+- Fallout 4 at 720p Low (launcher): 60 flat indoors over 5 min of Cliff's play, GPU pinned
+  1.1 GHz, 68-78 C. Outdoors not reached (Vault-Tec rep dialogue, then the crash). Steam's OSK
+  does not pop for the character-name field on the Odin (same as Elden Ring); Steam+X untested.
+- Virtual input devices created after a game launches are not seen by it (Steam Input enumerates
+  at launch): padmove.py/kbmove.py work only if started BEFORE the game.
+
 ## 2026-10-08 22:30: settings/resolution A/B; blank-game-surface incident
 
 - Settings A/B (same scenes, docs/games-odin3.md updated with both numbers): Subnautica 19->51 (Low),
