@@ -30,7 +30,9 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Subnautica | Unity, DX11 | life pod, game start | 19 | Default quality; GPU-bound. |
 | No Man's Sky | Vulkan | planet surface, game start | 18 | Default quality. "Hold to select" prompts need a real hold. |
 | Slay the Spire | Java | | does not start | The game's bundled Java runtime exits at launch. |
-| Death Stranding | Decima, DX12 | | playable | From the 20261002 release notes; rumble works. Not yet re-measured. |
+| Hades II | 2D, DX12 | opening scene | 60, flat | A DirectX 12 game that runs. Shows an "Unrecognized Controller" notice at launch; the controller works. |
+| Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation | 29 | At the launcher's own "Ultra" pick; lower it in the launcher's Options. |
+| Death Stranding | Decima, DX12 | title menu | 60, flat | Gameplay not yet re-measured (the only menu option is New Game). Rumble works. |
 | Clair Obscur: Expedition 33 | UE5 | | runs with `-dx11`, not playable | From the 20261002 release notes. |
 
 Notes:

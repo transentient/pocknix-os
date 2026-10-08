@@ -25,3 +25,6 @@
 | Portal 2 | Source, DX9 | relaxation vault (opening room) | 60.0 | 16.7/17.0/17.4 | 16.7/16.7 | flat, perfectly paced; GPU 1.1 GHz, 71 C; shader compile ~1 min at new game. Audio distorted at the stock 128-frame quantum; clean at 1024 (Cliff). |
 | Half-Life 2 | Source, DX9 | Point Insertion train (G-Man intro) | 59.6 | 16.7/18.2/21.5 | 16.7/16.7 | flat; GPU 1.1 GHz, 71 C |
 | Terraria | XNA / .NET 4 | menu (select player) | 60.0 | 16.7/16.8/17.0 | | ~3 min black screen at launch (.NET startup under FEX), then fine; GPU 222 MHz, 59 C; mouse menus (touch) |
+| Death Stranding | Decima, DX12 (vkd3d) | title menu (live beach scene) | 60.0 | 16.7/16.7/16.8 | | flat; "New Game overwrites your save" prompt -> cancelled (Cliff's save). Gameplay for Cliff to measure. 68 GB. |
+| Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation (Cliff's save), launcher auto ULTRA | 28.6 | 34.9/35.5/35.9 | 48.9/63.5 | even frames but uneven presentation (1x..7x refreshes); GPU 1.1 GHz, 83 C. Launcher picks Ultra; Medium/High untested. Menu 60. |
+| Hades II | 2D (Supergiant Forge), DX12 (vkd3d) | opening scene (new save) | 60.0 | 16.7/16.8/16.9 | 16.7/16.7 | flat, perfectly paced; GPU 967 MHz, 69 C. DX12 title that RUNS (a830). "Unrecognized Controller" dialog at launch (the X-Box 360 target identity); pad works anyway, glyphs generic. |
