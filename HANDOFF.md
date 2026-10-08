@@ -1,5 +1,21 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-08 22:30: settings/resolution A/B; blank-game-surface incident
+
+- Settings A/B (same scenes, docs/games-odin3.md updated with both numbers): Subnautica 19->51 (Low),
+  Outer Wilds 21->41 (Low; now CPU-bound 70 %), Skyrim 29->38 (Medium), NieR 18->21 (Low; GPU-bound
+  regardless), NMS already at Low by its own auto-detect. Both games pages now say every number is
+  at native 1920x1080 and that a lower resolution gains more than any setting for GPU-bound games.
+- **Blank game surface, overlays fine (Odin, 22:00):** after Nier ran with Steam's per-game
+  resolution override 1280x720 (gamescope log: "Updating mode for xwayland server #1:
+  1280x720@60"), then quit and relaunched at Default, the panel showed nothing but the Steam menu
+  and QAM still drew (Cliff). gamescope screenshots showed the game rendering; FOCUSED_APP stayed
+  769 with Nier running. No gamescope errors logged. Fixed by `kill -TERM <gamescope pid>` (the
+  autologin loop relaunches Steam). Same family as the Odin "QAM freeze" (issue #1). Trigger
+  candidate: Xwayland mode change 720p -> 1080p on the rotated panel. Not yet reproduced on purpose.
+- Steam resolution override API works from JS: `SteamClient.Apps.SetAppResolutionOverride(appid,
+  "1280x720")` / `"Default"`; gamescope applies it per launch.
+
 ## 2026-10-08 20:05: Odin 3 game sweep DONE (38 titles), batch 3 findings, steam 52
 
 - Added since 18:15: Disco 27, NieR 18 (GPU-bound at its max defaults; in-game quality A/B is the

@@ -1,6 +1,6 @@
 # Games tested on the AYN Odin 3
 
-Measured on Holodor with the frame-timing tools in `tools/rp5-bench` (they work on both devices), screen at 1080p. "fps" is the average over 30 to 45 seconds of the scene named. All games ran through Proton (the ARM Steam client cannot run native Linux x86 games; see notes). Kernel 7.1.3-33, the shipped one. Device plugged in, battery full.
+Measured on Holodor with the frame-timing tools in `tools/rp5-bench` (they work on both devices). **Every number is at the screen's full 1920x1080** unless the row says otherwise. That is the hardest case: 1080p is 2.25 times the pixels of 720p, and for the games where the GPU is the limit, dropping the resolution in Steam's per-game settings (Properties > Resolution) gains more than any in-game setting. A 720p comparison is noted where it was measured. "fps" is the average over 30 to 45 seconds of the scene named. All games ran through Proton (the ARM Steam client cannot run native Linux x86 games; see notes). Kernel 7.1.3-33, the shipped one. Device plugged in, battery full.
 
 The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limiting (see notes), so 2D games ran at 120 fps with the GPU at full clock. The Retroid Pocket 5 numbers are in [games-rp5.md](games-rp5.md); the same scene was used wherever it could be reached.
 

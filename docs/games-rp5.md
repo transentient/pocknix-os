@@ -1,6 +1,6 @@
 # Games tested on the Retroid Pocket 5
 
-Measured on Holodor with the frame-timing tools in `tools/rp5-bench`, screen at 1080p unless noted. "fps" is the average over 30 to 60 seconds of the scene named. All games ran through Proton (the ARM Steam client cannot run native Linux x86 games; see notes).
+Measured on Holodor with the frame-timing tools in `tools/rp5-bench`, **every number is at the screen's full 1920x1080** unless the row says otherwise. That is the hardest case: 1080p is 2.25 times the pixels of 720p, and for the games where the GPU is the limit, a lower resolution in Steam's per-game settings (Properties > Resolution) gains more than any in-game setting. "fps" is the average over 30 to 60 seconds of the scene named. All games ran through Proton (the ARM Steam client cannot run native Linux x86 games; see notes).
 
 | Game | Engine / API | Scene | fps | Notes |
 |---|---|---|---|---|
