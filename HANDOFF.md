@@ -1,5 +1,26 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-09 03:40: RP5 fresh-card boot found a RELEASE BLOCKER (fixed, bsp-sm8250 28); respin needed
+
+- **auto_null on every undocked boot = no sound (bsp-sm8250 27).** Cliff's clean boot of the
+  20261008 card: PipeWire had only the Dummy Output. Root cause (A/B on the device): the
+  DisplayPort UCM device I added in 27 makes WirePlumber's ACP open hw:0,3 at probe; with no dock
+  the hdmi-audio-codec rejects hw_params (-22, "i2s-hifi") and ACP drops the WHOLE HiFi profile.
+  My dev boots after 27 all had the dock attached. Fix: bsp-sm8250 28 removes the DisplayPort
+  device and its verb-level DISPLAY_PORT_RX route (Cliff: "sigh. Alright", option 1 of 3; dock
+  AUDIO is out of 20261008, dock video unaffected; 53-pocknix-displayport.conf left in place).
+  Installed on Cliff's RP5 (sinks back). **20261008 image must be respun with 28** — the staged
+  image and the verified Lexar card both carry 27.
+- Other fresh-card findings: no wifi on first boot (my miss: no wifi.txt written to the card;
+  also Steam's OSK came up in a non-QWERTY layout for the password, cause unknown — Settings >
+  Keyboard has no layout list, the layout is on the keyboard's own language key); first boot to
+  game mode "a little slow" (Cliff). Fresh card = new ssh host key (ssh-keygen -R) and no
+  authorized key (added with the deck password).
+- Fallout 4 (Odin, 720p Low, Cliff): character creation is unusable with a pad: the name field
+  takes nothing from Steam's OSK (Steam+X opens it), the opening menu ignores buttons, and touch
+  "seems broken too". Elden Ring's name box is the same class. Open: how Steam Input's OSK
+  delivers text to a Proton game (gamescope/Xwayland text injection) on the Odin.
+
 ## 2026-10-09 01:50: Steam-button freeze CAUGHT with a core dump (Odin, issue #1 family)
 
 - Cliff in Fallout 4 (720p Low, character creation), pressed the Steam button alone: menu never
