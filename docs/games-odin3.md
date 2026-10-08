@@ -32,6 +32,11 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Slay the Spire | Java | | does not start | The game's bundled Java runtime exits at launch. |
 | Hades II | 2D, DX12 | opening scene | 60, flat | A DirectX 12 game that runs. Shows an "Unrecognized Controller" notice at launch; the controller works. |
 | Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation | 29 | At the launcher's own "Ultra" pick; lower it in the launcher's Options. |
+| Sekiro: Shadows Die Twice | DX11 | prologue well | 28, flat | Default settings. The terms-of-use screen must be scrolled to the end before Accept works. Starts in offline mode. |
+| Disco Elysium: The Final Cut | Unity, DX11 | Martinaise docks | 27, flat | |
+| NieR: Automata | DX11 | opening flight sequence | 18 | Default settings (the game's maximum); GPU-bound. Cutscenes and menus 60. |
+| Sifu | UE4, DX11 | prologue courtyard | 26, flat | CPU-bound on the render thread. Needs several presses at "Press any button". |
+| Fallout: New Vegas | DX9 | Doc Mitchell's house | 60, flat | Easy on the GPU. |
 | Death Stranding | Decima, DX12 | title menu | 60, flat | Gameplay not yet re-measured (the only menu option is New Game). Rumble works. |
 | Clair Obscur: Expedition 33 | UE5 | | runs with `-dx11`, not playable | From the 20261002 release notes. |
 
