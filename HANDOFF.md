@@ -1,5 +1,17 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-08 15:10: Odin 3 boot hang on the charger (1 of 3 reboots today)
+
+- Reboot at 14:40 (to pick up gamescope 8), charger attached, battery full: stuck on the "Holodor"
+  splash, pings answered, TCP 22 connected but sshd never sent a banner; Cliff needed a long power
+  hold to turn it off and another to turn it on. Journal of that boot (-1): sshd listening at 4.1 s,
+  `Starting User Runtime Directory /run/user/1001...` at 4.83 s and NEVER "Finished" (good boots:
+  20 ms), so no deck session, no gamescope; last kernel line `dwc3-qcom a600000.usb: port-1 HS-PHY
+  not in L2` at 8.94 s (present in good boots too), then only the chronic ufshcd timestamp errors
+  until 38 s, then nothing at all = frozen. No pstore. Same family as the RP5 dock-at-boot hang
+  (user-session setup stalls early with a USB-C power source attached, 2 of 7 there). Both devices,
+  intermittent, kernel bring-up. Workaround for docs: boot unplugged. Open.
+
 ## 2026-10-08 14:30: Odin 3 game batch 1 (in progress) — findings so far
 
 Device state: rolled back from k34exp to kernel 7.1.3-33 (control), installed steam 49, bsp-common 28,
