@@ -39,7 +39,7 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | NieR: Automata | DX11 | opening flight sequence | 18 at High; 21 at Low; 720p not measured | Settings make little difference; the GPU is the limit. Cutscenes and menus 60. |
 | Sifu | UE4, DX11 | prologue courtyard | 26, flat | CPU-bound on the render thread. Needs several presses at "Press any button". |
 | Fallout: New Vegas | DX9 | Doc Mitchell's house | 60, flat | Easy on the GPU. |
-| Death Stranding | Decima, DX12 | title menu | 60, flat | Gameplay not yet re-measured (the only menu option is New Game). Rumble works. |
+| Death Stranding | Decima, DX12 | first open-world hillside (start of the game) | 17 at default; **28 at 720p Low** | In-game cutscenes run at 60. Options > Graphics Settings: Display Resolution 1280x720, Graphics Quality Low. Rumble works. |
 | Clair Obscur: Expedition 33 | UE5 | | runs with `-dx11`, not playable | From the 20261002 release notes. |
 
 Notes:
