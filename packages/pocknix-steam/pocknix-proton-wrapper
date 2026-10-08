@@ -379,6 +379,17 @@ def apply_game_fixes(game_id, args):
             print(f"pocknix-proton: game fix failed for {path}: {exc}", file=sys.stderr)
     for name, value in fixes.get("env", {}).items():
         os.environ.setdefault(name, value)
+    # exe: {"from": "launcher.exe", "to": "game.exe"}: run a different executable from the same
+    # directory (anti-cheat launchers that cannot start here; the game itself runs offline)
+    sub = fixes.get("exe")
+    if sub:
+        new_args = []
+        for a in args:
+            if a.endswith(sub["from"]):
+                a = a[: -len(sub["from"])] + sub["to"]
+                print(f"pocknix-proton: game fix: {sub['from']} -> {sub['to']}", file=sys.stderr)
+            new_args.append(a)
+        args = new_args
     extra = fixes.get("args", [])
     if extra and extra[0] in args:
         extra = []
