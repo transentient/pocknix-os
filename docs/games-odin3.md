@@ -32,6 +32,7 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Slay the Spire | Java | | does not start | The game's bundled Java runtime exits at launch. |
 | Hades II | 2D, DX12 | opening scene | 60, flat | A DirectX 12 game that runs. Shows an "Unrecognized Controller" notice at launch; the controller works. |
 | Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation | 29 | At the launcher's own "Ultra" pick; lower it in the launcher's Options. |
+| DOOM Eternal | id Tech 7, Vulkan | title and account screens | 60 | The game's own launcher never starts it; Holodor runs the game executable directly (next update). Gameplay not yet measured. |
 | ELDEN RING | DX12 | character creation | 60 | Offline only: Easy Anti-Cheat cannot start, so Holodor launches the game itself (next update). Gameplay not yet measured. |
 | Sekiro: Shadows Die Twice | DX11 | prologue well | 28, flat | Default settings. The terms-of-use screen must be scrolled to the end before Accept works. Starts in offline mode. |
 | Disco Elysium: The Final Cut | Unity, DX11 | Martinaise docks | 27, flat | |
