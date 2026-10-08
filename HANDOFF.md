@@ -4,9 +4,13 @@
 
 - RP5 image 20261008 respun (unit respin-rp5-20261008b): sha256 **e50fb490…de7e7**, 3,422,114,767
   bytes, loop-mount verified: bsp-sm8250 28, bsp-common 29, steam 52, kernel 7.1.2-14,
-  medialibs 3. Supersedes the a957…/991b… images (bsp 27, no sound undocked). Lexar flash is
-  queued (background watcher: flashes + byte-verifies when the card appears as /dev/sdb;
-  log /var/tmp/flash-lexar-rp5-20261008c.log). **wifi.txt NOT written**: the password is not on
+  medialibs 3. Supersedes the a957…/991b… images (bsp 27, no sound undocked). The Lexar never
+  appeared in fusor overnight (no /dev/sdb by 05:50; the session watcher timed out). Replaced by a
+  root unit that outlives the session: `watch-lexar-rp5-20261008.service`
+  (build/watch-lexar-rp5-20261008.sh, 24 h deadline, log /var/tmp/watch-lexar-rp5-20261008.log)
+  waits for a removable /dev/sdb, then runs the guarded flash + byte verify (expect
+  "VERIFIED BYTE-EXACT" in that log; `systemctl status watch-lexar-rp5-20261008` while it
+  waits). Insert the card and it flashes itself. **wifi.txt NOT written**: the password is not on
   fusor (never saved; devices off). Cliff: write it or tell me the password, then clean-boot
   undocked and check sound + wifi + sleep/wake wifi before publishing.
 - Odin: NO respin (Cliff: dock tests first, "uncover whatever we need to fix there"). The script
