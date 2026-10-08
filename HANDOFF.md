@@ -1,5 +1,37 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-08 14:30: Odin 3 game batch 1 (in progress) — findings so far
+
+Device state: rolled back from k34exp to kernel 7.1.3-33 (control), installed steam 49, bsp-common 28,
+decky 21, proton-medialibs 3 (sm8750 builds in localrepo). Helper: scratchpad/ob.sh (install/launch/
+press/shot/frames via steamjs + InputPlumber + gamescope screenshot). Results table: scratchpad/
+odin-results.md (to be folded into docs/games-odin3.md).
+- **Odin's 60 fps frame limit does not limit.** GAMESCOPE_FPS_LIMIT=60 is set, panel feedback 120,
+  yet VS / Hollow Knight / Balatro run at 118.8 fps with the GPU pinned at 1.05-1.1 GHz, 75-77 C, for
+  2D games. The Odin runs gamescope pkgrel 4; the RP5's pkgrel 8 (0008 no-EDID refresh rates +
+  dynamic_refresh_default_lowest) is what made 60/120 work there. The Odin panel is the same shape
+  (DSI, no EDID, two 1080x1920 modes). Building gamescope 8 for sm8750 (unit gamescope-sm8750-8);
+  then odin3.conf gets the RP5 policy (PREFER_LOWEST + DEFAULT_LOWEST) = 60 Hz home, 120 per game.
+  Celeste (self-capped 60) shows the other half of the problem: 60 fps on a 120 Hz panel paces as
+  1x/2x/3x refreshes (visible p99 32 ms) = judder a 60 Hz mode would remove.
+- **Observer crash ROOT CAUSE LEAD (both devices):** Wine `err:seh:call_seh_handlers invalid frame`
+  + "Exception frame is not in stack limits => unable to dispatch exception" on UE4's
+  HttpManagerThread ~2 min after launch, menu or intro; the process dies back to the launcher.
+  `[HTTP] bEnableHttp=false` in Saved/Config/WindowsNoEditor/Engine.ini: alive 5.7 min at the menu
+  (22.7 fps), no seh error. In-game unverified. Candidate for a protonfix-style per-game tweak.
+- **Hollow Knight intro video plays on the Odin** (medialibs 3 installed; the RP5 showed black with
+  the same Proton minus the libs — not a clean A/B, but the symptom is gone here). Gameplay 118.7.
+- Outer Wilds village 21 fps (RP5 10), RoR2 character select 45.5 (RP5 18), Portal chamber 00 65 but
+  bimodal 13/20.6 ms, Observer menu 22.7, Celeste/Stardew 60 flat.
+- InputPlumber: NEVER call SendEvent over D-Bus (panics the tokio worker: "Cannot block the current
+  thread from within a runtime"; presses stop reaching games until `systemctl restart inputplumber`
+  and a game relaunch). SendButtonChord is fine. Unity games drop presses at low fps: send bursts.
+  Launchers with a PLAY button (Observer): vtap2.py touch at 8540,1390 works in game mode.
+- Steam first-launch interstitials (Steam Input page, cloud sync) block RunGame until A; ob.sh launch
+  now auto-presses A while console_log says "waiting for user response".
+- EULAs (Dark Souls, RoR2) appear in the install wizard: DPadLeft then A, 1.5 s apart.
+- Steam pauses downloads while a game runs; batch 1 (14 games, ~150 GB) at 300-800 Mbps.
+
 ## 2026-10-08 02:20: RP5 wifi root cause + NM hook, gpt-auto /efi bug, medialibs done, Dark Souls docked runs, image 20261008 respinning
 
 - **Wifi "limited" after cold boot: ROOT CAUSE is the router, not the device.** 01:22 boot: NM
