@@ -1,5 +1,32 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-08 18:15: Odin 3 batches 1-2 done (30 games), batch 3 downloading; audio quantum fix; per-game fixes table
+
+- **Shipped today (Odin, by hand; all in localrepo sm8750, bsp-common also sm8250):** gamescope 8,
+  bsp-sm8750 28 (refresh policy = RP5's: 60 Hz for games, 120 per game), bsp-common 29 (PipeWire
+  `default.clock.min-quantum = 256`: a Source-engine stream at 128 frames dragged the graph down
+  and the speakers distorted; Cliff: "distorted" -> forced 1024 live -> "sounds okay"; 256 is the
+  compromise), pocknix-steam 50 (game-fixes.json applied by the wrapper every launch: ini keys,
+  args, env; Observer `[HTTP] bEnableHttp=false`, DOOM `+r_renderAPI 1`), proton-medialibs 3,
+  decky 21. Not yet in an Odin image. NOTE the Odin session has NOT been restarted since bsp 28:
+  the refresh policy applies at the next boot (reboot = boot-hang risk on the charger).
+- **Results:** docs/measurements-odin3-2026-10-08.md (raw), docs/games-odin3.md (page). Flat 60:
+  Portal 2, HL2, Cuphead, Dead Cells, Terraria, Hades II (DX12 via vkd3d RUNS on a830), Death
+  Stranding menu, Fallout NV (GPU 160 MHz). Skyrim 29 at launcher-Ultra, Subnautica 19, NMS 18,
+  Sifu 26 (RenderThread 102 % = CPU render-thread bound; UE4 scalability A/B candidate), DOOM 19
+  (Vulkan), Outer Wilds 21, DRG 39, RoR2 46. Does not start: Slay the Spire (bundled x86 JVM).
+- **Leads/open:** Fallout 4 menu modal "Creations Bundle: Download?" (not pressed); Bethesda
+  launchers auto-pick Ultra (page tells users to lower); Hades II "Unrecognized Controller" (the
+  X-Box 360 target identity; pad works) = Discord InputPlumber thread material; Talos "press any
+  key" ignores the pad; NMS "hold to select" needs a real hold (vtaphold.py HOLD=1.8 touch worked;
+  virtual keyboard flips its prompts to KBM); Steam ignores Downloads.PauseAppUpdate from JS;
+  "not enough disk space" apps can only be resumed from their library page
+  (`SteamClient.URL.ExecuteSteamURL("steam://nav/games/details/<id>")` + A).
+- Thermals: Deep Rock / Sifu / Subnautica push the hottest zone to 93-103 C (trip 95) with the
+  fan at 254/255. A tuning item of its own (fan curve? Armada/hashtagbasit numbers).
+- Tools: tools/rp5-bench/odin-bench.sh (= scratchpad ob.sh), vhold.py (hold a key), vtaphold.py
+  (long-press touch) in the scratchpad, to be committed with the next tools pass.
+
 ## 2026-10-08 15:10: Odin 3 boot hang on the charger (1 of 3 reboots today)
 
 - Reboot at 14:40 (to pick up gamescope 8), charger attached, battery full: stuck on the "Holodor"
