@@ -19,7 +19,7 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Deep Rock Galactic | UE4, DX11 | tutorial drop pod | 39, flat | CPU cores reached 100 C, fan at maximum. RP5: 14. |
 | Observer | UE4, DX11 | main menu | 23 | Crashes about 2 minutes in (same as the RP5); see notes for the fix being tested. |
 | Outer Wilds | Unity, DX11 | village, start of loop | 21 at default (maximum), **41 at Low** | Shadows, SSAO, water, lighting and AA quality to Low. RP5: 10. |
-| DOOM (2016) | id Tech 6 | The UAC, first room | 19 | Needs `+r_renderAPI 1` in launch options (Vulkan); the default OpenGL renderer runs at about 1 fps. CPU-bound. |
+| DOOM (2016) | id Tech 6, Vulkan | The UAC, first room | 19; 25 at 720p | Holodor sets the Vulkan renderer for it (the game's default OpenGL path runs at about 1 fps). Its own settings are already at Low; the limit is the CPU, so resolution does little. |
 | Portal 2 | Source, DX9 | opening room | 60, flat | |
 | Half-Life 2 | Source, DX9 | Point Insertion | 60, flat | |
 | Cuphead | Unity 2D | storybook intro | 60, flat | Game's own cap. |
@@ -31,12 +31,12 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | No Man's Sky | Vulkan | planet surface, game start | 18 | The game already picks its lowest quality on this GPU; only a lower resolution scale is left to try. "Hold to select" prompts need a real hold. |
 | Slay the Spire | Java | | does not start | The game's bundled Java runtime exits at launch. |
 | Hades II | 2D, DX12 | opening scene | 60, flat | A DirectX 12 game that runs. Shows an "Unrecognized Controller" notice at launch; the controller works. |
-| Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation | 29 at Ultra, **38 at Medium** | The launcher picks Ultra by itself; choose Medium in its Options. |
+| Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation | 29 at Ultra; 38 at Medium; **60 at 720p Medium** | The launcher picks Ultra by itself; choose Medium in its Options and 1280x720 in Steam's game properties. |
 | DOOM Eternal | id Tech 7, Vulkan | title and account screens | 60 | The game's own launcher never starts it; Holodor runs the game executable directly (next update). Gameplay not yet measured. |
 | ELDEN RING | DX12 | character creation | 60 | Offline only: Easy Anti-Cheat cannot start, so Holodor launches the game itself (next update). Gameplay not yet measured. |
-| Sekiro: Shadows Die Twice | DX11 | prologue well | 28, flat | Default settings. The terms-of-use screen must be scrolled to the end before Accept works. Starts in offline mode. |
+| Sekiro: Shadows Die Twice | DX11 | prologue well | 28 at default; 45 at 720p; **53 at 720p Low** | The terms-of-use screen must be scrolled to the end before Accept works. Starts in offline mode. |
 | Disco Elysium: The Final Cut | Unity, DX11 | Martinaise docks | 27, flat | |
-| NieR: Automata | DX11 | opening flight sequence | 18 at High, 21 at Low | Settings make little difference; the GPU is the limit. Cutscenes and menus 60. |
+| NieR: Automata | DX11 | opening flight sequence | 18 at High; 21 at Low; 720p not measured | Settings make little difference; the GPU is the limit. Cutscenes and menus 60. |
 | Sifu | UE4, DX11 | prologue courtyard | 26, flat | CPU-bound on the render thread. Needs several presses at "Press any button". |
 | Fallout: New Vegas | DX9 | Doc Mitchell's house | 60, flat | Easy on the GPU. |
 | Death Stranding | Decima, DX12 | title menu | 60, flat | Gameplay not yet re-measured (the only menu option is New Game). Rumble works. |
