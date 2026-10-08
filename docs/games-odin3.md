@@ -20,6 +20,16 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Observer | UE4, DX11 | main menu | 23 | Crashes about 2 minutes in (same as the RP5); see notes for the fix being tested. |
 | Outer Wilds | Unity, DX11 | village, start of loop | 21, flat | Game at its maximum quality preset (default). RP5: 10. |
 | DOOM (2016) | id Tech 6 | The UAC, first room | 19 | Needs `+r_renderAPI 1` in launch options (Vulkan); the default OpenGL renderer runs at about 1 fps. CPU-bound. |
+| Portal 2 | Source, DX9 | opening room | 60, flat | |
+| Half-Life 2 | Source, DX9 | Point Insertion | 60, flat | |
+| Cuphead | Unity 2D | storybook intro | 60, flat | Game's own cap. |
+| Dead Cells | 2D | Prisoners' Quarters | 60, flat | Game's own cap. |
+| Terraria | XNA / .NET | menu | 60, flat | About 3 minutes of black screen at launch, then fine. |
+| Undertale | GameMaker | intro | 30 | Game's own cap. |
+| Fallout 4 | Creation Engine, DX11 | main menu | 60 with hitches | The launcher picks "Ultra" by itself; set it lower in the launcher's Options before playing. Gameplay not yet measured. |
+| Subnautica | Unity, DX11 | life pod, game start | 19 | Default quality; GPU-bound. |
+| No Man's Sky | Vulkan | planet surface, game start | 18 | Default quality. "Hold to select" prompts need a real hold. |
+| Slay the Spire | Java | | does not start | The game's bundled Java runtime exits at launch. |
 | Death Stranding | Decima, DX12 | | playable | From the 20261002 release notes; rumble works. Not yet re-measured. |
 | Clair Obscur: Expedition 33 | UE5 | | runs with `-dx11`, not playable | From the 20261002 release notes. |
 
@@ -28,5 +38,7 @@ Notes:
 - Observer: the crash is Unreal's HTTP thread raising an exception Wine cannot deliver. Adding `[HTTP]` / `bEnableHttp=false` to the game's `Engine.ini` kept it running in testing; a per-game fix is being prepared.
 - DOOM (2016): set `+r_renderAPI 1` in the game's launch options before the first start.
 - Unreal Engine 5 games need `-dx11` in their launch options.
+- Audio crackle or distortion in a game (heard in Portal 2 and No Man's Sky): fixed in the next update (the audio buffer is kept at a minimum size). Until then, raise the game's "Audio Buffer" in Pocknix Control.
+- Games whose menus want a mouse (Terraria, Subnautica, Fallout 4's launcher) work with the touchscreen.
 - Native Linux games: the ARM Steam client has no Linux runtime, so every x86 game runs through Proton.
 - Heavy 3D games push the CPU cores to 100 C within minutes with the fan at maximum; expect throttling in long sessions.
