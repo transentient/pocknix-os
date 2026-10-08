@@ -329,6 +329,65 @@ def apply_lsfg(settings):
     os.environ["LSFGVK_PERFORMANCE_MODE"] = "0" if lsfg.get("performanceMode") is False else "1"
 
 
+GAME_FIXES = "/usr/share/pocknix-steam/game-fixes.json"
+
+
+def apply_game_fixes(game_id, args):
+    # Known per-game fixes (see game-fixes.json): an ini key the engine needs, extra command-line
+    # arguments, an environment variable. Idempotent, every launch. POCKNIX_GAME_FIXES=0 skips.
+    if os.environ.get("POCKNIX_GAME_FIXES", "1") == "0" or not game_id:
+        return args
+    try:
+        with open(GAME_FIXES) as f:
+            fixes = json.load(f).get(str(game_id))
+    except (OSError, ValueError):
+        return args
+    if not fixes:
+        return args
+    pfx = pathlib.Path(os.environ.get("STEAM_COMPAT_DATA_PATH", "")) / "pfx"
+    for ini in fixes.get("ini", []):
+        path = pfx / ini["path"]
+        try:
+            text = path.read_text() if path.exists() else ""
+            section, key, value = ini["section"], ini["key"], ini["value"]
+            lines = text.splitlines()
+            out, in_section, done, seen_section = [], False, False, False
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("[") and stripped.endswith("]"):
+                    if in_section and not done:
+                        out.append(f"{key}={value}"); done = True
+                    in_section = stripped[1:-1].strip().lower() == section.lower()
+                    seen_section = seen_section or in_section
+                elif in_section and stripped.split("=", 1)[0].strip().lower() == key.lower():
+                    if done:
+                        continue
+                    line, done = f"{key}={value}", True
+                out.append(line)
+            if in_section and not done:
+                out.append(f"{key}={value}"); done = True
+            if not done:
+                if out and out[-1].strip():
+                    out.append("")
+                out += [f"[{section}]", f"{key}={value}"]
+            new = "\n".join(out) + "\n"
+            if new != text:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(new)
+                print(f"pocknix-proton: game fix: {ini['path']} [{section}] {key}={value}", file=sys.stderr)
+        except OSError as exc:
+            print(f"pocknix-proton: game fix failed for {path}: {exc}", file=sys.stderr)
+    for name, value in fixes.get("env", {}).items():
+        os.environ.setdefault(name, value)
+    extra = fixes.get("args", [])
+    if extra and extra[0] in args:
+        extra = []
+    if extra:
+        print(f"pocknix-proton: game fix: args {extra}", file=sys.stderr)
+        args = [*args, *extra]
+    return args
+
+
 def main():
     if len(sys.argv) < 2:
         raise SystemExit("usage: pocknix-proton-wrapper PROTON_ENTRYPOINT [ARGS...]")
@@ -349,6 +408,7 @@ def main():
         print(f"pocknix-proton: failed to apply audio latency: {exc}", file=sys.stderr)
     apply_audio_driver()
     apply_protonfixes(settings)
+    args = apply_game_fixes(game_id, args)
     if wants_120hz(settings):
         global RESTORE_REFRESH
         RESTORE_REFRESH = True
