@@ -18,7 +18,7 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Risk of Rain 2 | Unity, DX11 | character select | 46, flat | RP5: 18. |
 | Deep Rock Galactic | UE4, DX11 | tutorial drop pod | 39, flat | CPU cores reached 100 C, fan at maximum. RP5: 14. |
 | Observer | UE4, DX11 | main menu | 23 | Crashes about 2 minutes in (same as the RP5); see notes for the fix being tested. |
-| Outer Wilds | Unity, DX11 | village, start of loop | 21, flat | Game at its maximum quality preset (default). RP5: 10. |
+| Outer Wilds | Unity, DX11 | village, start of loop | 21 at default (maximum), **41 at Low** | Shadows, SSAO, water, lighting and AA quality to Low. RP5: 10. |
 | DOOM (2016) | id Tech 6 | The UAC, first room | 19 | Needs `+r_renderAPI 1` in launch options (Vulkan); the default OpenGL renderer runs at about 1 fps. CPU-bound. |
 | Portal 2 | Source, DX9 | opening room | 60, flat | |
 | Half-Life 2 | Source, DX9 | Point Insertion | 60, flat | |
@@ -27,22 +27,23 @@ The Odin 3's screen is 120 Hz. In this pass the 60 fps frame limit was not limit
 | Terraria | XNA / .NET | menu | 60, flat | About 3 minutes of black screen at launch, then fine. |
 | Undertale | GameMaker | intro | 30 | Game's own cap. |
 | Fallout 4 | Creation Engine, DX11 | main menu | 60 with hitches | The launcher picks "Ultra" by itself; set it lower in the launcher's Options before playing. Gameplay not yet measured. |
-| Subnautica | Unity, DX11 | life pod, game start | 19 | Default quality; GPU-bound. |
-| No Man's Sky | Vulkan | planet surface, game start | 18 | Default quality. "Hold to select" prompts need a real hold. |
+| Subnautica | Unity, DX11 | life pod, game start | 19 at High (default), **51 at Low** | Options > Graphics > Preset. |
+| No Man's Sky | Vulkan | planet surface, game start | 18 | The game already picks its lowest quality on this GPU; only a lower resolution scale is left to try. "Hold to select" prompts need a real hold. |
 | Slay the Spire | Java | | does not start | The game's bundled Java runtime exits at launch. |
 | Hades II | 2D, DX12 | opening scene | 60, flat | A DirectX 12 game that runs. Shows an "Unrecognized Controller" notice at launch; the controller works. |
-| Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation | 29 | At the launcher's own "Ultra" pick; lower it in the launcher's Options. |
+| Skyrim Special Edition | Creation Engine, DX11 | Helgen, character creation | 29 at Ultra, **38 at Medium** | The launcher picks Ultra by itself; choose Medium in its Options. |
 | DOOM Eternal | id Tech 7, Vulkan | title and account screens | 60 | The game's own launcher never starts it; Holodor runs the game executable directly (next update). Gameplay not yet measured. |
 | ELDEN RING | DX12 | character creation | 60 | Offline only: Easy Anti-Cheat cannot start, so Holodor launches the game itself (next update). Gameplay not yet measured. |
 | Sekiro: Shadows Die Twice | DX11 | prologue well | 28, flat | Default settings. The terms-of-use screen must be scrolled to the end before Accept works. Starts in offline mode. |
 | Disco Elysium: The Final Cut | Unity, DX11 | Martinaise docks | 27, flat | |
-| NieR: Automata | DX11 | opening flight sequence | 18 | Default settings (the game's maximum); GPU-bound. Cutscenes and menus 60. |
+| NieR: Automata | DX11 | opening flight sequence | 18 at High, 21 at Low | Settings make little difference; the GPU is the limit. Cutscenes and menus 60. |
 | Sifu | UE4, DX11 | prologue courtyard | 26, flat | CPU-bound on the render thread. Needs several presses at "Press any button". |
 | Fallout: New Vegas | DX9 | Doc Mitchell's house | 60, flat | Easy on the GPU. |
 | Death Stranding | Decima, DX12 | title menu | 60, flat | Gameplay not yet re-measured (the only menu option is New Game). Rumble works. |
 | Clair Obscur: Expedition 33 | UE5 | | runs with `-dx11`, not playable | From the 20261002 release notes. |
 
 Notes:
+- Numbers marked "at default" are what the game chose on its own. Most of these games choose their highest settings on this GPU; the second number is the same scene after lowering them, which is what you would play at.
 - The 60 fps frame limit was not applied by the gamescope build in the 20261002 image (games ran at 120). The gamescope with the refresh-rate fix from the Retroid Pocket 5 build is going into the next Odin 3 image; the numbers above will be re-measured with it.
 - Observer: the crash is Unreal's HTTP thread raising an exception Wine cannot deliver. Adding `[HTTP]` / `bEnableHttp=false` to the game's `Engine.ini` kept it running in testing; a per-game fix is being prepared.
 - DOOM (2016): set `+r_renderAPI 1` in the game's launch options before the first start.
