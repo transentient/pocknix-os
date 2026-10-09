@@ -6,6 +6,9 @@
 #   dockcheck.sh <rp5|odin3> frame [name]          grab one frame from the HDMI capture, report its brightness
 #   dockcheck.sh <rp5|odin3> tone [secs]           play the tone on the device's default sink, record the capture, report
 #   dockcheck.sh <rp5|odin3> speaker [secs]        play the tone on the device, report whether the stream ran (no ear)
+#   dockcheck.sh <rp5|odin3> pulse                 play the tone through the PULSE layer (paplay, what Steam and most games use);
+#                                                  PASS = "Stream successfully created" + drained. pw-play alone never catches a
+#                                                  Pulse-only failure (20261008: smart filter classed Audio/Sink/Internal)
 #   dockcheck.sh <rp5|odin3> wait <enabled|disabled> [timeout-s]
 #   dockcheck.sh <rp5|odin3> run <label>           state + frame + tone, one PASS/FAIL line appended to results
 #
@@ -76,12 +79,17 @@ for o in d:
         print(\"stream:\", o[\"info\"][\"state\"], \"->\", p.get(\"target.object\",\"default\"))
 "; wait' ;;
 
+  pulse)
+    out=$($SSH 'timeout 8 paplay -v /tmp/dock-tone.wav 2>&1 | tr "\r" "\n" | grep -oE "Stream successfully created|Connected to device [^ ]*|Playback stream drained|Stream error: .*" | sort -u | tr "\n" ";"')
+    echo "pulse: $out"
+    case "$out" in *"successfully created"*"drained"*|*"drained"*"successfully created"*) echo "pulse: PASS (Pulse stream created and played)";; *) echo "pulse: FAIL (Pulse client never got its stream or never drained)";; esac ;;
+
   wait)
     want=$1; t=${2:-60}; for ((i=0;i<t;i++)); do s=$(dp_state); case "$s" in *"enabled=$want"*) echo "DP $want after $i s: $s"; exit 0;; esac; sleep 1; done; echo "TIMEOUT waiting for DP $want: $s"; exit 1 ;;
 
   run)
     label=${1:?label}; echo "## $label $(date '+%F %T')" | tee -a "$RES"
-    { "$0" $DEV state; "$0" $DEV frame "$label"; "$0" $DEV tone; } 2>&1 | tee "$OUT/$(date +%H%M%S)-$label.log" | tee -a "$RES" ;;
+    { "$0" $DEV state; "$0" $DEV frame "$label"; "$0" $DEV tone; "$0" $DEV pulse; } 2>&1 | tee "$OUT/$(date +%H%M%S)-$label.log" | tee -a "$RES" ;;
 
   *) sed -n 2,12p "$0"; exit 2 ;;
 esac

@@ -1,5 +1,51 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 01:10: RP5 "no sound" ROOT CAUSE on the fresh card: Pulse clients never got their stream (bsp-sm8250 30 fixes it)
+
+- Boot 4 of the pre-expanded Lexar (bsp 28, nothing plugged) reached Steam with the sinks present,
+  but Cliff: "no sound. sound is dead." A native pw-play tone was audible at the normal slider,
+  so hardware, UCM, mixer, the loudness filter and WirePlumber were all fine. Every PulseAudio
+  client was silent: paplay's node went "running" and the pipewire-pulse log counted an "XRun!"
+  every quantum (~94 per 2 s), the client ended "Stream error: Timeout" after 30 s, Steam's
+  cef_log had "pa_operation is nullptr" on this boot and on the 10-08 boot. Steam's UI sounds,
+  its Chromium audio service and most games are Pulse clients, so "no sound" = this.
+- Ruled out on the device: sandboxing (pipewire-pulse by hand: same), node.async on the Pulse
+  streams, requested latency, bsp-common 29's min-quantum 256 (set live to 32, and
+  force-quantum 0: same), a pw-play forced to sync mode (works), the daemon's debug log
+  (nothing wrong in the graph). The clue was `paplay -v`: it never printed "Stream successfully
+  created" — the server's reply to CREATE_PLAYBACK_STREAM never came, so the client never wrote a
+  byte and the stream underran forever.
+- MECHANISM (module-protocol-pulse 1.4.9, pulse-server.c stream_param_changed, collect.c
+  find_peer_for_link): the reply is sent only once the stream's link peer passes
+  pw_manager_object_is_sink = media.class exactly "Audio/Sink" or "Audio/Duplex". Our
+  smart-filter rule moves every Speaker stream onto pocknix_speaker_loud, and bsp-sm8250 25
+  (commit 4afdce7, 10-06, "hide the filter from the device list") had set that filter to
+  Audio/Sink/Internal. So from 25 on, no Pulse client whose stream landed on the speaker path
+  ever got its reply. Cross-check: PULSE_SINK=Headphones (plain Audio/Sink) creates and starts at
+  once. The 10-09 claim that the DisplayPort UCM device explained all of "no sound" was half the
+  story: bsp 28 fixed the auto_null profile loss, and this bug was underneath it.
+- FIX: bsp-sm8250 30 (commit 923c10b) — media.class back to Audio/Sink, with the reason in the
+  conf. Consequence: the filter is visible again in device lists as "Speakers (Loud)" (what 25
+  hid). Hiding it needs a different mechanism; Audio/Sink/Internal and /Virtual both fail the Pulse
+  peer test. Cliff's call whether a hide is worth chasing; it is not in this respin.
+- VERIFIED on the card (system conf edited as root, then a full reboot = fresh undocked boot):
+  paplay "Stream successfully created ... drained", NTG mic 1 kHz at -20.3 dBFS (same as pw-play at
+  the 35 % slider); a Chromium AudioContext oscillator inside Steam's Big Picture tab plays its
+  full 3.0 s at -17 dBFS; no new pa_operation errors; Terraria's two Pulse streams + Steam's
+  per-game audio group run with ERR 0. Not confirmed by mic: the UI navigation ticks (the room
+  floor at 25 cm is above them) — Cliff's ears on the next boot. Terraria itself never presented a
+  frame in 2 min on this card (Steam spinner, then black, audio graph healthy) — separate item.
+- Tooling: tools/dock/dockcheck.sh `pulse` (paplay, PASS = created + drained) and every `run` now
+  includes it; `tone` was a native client and could never catch this. Card state: bsp 28 + the
+  conf edit, debug drop-ins removed, sshd still enabled, my idle block released.
+- Package build: bsp-sm8250 30 in localrepo sm8250 (build/bsp-sm8250-30.log). 30 is built from the
+  current tree, so it carries 29's conditional DisplayPort device (candidate U, undocked path =
+  28's). Respin pending the kernel question (14 tested vs 15 built).
+- Side findings: in this PipeWire a same-named ~/.config/pipewire/pipewire.conf.d/ fragment is
+  skipped when /usr/share has one ("skip override ... lower priority"); a mid-session pipewire
+  restart drops the planted speaker gains (+14 dB) until pocknix-speaker-volume restarts; the
+  daemon on the card had clock.force-quantum=1024 set in metadata (source not found, harmless).
+
 ## 2026-10-09 15:00: ROOT CAUSE of the Lexar first-boot freeze: the first-boot ONLINE RESIZE corrupts the card
 
 - Boot 2 (same card after the e2fsck repair, nothing in USB-C) ran 11 min, dark screen, never on

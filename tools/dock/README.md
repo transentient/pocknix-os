@@ -11,7 +11,7 @@ line in `results-<dev>-<date>.md`, not a memory.
 
 | # | Step (Cliff) | Measure | Pass |
 |---|---|---|---|
-| 1 | cold boot, nothing plugged | `run undocked-boot` | DP disabled; default sink Speaker; Speaker + Headphones listed; `speaker` stream runs; Cliff hears the tone |
+| 1 | cold boot, nothing plugged | `run undocked-boot` | DP disabled; default sink Speaker; Speaker + Headphones listed; `speaker` stream runs; `pulse` PASS; Cliff hears the tone |
 | 2 | plug the dock after Steam is up | `wait enabled 30` then `run hotplug` | DP enabled within 30 s; frame VIDEO; default sink DisplayPort; tone HEARD |
 | 3 | start a game, then `run docked-game` | | tone HEARD while the game runs; frame VIDEO |
 | 4 | unplug the dock while the game runs | `wait disabled 30` then `run unplug-game` | default sink back to Speaker; Speaker stream runs; the game keeps running |
@@ -27,6 +27,11 @@ Candidates under test (bsp-sm8250 29 + linux-pocknix-sm8250 15, 2026-10-09):
 - K (kernel): 0721 makes `msm_dp_audio_prepare` succeed with the link down, so a probe before the
   compositor lights the dock cannot drop the HiFi profile. Test U alone, then U+K, then K alone
   (bsp 27's unconditional device) on the same card.
+
+Every `run` also does `pulse`: the tone through paplay, i.e. the PulseAudio layer Steam's UI, its
+Chromium and most games use. `tone` alone is a native PipeWire client and passed on 20261008 while
+every Pulse client was silent (the loudness filter classed Audio/Sink/Internal, bsp-sm8250 25..29;
+fixed in 30). A result line without `pulse: PASS` is not a pass.
 
 Not covered: a real TV (the capture's EDID is "HJW HD TO USB", 2-channel, no HDR); a second dock;
 Bluetooth audio while docked.
