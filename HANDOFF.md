@@ -40,7 +40,7 @@
   conf edit, debug drop-ins removed, sshd still enabled, my idle block released.
 - RESPUN 01:13: build/image/sm8250/holodor-rp5-20261010-seedless.img.zst
   (sha256 555ef99d...9f1, 3.42 GB) = 20261008 + bsp-sm8250 30, kernel PINNED at the tested 14,
-  bsp-common 29, steam 49. 30 is built from the current tree so it carries 29's conditional
+  bsp-common 29, steam 52 (the resumed rootfs was already past 49). 30 is built from the current tree so it carries 29's conditional
   DisplayPort device (dock candidate U; undocked path = 28's). A kernel-15 variant fell out of the
   first two runs (holodor-rp5-20261010-k15-seedless.img.zst, sha 738cb204...86b) = U+K for the dock
   matrix. Pinning needed HOLODOR_IGNORE_PKGS in build-image.sh in THREE places (pacman --ignore on
