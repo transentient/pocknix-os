@@ -122,7 +122,10 @@ install_local_packages() {
   # Kernel: swap ALARM's generic linux-aarch64 for our SoC kernel package (Image + modules,
   # built by `make kernel` -> staged into the package). Its own step (not bundled above) so a
   # missing kernel build errors clearly, and the replace is deterministic. `provides=linux`.
-  if chroot "${root}" pacman -Si "pocknix/${KERNEL_PKG}" >/dev/null 2>&1; then
+  if [[ ",${HOLODOR_IGNORE_PKGS:-}," == *",${KERNEL_PKG},"* ]] && chroot "${root}" pacman -Q "${KERNEL_PKG}" >/dev/null 2>&1; then
+    # the explicit -S below would override pacman --ignore; a pinned, already-installed kernel stays
+    log "kernel pinned (HOLODOR_IGNORE_PKGS): keeping $(chroot "${root}" pacman -Q "${KERNEL_PKG}")"
+  elif chroot "${root}" pacman -Si "pocknix/${KERNEL_PKG}" >/dev/null 2>&1; then
     chroot "${root}" pacman -Rdd --noconfirm linux-aarch64 2>/dev/null || true
     rm -rf "${root}/boot/initramfs-linux"*.img 2>/dev/null || true
     chroot "${root}" pacman -S --noconfirm "pocknix/${KERNEL_PKG}"
