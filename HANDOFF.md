@@ -1,5 +1,26 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-09 14:40: Lexar (bsp 28) first boot FROZE in expand-root; card repaired, cause open
+
+- Cliff booted the verified Lexar from the ABL menu (Linux, SD). Logo forever, text cursor stopped
+  blinking (= kernel frozen, not waiting), no ping in 6 min. Before that, powering off the previous
+  system also hung at the logo until a long press. The long press is a PMIC reset: it restarted
+  immediately (charger attached? asked).
+- Card forensics on fusor (card untouched until the repair): wifi.txt NOT renamed/no error file =>
+  the importer never ran. GPT + FAT byte-identical to the image. ext4 primary superblock grown to
+  15383803 blocks (= the whole card) at 13:58:24, group descriptor 128 garbage, no expand-root
+  stamp, lost+found/#538354 at 13:58:26, /var/log/journal EMPTY (never flushed). Backup
+  superblocks intact (3376896 blocks). => pocknix-expand-root ran: growpart's GPT write stayed in
+  the page cache, resize2fs grew the fs online, and the kernel died ~2 s later, before the stamp
+  and before journald flushed. No journal of the boot survives. Same shape as the Odin
+  charger-boot freeze (10-08, dead at 38 s) and the RP5 dock-at-boot freeze (journal ends 2.9 s).
+- Read via a dm-snapshot (losetup -r + COW) so the card stayed pristine; `e2fsck -y -f /dev/sdb2`
+  then restored the fs from the backups: clean, 3376896 blocks, mounts; wifi.txt still on the FAT.
+  Card is back to "fresh bsp 28 + wifi.txt", expand-root will run again on the next boot.
+- Next: boot 2 with NOTHING in USB-C. Freeze again at the same point => the online resize is the
+  suspect (pre-expand offline on fusor for boot 3). Reaches Steam => charger-at-boot freeze family
+  (provisional), INSTALL needs "boot with nothing plugged in, charger included" if it holds.
+
 ## 2026-10-09 12:30: inquisitor pass on the night's handoff; dock audio back on the drawing board (U + K candidates); Odin redriver kernel
 
 - **Wrong in the 04:00 block:** "wifi.txt NOT written: the password is not on fusor". The PSK is in
