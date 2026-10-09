@@ -176,6 +176,9 @@ install_local_packages() {
   # --needed skips same-version, uninstalled ones (optional emulators) stay absent.
   _stale=()
   while read -r _p; do
+    # a pinned package (HOLODOR_IGNORE_PKGS) keeps its installed build here too: this explicit
+    # -S would override pacman --ignore (the kernel slipped to 15 past the pin, 2026-10-10)
+    [[ ",${HOLODOR_IGNORE_PKGS:-}," == *",${_p},"* ]] && { log "  pinned, not re-synced: ${_p}"; continue; }
     # pacman -Q resolves provides (asking for `mesa` answers `mesa-next`), so gate on the
     # EXACT installed name — else this loop re-adds the plain package its -next replacement
     # conflicts with and the transaction dies (bitten by the mesa-next driver swap).
