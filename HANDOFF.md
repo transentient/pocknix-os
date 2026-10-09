@@ -1,5 +1,42 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-09 15:00: ROOT CAUSE of the Lexar first-boot freeze: the first-boot ONLINE RESIZE corrupts the card
+
+- Boot 2 (same card after the e2fsck repair, nothing in USB-C) ran 11 min, dark screen, never on
+  the LAN. Its journal (flushed this time): EVERY bash script died with SIGILL at the same page of
+  /usr/bin/bash (10-arch env generator at 3.4 s, set-wireless-regdom, expand-root, wifi-import,
+  decky, fancontrol, gamescope wrapper... 700+ core dumps). bash page 70 on the card holds an ext4
+  DIRECTORY block (Steam package dir: "beta", steamui_websrc_sounds_all.zip.vz...). So boot 1 had
+  wifi (NTP-correct 13:58 timestamps; the wifi.txt rename was lost in the FAT page cache when it
+  froze), was downloading Steam, and the allocator wrote the new files OVER existing blocks.
+- Card vs image (rsync -c, stopped at /usr/share, list in the 15:00 scratch): 20 files with single
+  4 KiB pages replaced (bash, FEX, Cemu, libstdc++, QtWebEngine, ath11k m3.bin, two .ko, docs,
+  FEX RootFS .sqsh). e2fsck: inode 538354 (new, 13:58:26) multiply-claims 52 blocks of
+  /usr/share/doc/libX11 CH13/CH14.xml; /usr/bin entries pointing at unused inodes; a directory
+  inode salvaged. = the kernel's block bitmaps / descriptors were wrong AFTER the online resize
+  (group 128's descriptor was garbage, groups 51/81/100 handed out in-use blocks).
+- The online resize only started happening on 2026-10-05: cloud-guest-utils (growpart) was
+  added to the image then. Before that expand-root's growpart was "command not found" and
+  resize2fs said "Nothing to do" -> every earlier fresh card stayed at 12.9 G and nothing ever
+  resized. Real expansions so far: the 10-08 Lexar card (Cliff's "weird issues" boot: OSK
+  layout, wifi, sound) and today's. 2 of 2 strange. Cliff's 10-08 card should be compared
+  against the image too.
+- fusor does NOT reproduce: same image reflinked into a 58.9 G sparse file, sgdisk grow, online
+  resize2fs to the same 15383803 blocks under 7.1.5 x86, 3000 files written: e2fsck clean,
+  bash intact (scratch repro.sh). linux-7.1.y has no ext4 resize fix after 7.1.2. So it is
+  device-side: arm64 7.1.2 ext4 online resize, or the sdhci_msm/Lexar write path, or the
+  resize racing the Steam download. NOT yet separated (H1 resize vs H2 storage).
+- Card reflashed (flash-lexar-rp5-3 unit, /var/tmp/flash-lexar-rp5-20261008-3.log).
+  Plan: E1 = build/prep-lexar-preexpanded.sh after the verify (OFFLINE grow+resize on fusor,
+  expand-root stamped, cliff's ssh key seeded for deck, wifi.txt) -> boot -> Steam download ->
+  rsync -c /usr vs image over ssh. Clean => H2 ruled out for heavy writes, the online resize is
+  the culprit; corrupt => storage path. E3 (second card) = fresh flash, expand-root masked, run
+  growpart+resize2fs by hand over ssh with nothing else writing, then compare + journal.
+- Release consequence: 20261008 CANNOT ship with the first-boot online resize as is. Fix
+  candidates: separate data partition made fresh on first boot (ROCKNIX style, no resize of a
+  live fs), or resize + sync + reboot before any other writer if E3 shows the race matters.
+  Cliff's call once E1/E3 are in.
+
 ## 2026-10-09 14:40: Lexar (bsp 28) first boot FROZE in expand-root; card repaired, cause open
 
 - Cliff booted the verified Lexar from the ABL menu (Linux, SD). Logo forever, text cursor stopped
