@@ -273,7 +273,12 @@ install_packages() {
   # -Syy (force DB refresh): a reused rootfs keeps a stale sync DB, and plain -Sy won't
   # re-download a DB pacman thinks is current -> valid extra pkgs (vulkan-tools, alsa-utils,
   # alsa-ucm-conf) show up as "target not found". Safe here: this is a fresh-image -Su anyway.
-  chroot "${root}" pacman -Syyu --noconfirm --needed "${pkgs[@]}"
+  # HOLODOR_IGNORE_PKGS="a,b": keep the rootfs's installed version of those packages (pacman
+  # --ignore) so a respin can carry one fix without pulling every newer build in the local repo
+  # (2026-10-10: bsp-sm8250 30 audio fix with the tested kernel 14, not the untested 15).
+  local -a _ignore=()
+  [ -n "${HOLODOR_IGNORE_PKGS:-}" ] && { _ignore=(--ignore "${HOLODOR_IGNORE_PKGS}"); log "pinning (pacman --ignore): ${HOLODOR_IGNORE_PKGS}"; }
+  chroot "${root}" pacman -Syyu --noconfirm --needed "${_ignore[@]}" "${pkgs[@]}"
 }
 
 # Install the SoC device firmware (ath12k wifi board data, adsp/cdsp, vpu, ...)
