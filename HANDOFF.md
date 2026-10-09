@@ -15,12 +15,16 @@
   /usr/share/doc/libX11 CH13/CH14.xml; /usr/bin entries pointing at unused inodes; a directory
   inode salvaged. = the kernel's block bitmaps / descriptors were wrong AFTER the online resize
   (group 128's descriptor was garbage, groups 51/81/100 handed out in-use blocks).
-- The online resize only started happening on 2026-10-05: cloud-guest-utils (growpart) was
-  added to the image then. Before that expand-root's growpart was "command not found" and
-  resize2fs said "Nothing to do" -> every earlier fresh card stayed at 12.9 G and nothing ever
-  resized. Real expansions so far: the 10-08 Lexar card (Cliff's "weird issues" boot: OSK
-  layout, wifi, sound) and today's. 2 of 2 strange. Cliff's 10-08 card should be compared
-  against the image too.
+- CORRECTION (Cliff asked): growpart = cloud-guest-utils (Canonical's cloud-utils, stock Arch
+  package), in config/packages/pocknix-core.list since 2026-08-03 (3ab864e), hand-placed in the
+  sm8250 localrepo 09-24. The image's pacman.log "installed 10-05" is just this rootfs's pacstrap
+  date. So RP5 fresh cards since the 09-24 bring-up HAVE been online-resizing at first boot; the
+  resize is not new. pocknix-expand-root is ours (a thin wrapper: growpart + resize2fs, the
+  cloud-init pattern); the resize itself is the kernel's EXT4_IOC_RESIZE_FS.
+- The "weird issues" card of 10-08 IS this Lexar (reflashed today), so there is no second data
+  point. The Lexar's history: bad 128 KiB window on the 10-08 flash AND on today's (both blamed
+  on fusor's reader), the strange 10-08 boot, today's corruption. The card itself is now a
+  first-class suspect (H2) next to the online resize (H1).
 - fusor does NOT reproduce: same image reflinked into a 58.9 G sparse file, sgdisk grow, online
   resize2fs to the same 15383803 blocks under 7.1.5 x86, 3000 files written: e2fsck clean,
   bash intact (scratch repro.sh). linux-7.1.y has no ext4 resize fix after 7.1.2. So it is
