@@ -9,7 +9,8 @@
   read-back FAILED (reader drop again). Chunk scan found ONE bad 128 KiB window at offset
   9136766976; rewritten with ~/rewrite-sd-window.sh (IMG override to the sm8250 raw image), window
   verified; full re-verify unit `verify-lexar-rp5-20261008` (log /var/tmp/verify-lexar-rp5-20261008.log)
-  running, then wifi.txt. The card carries bsp 28 = NO dock audio; if U/K below pass, 20261008 is
+  PASSED 12:22 (VERIFIED BYTE-EXACT), wifi.txt written 12:22 (ozma/JP), card unmounted: READY for
+  Cliff. The card carries bsp 28 = NO dock audio; if U/K below pass, 20261008 is
   respun again (bsp 29 + kernel 15), so this card's job is the sleep/wake wifi failure + a clean boot.
 - **Dock audio, mechanism confirmed in source:** PipeWire ACP (alsa-mixer.c profile probe) marks the
   whole profile unsupported when ONE mapping fails `mapping_open_pcm` (hw_params, which in alsa-lib
@@ -17,7 +18,9 @@
   and prepare hdmi-codec callbacks via drm_hdmi_audio_helper) returns -EINVAL whenever the DP link is
   not powered. ROCKNIX's RP5 UCM patch (alsa-ucm-conf/patches/SM8250/0004, separate "HDMI" verb "so
   an unconnected DP PCM never poisons the HiFi card") was in our vendored tree all along.
-- **Candidate U (bsp-sm8250 29, building):** HiFi-RP.conf wraps the verb in `If.dp` on
+- **Built 12:17, all three in localrepo, commit 1038744:** pocknix-bsp-sm8250 29, linux-pocknix-sm8250
+  7.1.2-15, linux-pocknix-sm8750 7.1.3-34 (dtb carries the nb7vpq904m node). None installed on a device.
+- **Candidate U (bsp-sm8250 29):** HiFi-RP.conf wraps the verb in `If.dp` on
   `${sys:class/drm/card0-DP-1/enabled}` (RegexMatch ^enabled): docked = verb with the DISPLAY_PORT_RX
   route + SectionDevice DisplayPort (prio 300, DP0 Jack); undocked = bsp 28's plain verb. Node names
   unchanged (53-pocknix-displayport.conf, speaker-loudness, speaker-volume all keep matching).
@@ -26,8 +29,7 @@
   "status": a probe between cable-in and the compositor's mode set would hit -EINVAL and drop the
   profile again. PipeWire's own udev monitor does NOT re-probe on a sound-card change event
   (alsa-udev.c process_card: emitted+accessible = no-op), hence the restart. UNTESTED (devices off).
-- **Candidate K (linux-pocknix-sm8250 15, building, unit kernel-sm8250-15b, log
-  build/kernel15-sm8250-build.log):** 40-holodor/0721 makes msm_dp_audio_prepare return 0 with the
+- **Candidate K (linux-pocknix-sm8250 15, log build/kernel15-sm8250-build.log):** 40-holodor/0721 makes msm_dp_audio_prepare return 0 with the
   link down (nothing programmed, audio_enabled stays false). Removes U's timing hole; the open
   question is what q6afe DEVICE_START on DISPLAY_PORT_RX does with no cable (the ACP probe prepares).
   NOTE this build overwrites build/image/sm8250/KERNEL (was kernel 14's; the 20261008 image file is
