@@ -1,5 +1,31 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 08:30: E1 RESULT — the pre-expanded Lexar is byte-clean after four boots + the Steam download; the first-boot online resize is the culprit
+
+- E1 (HANDOFF 10-09 15:00 plan): the Lexar was grown + resized OFFLINE on fusor, expand-root
+  stamped, then booted four times (Steam first-run download, sign-in, Terraria install, the whole
+  no-sound session, 7 h uptime). This morning `rsync -rlc -n -i deck@rp5:/usr/ build/rootfs/usr/`
+  (177 660 files, 8.7 G, 3 min, zero errors) found exactly TWO checksum mismatches: the two files I
+  edited / bsp 28 vs 30 (60-pocknix-speaker-loudness.conf, HiFi-RP.conf). Every other byte of
+  /usr matches. File-list diff (LC_ALL=C comm): only-on-card = the 24 files build-sd-image.sh
+  overlays (/usr/local/bin/pocknix-*, share/holodor, the two .desktop, sysctl + oomd drop-ins);
+  only-in-rootfs = bsp 30's three pocknix-dp-audio-watch files. Nothing unexpected either way.
+- So the SAME card, the SAME image, the SAME first-boot workload (Steam download racing boot) is
+  clean when the resize happened offline, and had 20 replaced pages + multiply-claimed blocks
+  when the resize happened online at boot 1. H2 (card / sdhci write path) is ruled out for heavy
+  writes; H1 (the device-side ext4 online resize, 7.1.2 arm64, EXT4_IOC_RESIZE_FS while Steam
+  writes) stands. Still ONE data point and it does not separate "online resize is broken" from
+  "online resize racing a writer"; E3 (resize by hand with nothing writing) would, but a fix that
+  never resizes a live filesystem makes E3 moot.
+- Fix candidates unchanged, Cliff's call: (a) ROCKNIX style, root stays image-sized, a fresh data
+  partition is CREATED (mkfs) at first boot for /home + Steam, no resize of a live fs; (b) keep
+  growing root but do it from the initramfs / before any other writer, sync, then continue or
+  reboot. (a) is the one ROCKNIX ships; (b) keeps our single-root layout.
+- Either way the 20261010 image is NOT the release: it still runs the online resize at first boot.
+  Scratch: e1-rsync.log/.err, e1-card.list, e1-rootfs.list (session f1bcd27e scratchpad).
+- Device: inhibitor stopped, card untouched (bsp 28 + conf edit, sshd on, signed in). Cliff still
+  owes the Steam UI tick ear check on it.
+
 ## 2026-10-10 01:10: RP5 "no sound" ROOT CAUSE on the fresh card: Pulse clients never got their stream (bsp-sm8250 30 fixes it)
 
 - Boot 4 of the pre-expanded Lexar (bsp 28, nothing plugged) reached Steam with the sinks present,
