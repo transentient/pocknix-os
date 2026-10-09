@@ -38,9 +38,15 @@
 - Tooling: tools/dock/dockcheck.sh `pulse` (paplay, PASS = created + drained) and every `run` now
   includes it; `tone` was a native client and could never catch this. Card state: bsp 28 + the
   conf edit, debug drop-ins removed, sshd still enabled, my idle block released.
-- Package build: bsp-sm8250 30 in localrepo sm8250 (build/bsp-sm8250-30.log). 30 is built from the
-  current tree, so it carries 29's conditional DisplayPort device (candidate U, undocked path =
-  28's). Respin pending the kernel question (14 tested vs 15 built).
+- RESPUN 01:13: build/image/sm8250/holodor-rp5-20261010-seedless.img.zst
+  (sha256 555ef99d...9f1, 3.42 GB) = 20261008 + bsp-sm8250 30, kernel PINNED at the tested 14,
+  bsp-common 29, steam 49. 30 is built from the current tree so it carries 29's conditional
+  DisplayPort device (dock candidate U; undocked path = 28's). A kernel-15 variant fell out of the
+  first two runs (holodor-rp5-20261010-k15-seedless.img.zst, sha 738cb204...86b) = U+K for the dock
+  matrix. Pinning needed HOLODOR_IGNORE_PKGS in build-image.sh in THREE places (pacman --ignore on
+  the -Syyu, the explicit kernel step, the stale re-sync) — the first two runs each slipped to 15.
+  Script: build/respin-rp5-20261010.sh (gitignored), logs build/respin-rp5-20261010*.log*.
+  NOT flashed, NOT published. Release still gated on the first-boot online-resize decision.
 - Side findings: in this PipeWire a same-named ~/.config/pipewire/pipewire.conf.d/ fragment is
   skipped when /usr/share has one ("skip override ... lower priority"); a mid-session pipewire
   restart drops the planted speaker gains (+14 dB) until pocknix-speaker-volume restarts; the
