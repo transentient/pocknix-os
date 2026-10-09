@@ -1,0 +1,32 @@
+# dock: the USB-C dock test matrix (dev only)
+
+Written 2026-10-09 after the RP5 20261008 fresh-card boot had no sound: the DisplayPort audio
+device (bsp-sm8250 27) had only ever been tested with the dock attached. Every dock change now
+runs this matrix on a FRESH CARD, undocked first.
+
+Rig: UGREEN USB-C dock -> HDMI -> MACROSILICON capture on fusor (`/dev/video0`, ALSA card
+"Video"). `dockcheck.sh <rp5|odin3> ...` does the measuring over ssh; plugging is Cliff's, one
+step per message, and each step ends with `dockcheck.sh <dev> run <label>` so the result is a
+line in `results-<dev>-<date>.md`, not a memory.
+
+| # | Step (Cliff) | Measure | Pass |
+|---|---|---|---|
+| 1 | cold boot, nothing plugged | `run undocked-boot` | DP disabled; default sink Speaker; Speaker + Headphones listed; `speaker` stream runs; Cliff hears the tone |
+| 2 | plug the dock after Steam is up | `wait enabled 30` then `run hotplug` | DP enabled within 30 s; frame VIDEO; default sink DisplayPort; tone HEARD |
+| 3 | start a game, then `run docked-game` | | tone HEARD while the game runs; frame VIDEO |
+| 4 | unplug the dock while the game runs | `wait disabled 30` then `run unplug-game` | default sink back to Speaker; Speaker stream runs; the game keeps running |
+| 5 | plug again, then sleep (short power press), wake | `run wake-docked` | DP enabled; tone HEARD; frame VIDEO |
+| 6 | unplug, sleep, wake | `run wake-undocked` | default sink Speaker; speakers play |
+| 7 | power off; boot WITH the dock attached, 10 times | `run docked-boot-N` each time | Steam reaches game mode every time (logo hang = FAIL, journal saved); tone HEARD |
+| 8 | hot-plug, 10 times, 20 s apart | `run replug-N` | tone HEARD every time (the DP AFE first-start timeout shows here) |
+
+Candidates under test (bsp-sm8250 29 + linux-pocknix-sm8250 15, 2026-10-09):
+- U (userspace): HiFi-RP.conf makes the DisplayPort UCM device conditional on
+  `/sys/class/drm/card0-DP-1/enabled`; `pocknix-dp-audio-watch` restarts WirePlumber when that
+  changes so the card is re-probed. Steps 2 and 4 time the restart (expect ~1 s of silence).
+- K (kernel): 0721 makes `msm_dp_audio_prepare` succeed with the link down, so a probe before the
+  compositor lights the dock cannot drop the HiFi profile. Test U alone, then U+K, then K alone
+  (bsp 27's unconditional device) on the same card.
+
+Not covered: a real TV (the capture's EDID is "HJW HD TO USB", 2-channel, no HDR); a second dock;
+Bluetooth audio while docked.

@@ -1,0 +1,33 @@
+#!/bin/bash
+# pocknix-dp-audio-watch — re-create the sound card when the USB-C DisplayPort output
+# is enabled or disabled (sm8250; per-user service, runs as the session user).
+#
+# Why: the DisplayPort UCM device in HiFi-RP.conf is conditional on
+# /sys/class/drm/card0-DP-1/enabled at PARSE time, and WirePlumber parses the UCM
+# once, when it creates the card. A dock plugged or unplugged after that would be
+# invisible to it. Restarting WirePlumber re-creates the card (fresh UCM parse, fresh
+# ACP probe); PipeWire and the clients' streams stay up and relink (~1 s of silence).
+#
+# "enabled" (the compositor lit the connector), not "status" (cable present): the DP
+# audio path only accepts hw_params once the link is powered, and a probe in the gap
+# between plug and the compositor's mode set would drop the whole profile again.
+# Debounced: the value must hold for SETTLE seconds before we act (gamescope flips
+# outputs a few times while it takes over a dock).
+SETTLE=${POCKNIX_DP_SETTLE:-2}
+POLL=1
+f() { cat /sys/class/drm/card0-DP-1/enabled 2>/dev/null || echo none; }
+last=$(f); pending=; since=0
+echo "dp-audio-watch: start, DP-1 $last"
+while sleep "$POLL"; do
+  cur=$(f)
+  if [ "$cur" != "$last" ]; then
+    if [ "$cur" != "$pending" ]; then pending=$cur; since=$SECONDS; fi
+    if [ $((SECONDS - since)) -ge "$SETTLE" ]; then
+      echo "dp-audio-watch: DP-1 $last -> $cur, restarting wireplumber"
+      systemctl --user restart wireplumber.service
+      last=$cur; pending=
+    fi
+  else
+    pending=
+  fi
+done

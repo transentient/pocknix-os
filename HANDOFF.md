@@ -1,5 +1,57 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-09 12:30: inquisitor pass on the night's handoff; dock audio back on the drawing board (U + K candidates); Odin redriver kernel
+
+- **Wrong in the 04:00 block:** "wifi.txt NOT written: the password is not on fusor". The PSK is in
+  `config/local/ozma.nmconnection` (gitignored) and `sudo build/write-wifi-txt.sh` writes the card
+  (every release card since September). Memory file reference-wifi-txt-psk-location written.
+- **Lexar:** the root unit flashed the bsp 28 image (raw sha 0228b02d, 14,102,298,624 bytes) but the
+  read-back FAILED (reader drop again). Chunk scan found ONE bad 128 KiB window at offset
+  9136766976; rewritten with ~/rewrite-sd-window.sh (IMG override to the sm8250 raw image), window
+  verified; full re-verify unit `verify-lexar-rp5-20261008` (log /var/tmp/verify-lexar-rp5-20261008.log)
+  running, then wifi.txt. The card carries bsp 28 = NO dock audio; if U/K below pass, 20261008 is
+  respun again (bsp 29 + kernel 15), so this card's job is the sleep/wake wifi failure + a clean boot.
+- **Dock audio, mechanism confirmed in source:** PipeWire ACP (alsa-mixer.c profile probe) marks the
+  whole profile unsupported when ONE mapping fails `mapping_open_pcm` (hw_params, which in alsa-lib
+  also prepares); the RP5 kernel's `msm_dp_audio_prepare` (dp_audio.c, reached from both the hw_params
+  and prepare hdmi-codec callbacks via drm_hdmi_audio_helper) returns -EINVAL whenever the DP link is
+  not powered. ROCKNIX's RP5 UCM patch (alsa-ucm-conf/patches/SM8250/0004, separate "HDMI" verb "so
+  an unconnected DP PCM never poisons the HiFi card") was in our vendored tree all along.
+- **Candidate U (bsp-sm8250 29, building):** HiFi-RP.conf wraps the verb in `If.dp` on
+  `${sys:class/drm/card0-DP-1/enabled}` (RegexMatch ^enabled): docked = verb with the DISPLAY_PORT_RX
+  route + SectionDevice DisplayPort (prio 300, DP0 Jack); undocked = bsp 28's plain verb. Node names
+  unchanged (53-pocknix-displayport.conf, speaker-loudness, speaker-volume all keep matching).
+  `pocknix-dp-audio-watch` (user service, default.target.wants) polls that sysfs file 1 Hz, 2 s
+  settle, and restarts wireplumber on change (card re-created = UCM re-parsed). "enabled" not
+  "status": a probe between cable-in and the compositor's mode set would hit -EINVAL and drop the
+  profile again. PipeWire's own udev monitor does NOT re-probe on a sound-card change event
+  (alsa-udev.c process_card: emitted+accessible = no-op), hence the restart. UNTESTED (devices off).
+- **Candidate K (linux-pocknix-sm8250 15, building, unit kernel-sm8250-15b, log
+  build/kernel15-sm8250-build.log):** 40-holodor/0721 makes msm_dp_audio_prepare return 0 with the
+  link down (nothing programmed, audio_enabled stays false). Removes U's timing hole; the open
+  question is what q6afe DEVICE_START on DISPLAY_PORT_RX does with no cable (the ACP probe prepares).
+  NOTE this build overwrites build/image/sm8250/KERNEL (was kernel 14's; the 20261008 image file is
+  already built and unaffected).
+- **Test method:** tools/dock/dockcheck.sh + README (8-step matrix: undocked boot first, hot-plug,
+  game, unplug, sleep docked/undocked, 10 docked boots, 10 replugs; capture = eye, results file per
+  run). The capture dongle is NOT on fusor right now (no /dev/video0, no ALSA "Video").
+- **Odin 3 dock, kernel first:** our sm8750 tree lacked ROCKNIX 0052 (André Braga): USB-C SuperSpeed
+  through the NB7VPQ904M redriver at i2c5 0x1c; without it "DisplayPort alt-mode output over USB-C
+  never came up". Copied into 20-sm8750 (ahead of a full sync; ROCKNIX's 20-sm8750 also has 0054-0069
+  for other boards and keeps the old 0504), linux-pocknix-sm8750 34 built (log build/kernel34-build.log,
+  KERNEL 18.8 MB in build/image/sm8750 = the Odin respin's KERNEL now) and packaging (unit
+  pkg-linux-sm8750-34). Config parity with ROCKNIX for DP/Type-C confirmed (glink, UCSI, DP altmode,
+  aux-hpd bridge, qmp-combo, nb7vpq904m all =y). The Odin DT has NO DisplayPort audio DAI link and
+  ROCKNIX's Odin UCM has no DP device: Odin dock audio is a later, separate job (Armada claims it).
+- **Fallout of yesterday not in the handoff:** the fresh-image sleep/wake wifi failure (heal did not
+  recover in 2 min, journal unread) exists only in memory project-state-2026-10-09. Still open.
+- Docs still advertise dock audio (release notes, games page, INSTALL-rp5 troubleshooting): left
+  as is until U/K decide.
+- Housekeeping: killed two 28-day-old `journalctl -k -f` watchers (session b5766e70) and the stray
+  adb server; left the 10-day-old interactive `claude --continue` on pts/4 (foreground, not ours).
+- Build-script trap (hit again): scripts/lib.sh wants DEVICE=<soc> (sm8250/sm8750), not the publish
+  ids rp5/odin3 from devices.sh. HANDOFF:3147 says the same.
+
 ## 2026-10-09 04:00: end of night — RP5 20261008 RESPUN with bsp 28, card flashing; Odin respin deferred
 
 - RP5 image 20261008 respun (unit respin-rp5-20261008b): sha256 **e50fb490…de7e7**, 3,422,114,767

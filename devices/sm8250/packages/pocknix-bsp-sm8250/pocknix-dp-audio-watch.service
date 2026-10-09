@@ -1,0 +1,13 @@
+[Unit]
+Description=pocknix: re-create the sound card when the DisplayPort (dock) output changes (sm8250)
+After=wireplumber.service
+Wants=wireplumber.service
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/pocknix/pocknix-dp-audio-watch
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
