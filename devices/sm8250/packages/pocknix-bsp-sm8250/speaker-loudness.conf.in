@@ -15,7 +15,27 @@
 #  * lawL/lawR: a plain gain stage after the limiter. pocknix-speaker-volume drives its "Mult" so that
 #    slider % maps to the same number of dB per step (PipeWire's own cubic law is -36 dB at 25 %).
 #    Left at 1.0 (daemon not running) the chain behaves as before with the cubic slider.
+#
+# 2026-10-10 (bsp 31): this is a TEMPLATE. It no longer lives in pipewire.conf.d: pocknix-speaker-loud
+# (user service, after WirePlumber) renders it with the sound card's live PipeWire object id into
+# @DEVICE_ID@ and runs it as its own `pipewire -c` process. Steam's client enumerates audio devices
+# through libpipewire and lists a sink separately unless its device.id names a real Device object
+# (verified 2026-10-10: a test sink with the card's id was folded under "Built-in Audio", one without
+# was listed; a bogus id is listed too). With it the filter stays a plain Audio/Sink (pipewire-pulse
+# needs that, see below) and Steam's device list has only "Built-in Audio" again (bsp 25..30 showed
+# "Speakers (Loud)" / pocknix_speaker_loud as a second device and Steam's first-run picker came up).
+# The id is only known once WirePlumber has created the card, which is why a static fragment cannot do it.
+# This file must stay a complete `pipewire -c` config (spa-libs + the four modules below).
+context.properties = { log.level = 2 }
+context.spa-libs = {
+  audio.convert.* = audioconvert/libspa-audioconvert
+  support.*       = support/libspa-support
+}
 context.modules = [
+  { name = libpipewire-module-rt args = { nice.level = -11 } flags = [ ifexists nofail ] }
+  { name = libpipewire-module-protocol-native }
+  { name = libpipewire-module-client-node }
+  { name = libpipewire-module-adapter }
   { name = libpipewire-module-filter-chain
     args = {
       node.description = "Speakers (Loud)"
@@ -44,8 +64,11 @@ context.modules = [
         # Pulse client ever got its reply: Steam UI sounds, Chromium and most games
         # were silent with the node "running" and an xrun every cycle (2026-10-10,
         # fresh 20261008 card). The filter therefore shows in device lists as
-        # "Speakers (Loud)"; hiding it needs a different mechanism than the class.
+        # "Speakers (Loud)"; hiding it is device.id (bsp 31), not the class.
         media.class  = Audio/Sink
+        # Rendered by pocknix-speaker-loud: `device.id = <id of alsa_card.platform-sound>`, or an
+        # empty line if the card never appeared (filter still works, just visible to Steam).
+        @DEVICE_ID@
         audio.position = [ FL FR ]
         filter.smart = true
         filter.smart.target = { node.name = "alsa_output.platform-sound.HiFi__Speaker__sink" }

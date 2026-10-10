@@ -31,7 +31,12 @@ SPEAKER_PA = 8             # SpkrLeft/Right PA Volume; steps above 8 add ~1 dB i
 MAX_BOOST = 10 ** (60 / 20.0)
 
 def run(*a, **k):
-    return subprocess.run(a, capture_output=True, text=True, **k).stdout
+    # bsp 32: a pw-cli/wpctl call can hang forever while WirePlumber restarts (a `pw-cli ls Node`
+    # sat 90+ s on 2026-10-10 and froze the whole event loop); treat a hang as an empty answer.
+    try:
+        return subprocess.run(a, capture_output=True, text=True, timeout=5, **k).stdout
+    except subprocess.TimeoutExpired:
+        return ""
 
 def node_id(name):
     out = run("pw-cli", "ls", "Node"); cur = None
@@ -77,8 +82,12 @@ def apply():
         return False
     mult = law(float(m.group(1)))
     if state["last"] is not None and abs(mult - state["last"]) < 1e-6: return True
-    r = subprocess.run(["pw-cli", "set-param", state["filter"], "Props",
-                        '{ params = [ "lawL:Mult" %.6f "lawR:Mult" %.6f ] }' % (mult, mult)], capture_output=True, text=True)
+    try:
+        r = subprocess.run(["pw-cli", "set-param", state["filter"], "Props",
+                            '{ params = [ "lawL:Mult" %.6f "lawR:Mult" %.6f ] }' % (mult, mult)],
+                           capture_output=True, text=True, timeout=5)
+    except subprocess.TimeoutExpired:
+        state["sink"] = state["filter"] = None; return False
     if r.returncode != 0 or "Error" in r.stdout + r.stderr:
         state["sink"] = state["filter"] = None; return False
     state["last"] = mult; return True
@@ -96,7 +105,13 @@ def main():
         p = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE, text=True)
         for line in p.stdout:
             if "sink" in line and "sink-input" not in line:
-                apply()
+                if "'new'" in line or "'remove'" in line:     # the filter process restarted (bsp 31:
+                    state["filter"] = state["last"] = None    # its own service) = new node id, Mult 1.0
+                    for _ in range(5):                        # it may not be listed yet: retry (bsp 32)
+                        if apply(): break
+                        time.sleep(1)
+                else:
+                    apply()
         state["sink"] = state["filter"] = state["last"] = None  # pactl died = PipeWire restarted
         time.sleep(2); apply()
 

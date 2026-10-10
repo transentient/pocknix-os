@@ -1,6 +1,6 @@
 [Unit]
 Description=pocknix: speaker gain structure + even volume slider (sm8250)
-After=pipewire.service pipewire-pulse.service wireplumber.service
+After=pipewire.service pipewire-pulse.service wireplumber.service pocknix-speaker-loud.service
 Wants=pipewire-pulse.service
 
 [Service]

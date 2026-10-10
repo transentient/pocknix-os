@@ -1,0 +1,15 @@
+[Unit]
+Description=pocknix: speaker loudness filter "Speakers (Loud)", owned by the sound card (sm8250)
+After=pipewire.service wireplumber.service
+BindsTo=pipewire.service
+# a WirePlumber restart re-creates the card with a new object id: follow it
+PartOf=wireplumber.service
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/pocknix/pocknix-speaker-loud
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

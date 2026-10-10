@@ -1,0 +1,33 @@
+#!/bin/bash
+# pocknix-speaker-loud — run the speaker loudness filter (speaker-loudness.conf.in) as its own
+# PipeWire process, with device.id set to the sound card's live object id so Steam folds the
+# filter under "Built-in Audio" instead of listing "Speakers (Loud)" as a second device (and
+# showing its first-run output picker). See the template for the why. User service, after
+# WirePlumber; PartOf=wireplumber.service so a WirePlumber restart (dock plug/unplug re-probe)
+# re-renders the id.
+set -u
+TPL=/usr/lib/pocknix/speaker-loudness.conf.in
+RUN="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pocknix-speaker-loud"
+CONF="${RUN}/speaker-loudness.conf"
+log() { echo "pocknix-speaker-loud: $*"; }
+
+card_id() {
+  pw-cli ls Device 2>/dev/null | awk '
+    /^[[:space:]]*id [0-9]+,/ { id=$2; sub(",","",id) }
+    /device.name = "alsa_card.platform-sound"/ { print id; exit }'
+}
+
+id=""
+for _ in $(seq 1 60); do            # WirePlumber creates the card a moment after it starts
+  id=$(card_id); [ -n "${id}" ] && break
+  sleep 0.5
+done
+mkdir -p "${RUN}"
+if [ -n "${id}" ]; then
+  sed "s|@DEVICE_ID@|device.id    = ${id}|" "${TPL}" > "${CONF}"
+  log "sound card is object ${id}; filter owned by it"
+else
+  sed "s|@DEVICE_ID@||" "${TPL}" > "${CONF}"
+  log "sound card never appeared; running the filter unowned (visible to Steam)"
+fi
+exec pipewire -c "${CONF}"
