@@ -1,5 +1,30 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 20:25: DOCK = two unexplained hard resets ~60 min into docked use + the sleep-then-unplug USB-C death; release decision needed
+
+- Death 1 (18:29:38): docked since a 17:30:34 hot-plug (59 min), during replug cycle 2. Death 2
+  (~20:12): booted docked 19:11, idle at Steam home, inhibitor held, no cable activity (61 min).
+  Both: journal/stream end with nothing abnormal, HDMI capture dark + silent, device OFF (death 1
+  came back on the charging screen). Battery 97-100 %. The 17-min docked session never got there.
+- Checked and NOT it: no timers in our packages; pocknix-charge-full is a one-shot; the pm8150b
+  charger driver programs AICL_RERUN_TIME_CFG=0 (shortest) and has no hourly work. Still open:
+  charge termination at 100 % with the dock as the only input, PMIC safety timers, thermal, a DP/DRM
+  path (the 19:04 wake logged msm_dp_bridge_atomic_post_disable "audio comp timeout"). Cosmetic but
+  real: the charger psy reports online=16 -> upowerd logs "online TRUE invalid gboolean" 3x/s all
+  session; "Apsd not ready" spam after some hot-plugs.
+- Separate, reproducible: dock plugged -> idle sleep -> unplug (= wake) -> replug: xhci removed on
+  that wake and never re-created; port comes back [device]/non-PD; no hub/alt mode/DP until a
+  reboot (dwc3 debugfs mode=host restores root hubs only; typec driver rebind: nothing). Waking
+  while still docked works (row 5). Memory updated.
+- Tools: live journal stream fusor unit rp5-jstream -> scratch rp5-journal-stream.log; replug counter
+  writes tools/dock/results-rp5-2026-10-10.md. The counter's 2-s ssh polling floods logind
+  (session lines every 2 s) — slow it to 5 s next time.
+- Decision (Cliff): the undocked image is solid (rows 1,4,6 + the fresh boot + audio); the dock stack
+  (bsp 29/34 conditional DP + watcher, kernel 15's 0721) has 2 unexplained resets in ~2 h of docked
+  use + the sleep/unplug kill. Options: ship with the dock marked experimental + both known issues
+  in the release notes; or hold for the dock investigation (serial console / PMIC reset-reason
+  readout needed); or strip the DP device for this release (bsp 28 behaviour: no dock audio, the dock
+  still mirrors video) which removes only the audio half, not the resets.
 ## 2026-10-10 19:50: DOCK ROW 8 DEATH — the RP5 hard-reset on the 2nd replug cycle (cause unknown, charger-driver spam in that session)
 
 - 18:31, 20261010e card + bsp 34 watcher, docked session that began with a hot-plug at 17:30: Cliff
