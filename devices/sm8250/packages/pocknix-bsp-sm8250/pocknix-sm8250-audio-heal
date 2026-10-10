@@ -34,8 +34,8 @@ apply_gains() {
   # here) does not land reliably on this path. This copy only covers the time before the session.
   set_c "WSA_COMP1 Switch" 0
   set_c "WSA_COMP2 Switch" 0
-  set_c "WSA_RX0 Digital Volume" 114
-  set_c "WSA_RX1 Digital Volume" 114
+  set_c "WSA_RX0 Digital Volume" 122   # ceiling 122 since bsp 33 (was 114), see pocknix-speaker-volume
+  set_c "WSA_RX1 Digital Volume" 122
   set_c "SpkrLeft PA Volume" 8
   set_c "SpkrRight PA Volume" 8
   set_c "SpkrLeft Smart Boost Level" "8.500 V"

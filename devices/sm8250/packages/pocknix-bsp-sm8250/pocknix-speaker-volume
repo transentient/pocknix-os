@@ -26,7 +26,9 @@ import math, re, subprocess, sys, time
 SINK = "alsa_output.platform-sound.HiFi__Speaker__sink"
 FILTER = "pocknix_speaker_loud"
 RANGE_DB = 30.0            # 100 % .. just above 0 %
-SPEAKER_DIGITAL = 114      # WSA_RX0/1 Digital Volume (1 dB steps, 84 = 0 dB)
+SPEAKER_DIGITAL = 122      # WSA_RX0/1 Digital Volume (1 dB steps, 84 = 0 dB). 122 (2026-10-10, Cliff): +6.7 dB over the
+                           # 10-05 ceiling of 114, mic-measured H2 -27 / H3 -32 dBc on a -1 dBFS tone at 100 % (114: -39/-37);
+                           # "max sounded like 50 %" and every compressor option pumped 11-17 dB (tools/rp5-audio/loudness-2026-10-10.txt)
 SPEAKER_PA = 8             # SpkrLeft/Right PA Volume; steps above 8 add ~1 dB in total (measured)
 MAX_BOOST = 10 ** (60 / 20.0)
 
