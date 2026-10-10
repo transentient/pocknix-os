@@ -37,8 +37,15 @@ splash "First boot: expanding storage, the device will restart once..."
 
 # growpart relocates the GPT backup header to the end of the (now larger) disk and extends the
 # last partition into the free space. Exit 2 = NOCHANGE (already full): nothing to do, no reboot.
+# growpart ends with `udevadm settle`, and this early (before systemd-udevd, which is ordered after
+# sysusers/hwdb-update, two of the writers we hold back) that waits its full 120 s default for a
+# daemon that is not there (E3 on the RP5, 2026-10-10: 2 min on the splash, resize itself seconds).
+# A no-op udevadm shim on the PATH makes growpart's settle return at once; udev cold-plugs the
+# resized partition when it starts a moment later.
+shim=/run/pocknix-expand-root-noudev; mkdir -p "${shim}"; printf '#!/bin/sh\nexit 0\n' > "${shim}/udevadm"; chmod 755 "${shim}/udevadm"
 rc=0
-growpart "${disk}" "${part}" >> "${LOGF}" 2>&1 || rc=$?
+PATH="${shim}:${PATH}" growpart "${disk}" "${part}" >> "${LOGF}" 2>&1 || rc=$?
+rm -rf "${shim}"
 if [ "${rc}" -eq 2 ]; then
   log "partition already fills the disk — nothing to expand"
   resize2fs "${src}" >> "${LOGF}" 2>&1 || true   # fs may still be smaller than the partition (pre-grown card)
