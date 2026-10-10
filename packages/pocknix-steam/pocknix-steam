@@ -182,6 +182,18 @@ GS_LOG="${HOME}/pocknix-steam.log"
 # POCKNIX_GAMESCOPE_REFRESH_DEFAULT_LOWEST=1 (board conf): with no frame limit set, the panel runs at
 # its lowest rate (60 Hz on the RP5) and only goes to 120 Hz when a game's limit asks for it. The
 # rotation composite costs up to 4.7 ms per frame, over half of a 120 Hz budget (measured 2026-10-05).
+# Wait for the session's PipeWire-Pulse server before Steam starts (2026-10-10, pocknix-steam 53).
+# The autologin session launches us ~2 s before the user manager has started pipewire-pulse
+# (RP5 setup boot: getty@tty1 at 11.2 s, pipewire-pulse at 13.2 s). Steam's Chromium audio
+# service connects to Pulse once, at startup, and never reconnects: a session that starts
+# first has NO UI sounds for its whole life (the first-run setup was silent, nav clicks never
+# played; a Steam restart fixed it, measured on the mic). Same race on every device.
+_pulse_wait=0
+while ! pactl info >/dev/null 2>&1; do
+  _pulse_wait=$((_pulse_wait + 1)); [ "${_pulse_wait}" -ge 75 ] && break   # 15 s cap, then go anyway
+  sleep 0.2
+done
+[ "${_pulse_wait}" -gt 0 ] && echo "pocknix-steam: waited $((_pulse_wait * 200)) ms for pipewire-pulse" >&2
 env -u WAYLAND_DISPLAY \
   GAMESCOPE_FAKE_OUTPUT_MM="${PANEL_MM}" \
   ${POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST:+GAMESCOPE_DYNAMIC_REFRESH_PREFER_LOWEST=${POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST}} \
