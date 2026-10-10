@@ -6,9 +6,13 @@ Description=Expand root partition + filesystem to fill the disk (first boot, bef
 # card is byte-clean when the resize happens with nothing else writing). Now it runs right after
 # the kernel's root remount, ahead of every sysinit unit that writes to the root, then syncs and
 # reboots; the second boot sees the grown filesystem cold from disk.
+# 2026-10-10 15:40 (Cliff): no boot animation on the throwaway first boot. plymouth-start is ordered
+# after udev only, so the resize goes in BEFORE it: the first boot shows the static logo for the
+# few seconds of the resize, restarts, and the animation plays once on the real boot. Root is
+# read-write after systemd-remount-fs (4.5 s on the RP5); local-fs.target would come after plymouth.
 DefaultDependencies=no
-After=systemd-remount-fs.service local-fs.target
-Before=sysinit.target shutdown.target
+After=systemd-remount-fs.service
+Before=plymouth-start.service sysinit.target shutdown.target
 Before=systemd-journal-flush.service systemd-tmpfiles-setup.service systemd-random-seed.service
 Before=systemd-sysusers.service systemd-update-done.service systemd-machine-id-commit.service
 Before=systemd-hwdb-update.service systemd-journal-catalog-update.service ldconfig.service

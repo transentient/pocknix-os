@@ -21,7 +21,6 @@ log() { echo "[pocknix-expand-root] $*"; mkdir -p "$(dirname "${LOGF}")"; echo "
 # of the running root (pocknix-install-internal sizes the internal root itself), so it
 # never runs there. EVERY exit below must stamp, or the probe repeats each boot (B4).
 stamp() { mkdir -p "$(dirname "${FLAG}")"; { date -u +%FT%TZ; echo "$*"; } > "${FLAG}"; sync; }
-splash() { timeout 3 plymouth display-message --text="$1" >/dev/null 2>&1 || true; }
 
 # Resolve the real device backing / (e.g. /dev/mmcblk0p2, /dev/sda2, /dev/nvme0n1p2).
 src=$(findmnt -nro SOURCE /)
@@ -33,7 +32,6 @@ case "${src}" in
 esac
 
 log "root=${src} disk=${disk} part=${part} (first boot: resizing alone, then rebooting)"
-splash "First boot: expanding storage, the device will restart once..."
 
 # growpart relocates the GPT backup header to the end of the (now larger) disk and extends the
 # last partition into the free space. Exit 2 = NOCHANGE (already full): nothing to do, no reboot.
@@ -62,6 +60,5 @@ stamp "resized ${src} on $(date -u +%FT%TZ), rebooting"
 # (No fsck on the next boot: the kernel cmdline mounts root rw, so systemd-fsck-root never runs;
 # a /forcefsck here would be inert. Verify a card offline on fusor: e2fsck -fn.)
 log "done — root filesystem expanded to fill the disk; rebooting so the grown filesystem is read cold"
-splash "Storage expanded, restarting..."
 systemctl --no-block reboot
 exit 0
