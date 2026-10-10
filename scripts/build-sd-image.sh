@@ -380,6 +380,9 @@ EOF
   #   starts (keyboard-free Wi-Fi for the seedless first boot; ConditionPathExists-gated,
   #   so boots without the file skip it silently). Enabled on ALL images — it's just as
   #   useful for rescuing a dev image whose preseed went stale.
+  # pocknix-expand-root moved from multi-user to sysinit (2026-10-10); a resumed rootfs may still
+  # carry the old wants symlink, and a unit wanted twice is harmless but confusing.
+  rm -f "${root}/etc/systemd/system/multi-user.target.wants/pocknix-expand-root.service"
   chroot "${root}" systemctl enable iwd NetworkManager systemd-resolved seatd inputplumber \
         bluetooth upower udisks2 \
         pocknix-diag.service pocknix-expand-root.service \
