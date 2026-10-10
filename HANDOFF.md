@@ -32,20 +32,27 @@ release recommendation = HOLD f). Short form:
   docked wake) re-runs the UCM Speaker EnableSequence -> companders ON again (the warble) + PA 12, never
   re-planted; hw:0 assumed; Steam may connect with only auto_null; watcher pins the Speaker as configured
   default; pw-cat can block forever; stale device.id; quantum pinned 1024 after resume (ROCKNIX, untouched).
-  Applied as bsp-sm8250 35 + pocknix-steam 55 (UNTESTED, not packaged yet; package after the kernel unit
-  finishes: `scripts/build-packages.sh pocknix-bsp-sm8250` then `pocknix-steam`, DEVICE=sm8250).
+  Applied as bsp-sm8250 35 + pocknix-steam 55 (UNTESTED; PACKAGED 05:30-05:32 into build/localrepo/sm8250
+  together with linux-pocknix-sm8250 7.1.2-16, log build/pkg-bsp35-steam55.log + build/kernel-sm8250-16.log).
+  NOTE build/kernel/sm8250/out and build/image/sm8250/KERNEL are now kernel 16 (a respin would ship 16).
   WirePlumber-native filter (software-dsp.lua + LocalModule) = the standard replacement for the separate
   `pipewire -c` process, AFTER the release.
 - Inhibitor: claude-inhibit-dock-0459 (sleep 14400) was on the boot that is now gone; none active.
+- 05:33: the RP5 is still dark (no wifi, dock HDMI black) 21 min after the 05:12 docked reboot. Session
+  ends blocked on the power button. Cliff's two questions are open (power-key hold on 10-10 20:12; release).
 - Nothing published, nothing pushed. Uncommitted: tools/dock/{pon-reason,blackbox,postmortem}.sh +
   pocknix-blackbox.service, 0722 patch, PKGBUILD bumps (kernel 16, bsp 35, steam 55), the plan doc,
   build/revert-lexar-k16.sh.
 
-**NEXT:** 1) RP5 back -> `tools/dock/postmortem.sh`, then `journalctl -k | grep "input current limit"`,
-blackbox icl (expect 0x28 = 2 A) and battery uA >= 0; enable tools/dock/pocknix-blackbox.service on the
-card (copy to /etc/systemd/system, `systemctl enable --now`). 2) Kernel unit done -> package bsp 35 + steam
-55 -> `pacman -U` all three on the card -> reboot undocked -> fresh-boot checks -> dock rows with the mic +
-pumptest after a plug. 3) Cliff: power-key answer, release decision (plan doc section 4).
+**NEXT:** 1) RP5 back -> `tools/dock/postmortem.sh` FIRST (pon-reason tells power loss from hang), then
+`journalctl -k | grep "input current limit"`, blackbox icl (expect 0x28 = 2 A on the dock) and battery
+uA >= 0; copy tools/dock/pocknix-blackbox.service to /etc/systemd/system on the card and
+`systemctl enable --now` it. 2) `scp build/localrepo/sm8250/{linux-pocknix-sm8250-7.1.2-16,pocknix-bsp-sm8250-0.1.0-35,pocknix-steam-0.1.0-55}*.pkg.tar.zst`
+to the card, `pacman -U` as root (the kernel hook rebuilds /flash/KERNEL from the package = same 0722 as
+the test kernel), reboot UNDOCKED (Cliff unplugs) -> fresh-boot checks (sound, clicks, one device, slider)
+-> dock rows 1,2,4,5,6 with the mic + tools/rp5-audio/pumptest.py after a dock plug (audit item 1).
+3) Cliff: power-key answer, release decision (plan doc section 4). 4) Death 1 replugs + docked boots
+with the recorder on.
 
 ## 2026-10-10 22:30: CURRENT STATE — read this first (Fable 5.1, /sleep-now; the RP5 is OFF after its 2nd docked reset, nothing published)
 
