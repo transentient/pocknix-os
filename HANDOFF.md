@@ -1,5 +1,32 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 16:10: 20261010d fresh-card boot — resize 4 s + restart, setup clicks + Steam startup sound heard, one audio device; Steam's OOBE reboots; touch taps on the OSK are silent by Steam's code path
+
+- Flash d (verified byte-exact 15:26, prep = key + sshd + wifi.txt only). Boot 1: expand-root.log
+  06:31:13 -> 06:31:17 (4 s, no udev wait), reboot; boot 2: root 58G, Steam started the same second
+  pipewire-pulse came up (launcher wait), Chromium 2 Pulse streams, 0 cef pa errors, Steam devices =
+  "Built-in Audio" only, dockcheck undocked-boot: DP disabled, default Speaker, pulse PASS (frame/
+  tone need the HDMI capture). Cliff: "static icon didn't get stuck", heard the Steam startup sound.
+- Steam's first-run setup ends with ITS OWN device reboot (orderly systemd shutdown at 15:35; "the
+  reboot after initial settings") -> boot 3 to sign-in. Not ours.
+- Sign-in OSK: "no sound when I touch the keys". Hooked decodeAudioData/start/ended + XHR in the
+  SharedJSContext: a touchscreen tap on a key loads NO sound; D-pad = deck_ui_misc_10.wav (0.40 s,
+  full); A on a key = deck_ui_typing.wav (0.58 s, full). => Steam plays typing sounds only for
+  gamepad activation; touch taps are silent in Steam's own UI code. PROVISIONAL that a real Deck
+  does the same (no Deck here to compare). Not an audio-stack issue.
+- Tried and reverted: session.suspend-timeout-seconds=0 on the Speaker sink (WP rule) + the filter
+  (template): nodes stay idle instead of suspended (note: nodes START "suspended" after a restart,
+  only after first use do they go idle - a 15 s check right after a restart is misleading). Wake
+  from suspended measured ~300 ms (pw-cli state poll). Did not change the OSK result. Could be a
+  release option for snappier first sounds after idle; costs an always-open speaker PCM. Not shipped.
+- "Volume at 50 % way too quiet": all stages = the 10-05 design (Steam 0.50 = sink 50 %, filter 100 %,
+  lawL 1.42, digital 114, PA 8, companders off). bsp-31 suspect (Steam driving the filter) CLEARED.
+  Live A/B running on the card: limiter makeup +18 dB (was +12) via pw-cli set-param; Cliff has not
+  answered yet. If kept: speaker-loudness.conf.in "Input gain (dB)" = 18 -> bsp 33 + respin.
+- Staged on the card, NOT yet reboot-tested: expand unit Before=plymouth-start (4a59f3c) for a
+  no-animation first boot; a reboot with the stamp present checks for an ordering cycle.
+- Mic: Cliff unplugged the NTG from fusor before this boot; the tap/D-pad facts above are from hooks
+  + his ears. Wifi dropped once (~15:34) during the OOBE download and came back at 15:37.
 ## 2026-10-10 15:00: Cliff's four fresh-boot complaints, all root-caused and fixed (bsp-sm8250 32, pocknix-steam 53, 20261010d)
 
 - (1) Long static splash on the first boot = growpart's `udevadm settle` waiting 120 s for a udevd
