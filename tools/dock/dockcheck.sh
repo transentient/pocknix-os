@@ -55,8 +55,9 @@ EOF
 
   frame)
     name=${1:-frame}; f="$OUT/$(date +%H%M%S)-$name.png"
-    sleep 2
-    sudo ffmpeg -loglevel error -f v4l2 -i "$CAP_VIDEO" -frames:v 1 -y "$f" 2>/dev/null
+    # the dongle's first frames after (re)lock are black: settle, then take the 30th frame (2026-10-10)
+    sleep 3
+    sudo ffmpeg -loglevel error -f v4l2 -i "$CAP_VIDEO" -vf "select=gte(n\,30)" -frames:v 1 -y "$f" 2>/dev/null
     [ -s "$f" ] || { echo "frame: no capture on $CAP_VIDEO"; exit 1; }
     y=$(ffmpeg -loglevel error -i "$f" -vf "signalstats,metadata=print:file=-" -f null - 2>/dev/null | grep -m1 'YAVG' | cut -d= -f2)
     v=$(printf '%.0f' "$y"); echo "frame: YAVG $v -> $f $( [ "$v" -gt 20 ] && echo VIDEO || echo BLACK )" ;;

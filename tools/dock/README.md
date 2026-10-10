@@ -19,6 +19,7 @@ line in `results-<dev>-<date>.md`, not a memory.
 | 6 | unplug, sleep, wake | `run wake-undocked` | default sink Speaker; speakers play |
 | 7 | power off; boot WITH the dock attached, 10 times | `run docked-boot-N` each time | Steam reaches game mode every time (logo hang = FAIL, journal saved); tone HEARD |
 | 8 | hot-plug, 10 times, 20 s apart | `run replug-N` | tone HEARD every time (the DP AFE first-start timeout shows here) |
+| 9 | pair the AtomS3U BLE pad (tools/blepad), docked | `blepad.sh dpad down` + `rp5shot.sh` | Steam adopts the pad (Xbox glyphs), the highlight moves; repeat after unplug and after wake |
 
 Candidates under test (bsp-sm8250 29 + linux-pocknix-sm8250 15, 2026-10-09):
 - U (userspace): HiFi-RP.conf makes the DisplayPort UCM device conditional on
@@ -34,4 +35,8 @@ every Pulse client was silent (the loudness filter classed Audio/Sink/Internal, 
 fixed in 30). A result line without `pulse: PASS` is not a pass.
 
 Not covered: a real TV (the capture's EDID is "HJW HD TO USB", 2-channel, no HDR); a second dock;
-Bluetooth audio while docked.
+Bluetooth AUDIO while docked (the AtomS3U is BLE only; needs a real headset). Row 9 covers a Bluetooth
+controller.
+
+`frame` takes the 30th captured frame after a 3 s settle: the dongle's first frames after a lock are
+black (2026-10-10, false BLACK on a live docked UI).
