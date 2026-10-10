@@ -12,13 +12,16 @@ CONF="${RUN}/speaker-loudness.conf"
 log() { echo "pocknix-speaker-loud: $*"; }
 
 card_id() {
-  pw-cli ls Device 2>/dev/null | awk '
+  timeout 5 pw-cli ls Device 2>/dev/null | awk '
     /^[[:space:]]*id [0-9]+,/ { id=$2; sub(",","",id) }
     /device.name = "alsa_card.platform-sound"/ { print id; exit }'
 }
 
 id=""
-for _ in $(seq 1 60); do            # WirePlumber creates the card a moment after it starts
+# WirePlumber creates the card a moment after it starts; on a cold boot the LPASS heal can take
+# 30 s+ before the card exists at all. No cap: an unowned filter would put "Speakers (Loud)" back
+# into Steam's device list for the whole session (inquisitor 2026-10-10). Restart=always covers us.
+while :; do
   id=$(card_id); [ -n "${id}" ] && break
   sleep 0.5
 done

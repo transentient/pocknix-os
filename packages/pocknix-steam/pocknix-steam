@@ -188,12 +188,15 @@ GS_LOG="${HOME}/pocknix-steam.log"
 # service connects to Pulse once, at startup, and never reconnects: a session that starts
 # first has NO UI sounds for its whole life (the first-run setup was silent, nav clicks never
 # played; a Steam restart fixed it, measured on the mic). Same race on every device.
-_pulse_wait=0
-while ! pactl info >/dev/null 2>&1; do
-  _pulse_wait=$((_pulse_wait + 1)); [ "${_pulse_wait}" -ge 75 ] && break   # 15 s cap, then go anyway
+# pactl has no connect timeout: a wedged server behind a listening socket would block forever and
+# Steam would never start (inquisitor 2026-10-10) - every probe is bounded and so is the whole wait.
+_pulse_t0=$(date +%s)
+while ! timeout 2 pactl info >/dev/null 2>&1; do
+  [ $(( $(date +%s) - _pulse_t0 )) -ge 15 ] && { echo "pocknix-steam: pipewire-pulse not answering after 15 s, starting Steam anyway" >&2; break; }
   sleep 0.2
 done
-[ "${_pulse_wait}" -gt 0 ] && echo "pocknix-steam: waited $((_pulse_wait * 200)) ms for pipewire-pulse" >&2
+_pulse_wait=$(( $(date +%s) - _pulse_t0 ))
+[ "${_pulse_wait}" -gt 0 ] && echo "pocknix-steam: waited ${_pulse_wait} s for pipewire-pulse" >&2
 env -u WAYLAND_DISPLAY \
   GAMESCOPE_FAKE_OUTPUT_MM="${PANEL_MM}" \
   ${POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST:+GAMESCOPE_DYNAMIC_REFRESH_PREFER_LOWEST=${POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST}} \

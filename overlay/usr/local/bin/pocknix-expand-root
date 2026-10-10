@@ -5,8 +5,8 @@
 # fills up fast (e.g. mid-Steam-download). Runs once (guarded by a flag).
 #
 # It runs from sysinit, ordered before every unit that writes to the root (see the .service), so
-# the online resize is the ONLY writer. Then: sync, stamp, ask for a full fsck on the next boot,
-# reboot. The resize must never race another writer again (RP5 Lexar corruption, 2026-10-09).
+# the online resize is the ONLY writer. Then: sync, stamp, reboot (no fsck on the next boot: the
+# kernel cmdline mounts root rw, so systemd-fsck-root never runs; verify a card offline with e2fsck). The resize must never race another writer again (RP5 Lexar corruption, 2026-10-09).
 set -euo pipefail
 
 FLAG=/var/lib/pocknix/expand-root.done
@@ -23,13 +23,24 @@ log() { echo "[pocknix-expand-root] $*"; mkdir -p "$(dirname "${LOGF}")"; echo "
 stamp() { mkdir -p "$(dirname "${FLAG}")"; { date -u +%FT%TZ; echo "$*"; } > "${FLAG}"; sync; }
 
 # Resolve the real device backing / (e.g. /dev/mmcblk0p2, /dev/sda2, /dev/nvme0n1p2).
-src=$(findmnt -nro SOURCE /)
-src=$(readlink -f "${src}")
-case "${src}" in
-  */*[0-9]p[0-9]*) disk="${src%p*}"; part="${src##*p}" ;;   # mmcblk0p2 / nvme0n1p2
-  *[0-9])          disk="${src%%[0-9]*}"; part="${src##*[!0-9]}" ;;  # sda2
-  *) log "cannot parse root device '${src}' — nothing to expand; stamping so this is not retried every boot"; stamp "no-parse ${src}"; exit 0 ;;
-esac
+parse_root() {   # sets disk + part from $1, or returns 1
+  case "$1" in
+    */*[0-9]p[0-9]*) disk="${1%p*}"; part="${1##*p}" ;;   # mmcblk0p2 / nvme0n1p2
+    *[0-9])          disk="${1%%[0-9]*}"; part="${1##*[!0-9]}" ;;  # sda2
+    *) return 1 ;;
+  esac
+}
+src=$(findmnt -nro SOURCE /); src=$(readlink -f "${src}")
+if ! parse_root "${src}"; then
+  # findmnt may say /dev/root this early (kernel-mounted root, no initrd): fall back to the cmdline
+  pu=$(sed -n 's/.*root=PARTUUID=\([0-9a-fA-F-]*\).*/\1/p' /proc/cmdline)
+  src2=$( [ -n "${pu}" ] && blkid -t PARTUUID="${pu}" -o device 2>/dev/null | head -1 )
+  if [ -n "${src2}" ] && parse_root "${src2}"; then
+    log "root '${src}' resolved via cmdline PARTUUID to ${src2}"; src=${src2}
+  else
+    log "cannot parse root device '${src}' — NOT stamping (inquisitor 2026-10-10: a stamp here would leave the root small forever); retrying next boot"; exit 0
+  fi
+fi
 
 log "root=${src} disk=${disk} part=${part} (first boot: resizing alone, then rebooting)"
 

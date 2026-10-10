@@ -1,5 +1,34 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 17:30: INQUISITOR (Cliff asked): the "kernel 14" images are KERNEL 15; dock stack untested in the release; script hardenings
+
+- VERIFIED (python on fusor): build/image/sm8250/KERNEL (Oct 9 12:15) gunzips to Image sha c320f535... =
+  linux-pocknix-sm8250 7.1.2-15's /boot/Image; build/rootfs/boot/Image (what `pacman -Q` = 14 describes)
+  is 226dc53f.... build-sd-image.sh copies KERNEL from build/image/sm8250 and rsyncs the modules from
+  build/kernel/sm8250/out (kernel 15's build dir) over the rootfs. So EVERY 20261010* image (and the
+  "k15" one) boots kernel 15 + 0721 with kernel-14 metadata; the pin (HOLODOR_IGNORE_PKGS) only ever
+  pinned the pacman record. All of today's tests ran on kernel 15. CORRECTION of 01:10/14:20/15:00.
+  Latent: 91-pocknix-cmdline.hook rebuilds /flash/KERNEL from /boot/Image (14) on the next bsp
+  install = a silent kernel downgrade under the user. Decision (Cliff): ship 15 and say 15 (what was
+  tested), make build-sd-image take Image+modules from the installed package (or refuse on mismatch).
+- Dock stack (bsp 29 conditional DP UCM + pocknix-dp-audio-watch + 0721) ships UNTESTED beyond the
+  undocked boot: docked cold boot, unplug during a game (winepulse streams losing their sink), docked
+  suspend/resume, `${sys:...}` fragility. Decision (Cliff): run steps 2-8 on the release artefact
+  (capture dongle needed on fusor) or ship bsp 28's UCM + no watcher for this release.
+- Hardenings applied (bsp 33, steam 54, overlay): expand-root never stamps on an unparsed root (falls
+  back to root=PARTUUID from /proc/cmdline); launcher's pulse wait = `timeout 2 pactl` + 15 s wall
+  clock; speaker-loud waits for the card without a cap (bounded pw-cli) and BindsTo + wants on
+  wireplumber.service (a WirePlumber crash re-renders device.id). Header contradiction fixed.
+- Inquisitor's 523b5c1 "90 s udev deadlock on boot 1" did NOT happen on the d card: card out of the
+  reader 15:30:16, on the LAN after two boots 15:31:49; Cliff saw it reboot "immediately". 4a59f3c
+  (Before=plymouth-start) is still UNBOOTED and is what the next respin carries: boot it fresh first.
+- Also from the review, open: headphones plug/unplug + Steam "Built-in Audio" pin = which sink
+  (untested since bsp 31); slot-successful runs after the expand reboot (A/B retry counter, Odin
+  mainly); three cold boots must each say "filter owned by it"; Odin inherits all of this untested.
+- Loudness: today's rig gain (NTG capture 24 vs 8 on 10-05 = +16 dB) made absolute numbers look
+  changed; corrected, 100 % == the 10-05 design exactly. Options measured
+  (tools/rp5-audio/loudness-2026-10-10.txt): compressors pump 11-17 dB; ceiling 118 = +3 dB,
+  122 = +6.7 dB (H2 -27 / H3 -32 dBc) with no pumping. Recommendation: digital 122. Cliff's call.
 ## 2026-10-10 16:10: 20261010d fresh-card boot — resize 4 s + restart, setup clicks + Steam startup sound heard, one audio device; Steam's OOBE reboots; touch taps on the OSK are silent by Steam's code path
 
 - Flash d (verified byte-exact 15:26, prep = key + sshd + wifi.txt only). Boot 1: expand-root.log
