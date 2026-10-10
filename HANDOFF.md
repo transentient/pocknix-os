@@ -1,5 +1,26 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 18:45: 20261010e fresh boot PASSED (kernel 15 declared, resize before plymouth 2 s); dock rows 2 + 9 PASS; AtomS3U is now a BLE gamepad
+
+- Fresh flash of e (byte-exact), test prep (key/sshd/wifi.txt). Boot 1: expand-root.log 07:54:01 ->
+  07:54:03 (2 s, before plymouth, no udev wait), reboot; boot 2: `journalctl -b | grep -i "ordering
+  cycle"` = 0, root 58G, kernel: pacman 7.1.2-15 == running (built Oct 9 12:14), getty 12.7 s /
+  pipewire-pulse 17.2 s (launcher waited), Chromium 2 Pulse streams, 0 cef errors, Steam devices =
+  "Built-in Audio", speaker-loud "owned by it" (card 48), ceiling 122 planted. Cliff's animation
+  answer (boot 1 without the door animation?) NOT yet received.
+- Dock: Cliff plugged the dock while connecting the capture; the 17:08 "undocked-boot" row is invalid
+  (it ran docked). Row 2 hotplug: DP-1 enabled -> watcher restarted WirePlumber -> DisplayPort sink,
+  default DisplayPort (Speaker port "not available" while docked), tone HEARD on the HDMI capture,
+  pulse PASS, gamescope moved to DP-1 1920x1080@60, frame VIDEO (dockcheck `frame` now takes the
+  30th frame: the dongle's first frames are black = the earlier false BLACK). Kernel log: 3x
+  hdmi-audio-codec "Not able to map channels to speakers (-22)" at the probe, then fine.
+- Row 9 (new): AtomS3U flashed as a BLE gamepad (tools/blepad: ESP32-BLE-Gamepad firmware, blepad.sh
+  over /dev/ttyACM0; toolchain user-local on fusor). Paired from the RP5 (bluetoothctl), Steam grabbed
+  the evdev itself, glyphs switched to Xbox style, `dpad down` x2 moved the language highlight.
+  InputPlumber ignores it (no composite device) = Steam/SDL path. PASS docked.
+- Still to run: rows 3-8 (game docked, unplug in game, sleep docked/undocked, 10 docked boots,
+  10 replugs) = Cliff's plug steps; the OOBE on this card is waiting at the language screen.
+  Bluetooth AUDIO stays uncovered (BLE-only dongle; needs a real headset).
 ## 2026-10-10 18:00: 20261010e RESPUN = the release candidate (kernel 15 declared, bsp 33, steam 54); Cliff's three decisions
 
 - Cliff: declare kernel 15 (what every 20261010 image booted anyway); keep the dock stack and run the
