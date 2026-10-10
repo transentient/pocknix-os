@@ -23,8 +23,24 @@ while sleep "$POLL"; do
   if [ "$cur" != "$last" ]; then
     if [ "$cur" != "$pending" ]; then pending=$cur; since=$SECONDS; fi
     if [ $((SECONDS - since)) -ge "$SETTLE" ]; then
-      echo "dp-audio-watch: DP-1 $last -> $cur, restarting wireplumber"
-      systemctl --user restart wireplumber.service
+      if [ "$cur" = "enabled" ]; then
+        # dock plugged: the card was parsed without the DisplayPort device, re-create it (nothing is
+        # playing to the dock yet, so the restart is ~2 s and PipeWire has no stream stuck on the DP port)
+        echo "dp-audio-watch: DP-1 $last -> $cur, restarting wireplumber"
+        systemctl --user restart wireplumber.service
+      else
+        # dock unplugged (bsp 34, 2026-10-10): NO restart. The card keeps the DisplayPort device from the
+        # docked parse and its port just goes unavailable; a restart here left PipeWire's DP sink retrying
+        # the dead AFE port every 3 s, WirePlumber could not stop for 31 s, the default was auto_null
+        # meanwhile and Steam's audio service never recovered for the session. Only make sure the
+        # default is back on the speakers.
+        echo "dp-audio-watch: DP-1 $last -> $cur, no restart; default -> Speaker"
+        for _ in 1 2 3 4 5; do
+          id=$(timeout 5 wpctl status 2>/dev/null | sed -n 's/^.*[ *]\([0-9]\+\)\. Built-in Audio Speaker Playback.*/\1/p' | head -1)
+          [ -n "$id" ] && { timeout 5 wpctl set-default "$id" && break; }
+          sleep 1
+        done
+      fi
       last=$cur; pending=
     fi
   else
