@@ -1,5 +1,42 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 15:00: Cliff's four fresh-boot complaints, all root-caused and fixed (bsp-sm8250 32, pocknix-steam 53, 20261010d)
+
+- (1) Long static splash on the first boot = growpart's `udevadm settle` waiting 120 s for a udevd
+  that starts after the writers we hold back (b81fcb0 shim, 0 s on the RP5). Expand unit = 523b5c1.
+- (2)+(UI ticks) "No sound during the initial setup / no clicks cycling timezones": MEASURED on the
+  NTG (tools: clicktl.py in the session scratch, 10 ms HP400 windows; rp5pad.sh D-pad presses;
+  rp5shot.sh proved the presses navigated Cuphead -> Terraria). Steam's nav sounds are WebAudio in
+  the SharedJSContext (chunk~2dcc5aaf7.js, PlayNavSound; gates: clientSettings.enable_ui_sounds =
+  true, UI mode 4 == required 4). The player ran (decode/start/ended hooked) but NOTHING reached the
+  speaker, and Chromium had no Pulse streams at all + cef_log "pa_operation is nullptr": Steam's
+  Chromium audio service connects to Pulse ONCE at startup and never reconnects. Setup boot journal:
+  getty@tty1 autologin at 11.2 s, pipewire-pulse started at 13.2 s => Steam won the race and was
+  deaf for its whole life (also after my pipewire-pulse restart mid-session). Proof: Steam restart
+  on the same stack -> four presses = four clicks at -19 dBFS. FIX pocknix-steam 53 (d77c1b0): the
+  launcher waits (<= 15 s) for `pactl info` before gamescope+Steam. Verified: plain reboot with 53,
+  four presses -> four clicks on the mic, no Steam restart. A WirePlumber restart alone does NOT
+  kill Chromium audio (tested: dock re-probe is safe); a pipewire-pulse restart does.
+- (3) The first-run "select audio device" dialog: Steam enumerates audio devices with libpipewire
+  (steamclient.so reads device.id/device.description/node.*) and lists a sink separately unless its
+  device.id names a real Device object; the loudness filter had none -> second device
+  "pocknix_speaker_loud" -> picker. Verified with two throwaway sinks (real id folded, none/bogus
+  listed). FIX bsp-sm8250 31/32 (8e6c218): the filter is its own user service pocknix-speaker-loud
+  (PartOf=wireplumber) rendering speaker-loudness.conf.in with the card's live id into device.id;
+  Steam lists only "Built-in Audio" (also after WirePlumber restarts). pipewire-pulse unaffected
+  (paplay via the smart filter OK). Side fix: pocknix-speaker-volume froze on a hung `pw-cli ls`
+  during a WirePlumber restart (law stuck at Mult 1.0) -> 5 s timeouts + retries (bsp 32).
+- (4) "Volume levels messed up again": mixer = design on this card (companders off, RX digital 122,
+  planted 114/12, slider law active: lawL 1.42 at 50 %). Cliff never said what he hears; my
+  pipewire restarts reset the slider 40 % -> 50 % once. OPEN until he describes it.
+- Odin: pocknix-steam 53 is built only in the sm8250 localrepo; build it with DEVICE=sm8750 before
+  the next Odin respin (same race applies there).
+- RESPUN: holodor-rp5-20261010c (bsp 32, sha cc46f342...) superseded by 20261010d (= c + steam 53),
+  build/respin-rp5-20261010d.sh, sha in build/image/sm8250/*.sha256. NOT flashed. Next: flash d to
+  the Lexar fresh (build/flash-lexar-rp5-20261010.sh with the IMG changed), fresh undocked boot:
+  splash seconds + one restart, setup clicks audible, no device dialog, dockcheck run undocked-boot.
+- Card now: 20261010 + patched expand unit + bsp 32 + steam 53, sshd on, signed in; no inhibitor.
+
 ## 2026-10-10 14:20: E3 PASSED — first-boot resize alone + reboot leaves the card byte-clean; 20261010b respun; Cliff's four complaints from the fresh boot
 
 - Cliff chose option 2 (keep the single growing root, make the resize run by itself). Commit 523b5c1:
