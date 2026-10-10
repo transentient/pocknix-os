@@ -1,5 +1,21 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 18:00: 20261010e RESPUN = the release candidate (kernel 15 declared, bsp 33, steam 54); Cliff's three decisions
+
+- Cliff: declare kernel 15 (what every 20261010 image booted anyway); keep the dock stack and run the
+  matrix forward; speaker ceiling 122.
+- build/image/sm8250/holodor-rp5-20261010e-seedless.img.zst sha256 69a61db4...2c69 (3.42 GB).
+  Verified by mount: FAT KERNEL Image sha c320f535 == rootfs /boot/Image == linux-pocknix-sm8250
+  7.1.2-15 (installed in build/rootfs by pacman -U, no pin); pocknix-bsp-sm8250 33 (ceiling 122 in
+  the daemon + heal, speaker-loud uncapped wait + BindsTo/wants wireplumber), pocknix-steam 54
+  (bounded pulse wait), bsp-common 29; expand-root Before=plymouth-start + no-parse never stamps
+  (c4953c3, FIRST BOOT STILL UNTESTED); no stamp, sshd off. build-sd-image's new kernel check
+  logged "agree (c320f5350fa695f2, 7.1.2-15)". Script build/respin-rp5-20261010e.sh.
+- Next: flash e to the Lexar (build/flash-lexar-rp5-20261010e.sh + prep-lexar-release-test.sh),
+  fresh undocked boot (expect: no door animation on boot 1, seconds, restart; setup clicks; one
+  audio device; Steam startup sound; ceiling 122 louder), then the dock matrix steps 2-8 with the
+  capture dongle on fusor (not connected yet at 18:00), then offline e2fsck of the card, then
+  publish. Odin: pocknix-steam 54 + the overlay unit are untested there; build steam for sm8750.
 ## 2026-10-10 17:30: INQUISITOR (Cliff asked): the "kernel 14" images are KERNEL 15; dock stack untested in the release; script hardenings
 
 - VERIFIED (python on fusor): build/image/sm8250/KERNEL (Oct 9 12:15) gunzips to Image sha c320f535... =
