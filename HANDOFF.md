@@ -31,7 +31,7 @@
   pipewire restarts reset the slider 40 % -> 50 % once. OPEN until he describes it.
 - Odin: pocknix-steam 53 is built only in the sm8250 localrepo; build it with DEVICE=sm8750 before
   the next Odin respin (same race applies there).
-- RESPUN: holodor-rp5-20261010c (bsp 32, sha cc46f342...) superseded by 20261010d (= c + steam 53),
+- RESPUN 14:50: holodor-rp5-20261010d-seedless.img.zst (sha256 35a2d9e3...1446, bsp-sm8250 32 + steam 53, kernel 14), verified by mount; 20261010c (bsp 32 only) superseded.
   build/respin-rp5-20261010d.sh, sha in build/image/sm8250/*.sha256. NOT flashed. Next: flash d to
   the Lexar fresh (build/flash-lexar-rp5-20261010.sh with the IMG changed), fresh undocked boot:
   splash seconds + one restart, setup clicks audible, no device dialog, dockcheck run undocked-boot.
