@@ -1,5 +1,45 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 14:20: E3 PASSED — first-boot resize alone + reboot leaves the card byte-clean; 20261010b respun; Cliff's four complaints from the fresh boot
+
+- Cliff chose option 2 (keep the single growing root, make the resize run by itself). Commit 523b5c1:
+  pocknix-expand-root.service is now DefaultDependencies=no, After=systemd-remount-fs + local-fs,
+  Before=sysinit.target AND every sysinit unit that writes to the root (journal-flush, tmpfiles-setup,
+  random-seed, sysusers, update-done, machine-id-commit, hwdb-update, catalog-update, ldconfig,
+  firstboot, update-utmp, repart, plymouth-read-write, binfmt), WantedBy=sysinit.target. The script
+  logs to /var/lib/pocknix/expand-root.log (the /run journal is NOT flushed by the reboot), syncs,
+  stamps, `systemctl --no-block reboot`; growpart NOCHANGE (pre-grown card) stamps without a reboot.
+  build-sd-image rm -f's the stale multi-user wants symlink on a resumed rootfs.
+- E3 on the Lexar: flash 20261010 (byte-exact readback), build/prep-lexar-e3.sh patched the new unit
+  onto the un-expanded card (+ ssh key, sshd, wifi.txt). Boot 1: growpart CHANGED 13.0 -> 58.7 GiB,
+  resize2fs online to 15383803 blocks, stamp, reboot — alone. Boot 2: Steam sign-in + 3.3 GB
+  download, Cliff rebooted once more mid-way. `rsync -rlc -n -i /usr` vs build/rootfs: ZERO
+  checksum mismatches, 24 new-only = the sd-image overlay set (same as E1), 0 errors. No ext4
+  kernel messages. => the ext4 online resize is fine on this kernel when nothing races it; the
+  10-09 corruption was the race with Steam's download. Offline e2fsck of the card still owed (do it
+  when the card is next in the reader).
+- Splash pause: boot 1 sat ~2 min on the static logo. expand-root.log: growpart's "Failed to issue
+  io.systemd.service.Ping() varlink call: Timer expired" = `udevadm settle` waiting its 120 s default
+  for a udevd that is ordered AFTER sysusers/hwdb-update (two writers we hold back). b81fcb0: a
+  no-op udevadm shim on growpart's PATH; timed on the RP5 on a loop file: growpart CHANGED in 0 s.
+- RESPUN 14:11: build/image/sm8250/holodor-rp5-20261010b-seedless.img.zst (sha256
+  c09d90e8...d6ec, 3.42 GB) = 20261010 + 523b5c1 + b81fcb0; kernel 14, bsp-sm8250 30. Verified by
+  mounting the image: shim present, unit Before=sysinit + sysinit.target.wants, no stale symlink,
+  no stamp, sshd off. NOT flashed, NOT published. build/respin-rp5-20261010b.sh (gitignored).
+- Audio on the fresh 20261010 boot: Pulse test tone (paplay -> pocknix_speaker_loud) HEARD by Cliff;
+  a 660 Hz oscillator fired inside Steam's own Big Picture window HEARD. Mixer state = design
+  (WSA/RX/HPH companders off, RX digital 122, planted 114/12, speaker-volume ready "range 30 dB").
+  No pa_operation errors, no auto_null, no DP device (card0-DP-1 disabled). Steam's device list:
+  "Built-in Audio" (active, 40 %) + "pocknix_speaker_loud" (the filter, visible since Audio/Sink).
+- Cliff's four complaints (14:15), status: (1) long splash = the udev settle, fixed in b81fcb0;
+  (2) "no sound on the initial setup" — nothing in the setup boot's logs; PROVISIONAL reading: the
+  setup screens play nothing until an output device is picked in the dialog; asked Cliff where
+  exactly; (3) the "select audio device" dialog at first run — trigger unknown; Steam sees two
+  outputs; hiding the filter by a non-class mechanism is the candidate fix (needs a fresh-profile
+  test); (4) "volume levels messed up again" — asked what he hears; the numbers are the design.
+  UI-tick ear check still unanswered.
+- Device: inhibitor stopped, card = 20261010 + patched unit, sshd on, signed in.
+
 ## 2026-10-10 08:30: E1 RESULT — the pre-expanded Lexar is byte-clean after four boots + the Steam download; the first-boot online resize is the culprit
 
 - E1 (HANDOFF 10-09 15:00 plan): the Lexar was grown + resized OFFLINE on fusor, expand-root
