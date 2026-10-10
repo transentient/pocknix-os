@@ -48,12 +48,23 @@ def node_id(name):
         if 'node.name = "%s"' % name in line: return cur
     return None
 
+def card_index():
+    """index of the RetroidPocket card in /proc/asound/cards (bsp 35: a USB audio device present at boot
+    takes card 0, the platform card arrives 15-40 s later; hw:0 then hits the wrong card)"""
+    try:
+        for line in open("/proc/asound/cards"):
+            if "RetroidPocket" in line: return line.split()[0]
+    except OSError: pass
+    return "0"
+
 def amixer(name, value):
-    subprocess.run(["amixer", "-q", "-D", "hw:0", "cset", "name=%s" % name, str(value)], capture_output=True)
+    subprocess.run(["amixer", "-q", "-D", "hw:%s" % card_index(), "cset", "name=%s" % name, str(value)], capture_output=True)
 
 def plant_hardware():
     for c in ("WSA_COMP1 Switch", "WSA_COMP2 Switch"): amixer(c, 0)      # read at power-up: set while closed
-    p = subprocess.Popen(["pw-cat", "-p", "--target", SINK, "--rate", "48000", "--channels", "2", "--format", "s16", "-"],
+    # bsp 35: bounded. A sink in error (bad resume, DP -22) accepted the connection but never ran the stream,
+    # and the 192 KB write into a 64 KB pipe would have blocked this daemon forever (audit 2026-10-11).
+    p = subprocess.Popen(["timeout", "10", "pw-cat", "-p", "--target", SINK, "--rate", "48000", "--channels", "2", "--format", "s16", "-"],
                          stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         p.stdin.write(bytes(48000 * 4)); p.stdin.flush(); time.sleep(0.7)   # 1 s of silence; write once it runs
@@ -71,7 +82,7 @@ def law(v):
     if v >= 1.0: return 1.0 / v ** 3                       # no boost past the ceiling
     return min(10 ** (-RANGE_DB * (1.0 - v) / 20.0) / v ** 3, MAX_BOOST)
 
-state = {"sink": None, "filter": None, "last": None}
+state = {"sink": None, "filter": None, "last": None, "planted": None}
 def apply():
     for attempt in (0, 1):
         if not state["sink"]: state["sink"] = node_id(SINK)
@@ -101,6 +112,7 @@ def main():
     else:
         sys.exit("pocknix-speaker-volume: speaker sink or filter never appeared")
     plant_hardware()
+    state["planted"] = node_id(SINK)
     apply()
     print("pocknix-speaker-volume: ready (range %.0f dB, digital %d)" % (RANGE_DB, SPEAKER_DIGITAL), flush=True)
     while True:
@@ -112,6 +124,12 @@ def main():
                     for _ in range(5):                        # it may not be listed yet: retry (bsp 32)
                         if apply(): break
                         time.sleep(1)
+                    # bsp 35: a re-created card (WirePlumber restart on dock plug, docked wake) re-ran the UCM
+                    # Speaker EnableSequence: companders back ON (the warble), PA 12. The Speaker sink has a
+                    # new node id then; plant the gains again (audit 2026-10-11).
+                    sid = node_id(SINK)
+                    if sid and sid != state["planted"]:
+                        plant_hardware(); state["planted"] = sid; apply()
                 else:
                     apply()
         state["sink"] = state["filter"] = state["last"] = None  # pactl died = PipeWire restarted

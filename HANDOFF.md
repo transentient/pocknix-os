@@ -1,5 +1,52 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-11 05:40: CURRENT STATE — read this first (Fable 5.1; Cliff hiking; RP5 dark after a docked reboot onto the 0722 test kernel)
+
+Full write-up: docs/plan-2026-10-11-rp5-dock-and-quality.md (dock findings, keyboard sound, audio audit,
+release recommendation = HOLD f). Short form:
+
+- **Death 2 (10-10 20:12) was an ORDERLY POWEROFF, not a reset**: my `sleep:idle` inhibitor (sleep 3600)
+  expired at 60 min, Steam's idle suspend fired 40 s later, then logind logged "Power key pressed short"
+  and "Power key pressed long" -> `HandlePowerKeyLongPress=poweroff` (bsp-common). Read in `journalctl -b -1`
+  on the card. Open question to Cliff: did he hold the power button at 20:12-20:13? Death 1 (18:29, mid
+  replug) has no shutdown lines = real power loss, PMIC reasons overwritten since. New tools:
+  tools/dock/postmortem.sh (pon-reason.sh = PMIC PON/POFF/FAULT regs via regmap debugfs, journal -b -1
+  tail, telemetry tail, starts blackbox.sh = 2 s fsync'ed recorder to /var/lib/pocknix/blackbox.log).
+- **Docked, the RP5 DISCHARGES**: charger input limit 500 mA (ICL_STATUS 0x0a, APSD never completes,
+  "Apsd not ready" 3/s), battery 100 % "Not charging" at -190..-247 mA on a 5 V/2 A PD contract (Rp 3 A).
+  Writing current_max as root did nothing (needs CMD_ICL_OVERRIDE). Fix = kernel 40-holodor/0722
+  (linux-pocknix-sm8250 16, PKGBUILD bumped): Type-C/PD budget from tcpm-source-psy (or TYPE_C_SNK_STATUS
+  Rp) with ICL_OVERRIDE, APSD reruns capped at 5, online as a boolean (kills the upowerd gboolean spam).
+  ROCKNIX ships the identical driver: inherited bug, our fix. Full `make kernel` + package running as root
+  unit kernel-sm8250-16 (log build/kernel-sm8250-16.log, started 05:21; ~40 min).
+- **The RP5 is DARK**: at 05:12 I put the incrementally built test kernel on the card (/flash/KERNEL,
+  md5 3acc947b...; kernel 15 kept as /flash/KERNEL.k15) and rebooted it DOCKED. By 05:30 no wifi, no
+  dock HDMI (frame black). Hang (dock-at-boot freeze family) or power loss at boot: unknown until the
+  panel is seen and pon-reason.sh runs on the next boot. Recovery if k16 never boots: card in fusor,
+  build/revert-lexar-k16.sh /dev/sdX. A background watcher pings .68.
+- **Keyboard touch sound = Steam's design on SteamOS**: steamui `HandleTouchStart` plays
+  `PlaySteamDeckHaptic` always and `PlayNavSound(Typing)` only if `!IS_STEAMOS` (module 72476 `rf`).
+  Our touch mode is passthrough (`STEAM_TOUCH_CLICK_MODE=4` on :0, Steam sets it), so taps arrive as
+  touch. Deck parity gap = haptics (spmi_haptics event0 is FF-capable; InputPlumber routing = post-release).
+- **Audio audit (second agent, static)**: 7 ranked mechanisms, top = every WirePlumber restart (dock plug,
+  docked wake) re-runs the UCM Speaker EnableSequence -> companders ON again (the warble) + PA 12, never
+  re-planted; hw:0 assumed; Steam may connect with only auto_null; watcher pins the Speaker as configured
+  default; pw-cat can block forever; stale device.id; quantum pinned 1024 after resume (ROCKNIX, untouched).
+  Applied as bsp-sm8250 35 + pocknix-steam 55 (UNTESTED, not packaged yet; package after the kernel unit
+  finishes: `scripts/build-packages.sh pocknix-bsp-sm8250` then `pocknix-steam`, DEVICE=sm8250).
+  WirePlumber-native filter (software-dsp.lua + LocalModule) = the standard replacement for the separate
+  `pipewire -c` process, AFTER the release.
+- Inhibitor: claude-inhibit-dock-0459 (sleep 14400) was on the boot that is now gone; none active.
+- Nothing published, nothing pushed. Uncommitted: tools/dock/{pon-reason,blackbox,postmortem}.sh +
+  pocknix-blackbox.service, 0722 patch, PKGBUILD bumps (kernel 16, bsp 35, steam 55), the plan doc,
+  build/revert-lexar-k16.sh.
+
+**NEXT:** 1) RP5 back -> `tools/dock/postmortem.sh`, then `journalctl -k | grep "input current limit"`,
+blackbox icl (expect 0x28 = 2 A) and battery uA >= 0; enable tools/dock/pocknix-blackbox.service on the
+card (copy to /etc/systemd/system, `systemctl enable --now`). 2) Kernel unit done -> package bsp 35 + steam
+55 -> `pacman -U` all three on the card -> reboot undocked -> fresh-boot checks -> dock rows with the mic +
+pumptest after a plug. 3) Cliff: power-key answer, release decision (plan doc section 4).
+
 ## 2026-10-10 22:30: CURRENT STATE — read this first (Fable 5.1, /sleep-now; the RP5 is OFF after its 2nd docked reset, nothing published)
 
 **Where we are (2026-10-10 22:30).** The RP5 20261010 release is built, verified, and UNPUBLISHED.

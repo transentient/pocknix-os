@@ -40,6 +40,13 @@ while sleep "$POLL"; do
           [ -n "$id" ] && { timeout 5 wpctl set-default "$id" && break; }
           sleep 1
         done
+        # bsp 35: `wpctl set-default` writes default.configured.audio.sink into
+        # ~/.local/state/wireplumber/default-nodes, which would make the Speaker beat a Bluetooth
+        # headset (or any sink that does not mute the Speaker route) for every later session. Once
+        # the switch has happened, drop the pin so WirePlumber's own priorities apply again
+        # (audit 2026-10-11).
+        sleep 2
+        timeout 5 pw-metadata -n default -d 0 default.configured.audio.sink >/dev/null 2>&1 || true
       fi
       last=$cur; pending=
     fi

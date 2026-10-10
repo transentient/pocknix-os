@@ -1,0 +1,206 @@
+# RP5: dock, keyboard sound, audio quality — findings and plan (2026-10-11)
+
+Written while Cliff was out. Everything below was measured on the RP5 (20261010e card, docked on the
+UGREEN dock) or read from code; provisional items are marked. Device-side tools used:
+`tools/dock/postmortem.sh` (PMIC reset reasons + journal of the dead boot + recorder),
+`tools/dock/blackbox.sh` (2 s flight recorder), `tools/dock/pon-reason.sh`.
+
+## 1. The dock
+
+### 1.1 The two "unexplained resets" of 2026-10-10 are two different things
+
+**Death 2 (20:12, idle, docked) was not a reset.** The dead boot's journal on the card ends with a
+normal systemd power-off:
+
+| monotonic | line |
+|---|---|
+| 28 s | my inhibitor started: `systemd-inhibit --what=sleep:idle ... sleep 3600` |
+| 3628 s | that inhibitor expired (60 min) |
+| 3670 s | `systemd-logind: The system will suspend now!` (Steam's idle suspend, held back for an hour) |
+| 3690 s | `Power key pressed short.` (wake) |
+| 3695 s | `Power key pressed long.` then `Powering off...` |
+
+Our power policy (bsp-common `20-pocknix-powerkey.conf`) maps a 5 s hold to power off. The live
+journal stream "ended abruptly" because a shutdown kills ssh sessions before it logs much. Whether
+the long press was a hand or a phantom key is the one open question; Cliff was asked at 05:00.
+A docked wake lights the dock output only ~74 s after resume (row 5), so "screen dark, hold the
+button" is a plausible human sequence and a real usability bug either way.
+
+**Death 1 (18:29, during dock replug cycle 2) is a real power loss.** Its boot has no shutdown
+lines; the journal stops at the replug's DP-1 enable (the last seconds before a hard loss never
+reach the card). Its PMIC reasons were overwritten by the later boots, so it has to be caught
+again, with the recorder running and the reason read on the very next boot.
+
+### 1.2 Docked, the RP5 runs on its battery (found, fixed in kernel 16, verification pending)
+
+On the dock (PD contract 5 V / 2 A, Rp 3 A on CC) the PM8150B charger stays at the USB 2.0 default
+input limit. Measured at 100 % battery, Steam home screen, docked:
+
+| what | value |
+|---|---|
+| charger input limit (ICL_STATUS 0x1107) | 0x0a = 500 mA |
+| charger `current_max` | 500000 |
+| APSD (BC1.2 type detection) | never completes; "Apsd not ready" 3 lines/s all session |
+| battery status / current | "Not charging", -190 to -247 mA (discharging) |
+| PMIC die temperatures | 29-35 C |
+
+Cause: the driver only ever programs the limit from the BC1.2 result, which a USB-C/PD source never
+gives, and `USBIN_CURRENT_LIMIT_CFG` is ignored by the hardware unless `CMD_ICL_OVERRIDE` is set
+(writing `current_max` as root changed nothing). ROCKNIX ships the identical driver (their 0011
+patch is byte-identical to ours), so ROCKNIX and Armada RP5 users have the same cap. Inherited bug.
+
+Fix, ours: `kernel/sm8250/patches/40-holodor/0722-pm8150b-charger-typec-pd-input-limit.patch`
+(linux-pocknix-sm8250 16): the limit comes from the Type-C port manager's supply (PD contract, or
+the Rp it saw), falling back to the PMIC's own Rp bits, BC1.2 only for legacy sources; override set
+for anything above 500 mA; APSD re-run at most 5 times; `online` reported as a boolean (this also
+ends upowerd's "online TRUE invalid gboolean" spam). Built and booted as a test kernel at 05:12
+(docked). The device did not come back on the network and the dock HDMI stayed black; see 1.4.
+
+### 1.3 Still open on the dock, in order of user pain
+
+1. **Docked wake shows nothing for ~74 s** (row 5). Users will hold the power button. Needs a
+   gamescope/DRM look at the resume path (DP re-enable timing); until then the internal panel
+   should at least light on wake.
+2. **Dock plugged, idle sleep, unplug to wake: USB-C dead until reboot** (memory
+   `reference-lan-static-ips`). TCPM's log is at
+   `/sys/kernel/debug/usb/tcpm-c440000.spmi:pmic@2:typec@1500` (root) and will show where the PD
+   state machine stops after that wake; read it right after a failed replug.
+3. **Death 1**: power loss on a VBUS transition. Reproduce with 10 replugs 30 s apart while the
+   recorder runs; read `pon-reason.sh` on the next boot (UVLO vs PS_HOLD vs fault settles it).
+4. **Dock-at-boot freeze family** (10-09, and possibly 05:12 today): docked cold boots, 10 of them,
+   recorder on, `pon-reason` after each failure.
+5. Power-key policy: 5 s hold = power off is logind's fixed long-press threshold. Options: keep it
+   (document it), or `HandlePowerKeyLongPress=ignore` and let `pocknix-powerd` require a longer
+   hold with an on-screen cue. Cliff's call.
+6. PD above 5 V: our sink PDO is 5 V / 3 A only, so even a 9 V-capable dock gives at most 15 W.
+   Worth a 9 V PDO once the SMB5's input-voltage window is confirmed (Android's choice is the
+   reference). Not for this release.
+
+### 1.4 The 05:12 test boot and recovery
+
+The test kernel (`/flash/KERNEL`, md5 3acc947b...) replaced kernel 15, which is kept as
+`/flash/KERNEL.k15`. The device was rebooted docked at 05:12 and had not reappeared by 05:30.
+When Cliff is back:
+
+1. Look at the panel. Press power once if dark. If it boots: run `tools/dock/postmortem.sh` first
+   (the reason register tells power loss from hang), then check the recorder and
+   `journalctl -k | grep "input current limit"` (expect 2000 mA on the dock) and that the battery
+   current is zero or positive.
+2. If it is stuck at the logo or never boots: hold power 10 s, boot again, undocked first.
+3. If kernel 16 never boots: card into fusor, `build/revert-lexar-k16.sh /dev/sdX` puts kernel 15
+   back (it refuses to touch a card without `KERNEL.k15`).
+
+## 2. The keyboard sound during setup
+
+Cliff's question: should a touch on an on-screen-keyboard key make a sound? Steam's own code
+(steamui `chunk~2dcc5aaf7.js`, module 97220, the keyboard's `HandleTouchStart`) does this on a
+touch-start on a key:
+
+1. `PlaySteamDeckHaptic(...)` with the keyboard's haptic settings, always;
+2. `PlayNavSound(Typing)` only if `IS_STEAMOS` is false (module 72476, `rf` = `IS_STEAMOS`).
+
+So on a Steam Deck (SteamOS) a touch tap gives a haptic pulse and no sound; the typing sound plays
+for gamepad and hardware-keyboard activation (`KeyDown`). Our session is SteamOS to Steam
+(`-steamos3`), so no sound is Steam's design, not an audio-stack fault. The 10-10 handoff's
+"touch taps are silent by Steam's code path" stands, with the mechanism now known.
+
+What we do not have is the haptic half. Verified on the device: gamescope's touch mode for the
+Steam display is passthrough (`STEAM_TOUCH_CLICK_MODE = 4` on `:0`, set by Steam), so taps reach
+Steam as real touch events and `HandleTouchStart` runs; the RP5's vibration motor is an evdev
+force-feedback device (`spmi_haptics`, event0, FF capable). Routing Steam's Deck haptic pulses to
+it through InputPlumber's deck target is a post-release feature, not a bug fix.
+
+## 3. The audio stack: the honest picture
+
+### 3.1 What changed over the weekend and what each change broke
+
+| version | change | broke | inherited or invented |
+|---|---|---|---|
+| bsp 25 (10-06) | loudness filter hidden with `media.class Audio/Sink/Internal` | every PulseAudio client silent (20261008 clean card) | invented |
+| bsp 27 (10-07) | DisplayPort UCM device | no sound at all on undocked boots | invented (ROCKNIX has no DP device) |
+| bsp 28 (10-09) | DP device removed | nothing | revert |
+| bsp 29 (10-09) | conditional DP device + watcher restarting WirePlumber | 31 s of auto_null on unplug, Steam deaf for the session | UCM `If` is standard; the poller is invented |
+| bsp 30 (10-10) | filter back to `Audio/Sink` | Steam's "choose audio device" picker | return to standard |
+| bsp 31 (10-10) | filter runs as its own `pipewire -c` process with the card's `device.id` | (none seen) | invented |
+| bsp 32-33 | timeouts, ceiling 122, BindsTo | (none seen) | invented hardening |
+| bsp 34 | restart only on plug; push default to Speaker on unplug | pins the Speaker as configured default (see 3.3) | invented |
+| steam 53-54 | wait for pipewire-pulse before Steam | (none seen) | invented |
+
+Cliff's "something that was a daemon is now a service" is bsp 31: the loudness filter used to be a
+fragment inside the session's PipeWire daemon; since 31 it is a separate `pipewire -c` process
+under a user service, because Steam folds a sink under "Built-in Audio" only when its `device.id`
+names the real card, and that id exists only after WirePlumber has created the card. The audit
+(3.2) confirms the standard way to do the same thing: WirePlumber 0.5.12 can load the filter-chain
+inside its own process from a Lua script (`node/software-dsp.lua` is the upstream template), which
+removes the extra process, the polling and the BindsTo/PartOf choreography. Recommended after the
+release, not before.
+
+### 3.2 Independent audit (second agent, static analysis, 2026-10-11)
+
+Ranked failure scenarios, each with a mechanism in the code:
+
+1. **Every WirePlumber restart (dock plug, docked wake) re-runs the UCM Speaker EnableSequence**,
+   which turns the WSA companders back on and sets PA 12; nothing re-plants our gains. The 4-8 dB
+   pumping ("warble") that bsp 21 fixed returns after the first dock plug until reboot. Dock tests
+   measured a tone and clicks, which cannot show pumping.
+2. **`hw:0` is assumed to be the RetroidPocket card** (heal and volume daemon). Any USB audio
+   device present at boot (dock jack, headset, a mic) takes index 0 because the platform card
+   registers 15-40 s late; the gains then land on the wrong card and the speakers stay at reset
+   gains.
+3. **Steam connects to PulseAudio once; on a slow boot only `auto_null` exists at that moment**
+   (the launcher waits for pipewire-pulse, not for a sink).
+4. **The watcher's `wpctl set-default` on unplug writes a persistent configured default**, so the
+   Speaker beats a Bluetooth headset in every later session.
+5. **`plant_hardware` can block forever** (192 KB write into pw-cat with no timeout when the sink
+   is in error).
+6. **Stale `device.id`**: the filter takes the first matching card object, which during a restart
+   can be the dying one.
+7. **Resume pins the quantum at 1024 for the rest of the session** (verbatim ROCKNIX; ~21 ms
+   latency after the first sleep). Inherited; needs an on-device A/B before changing.
+8. Minor: hard-coded `card0-DP-1`, uid 1001 in the resume unit, the 2 Hz poll if the card never
+   appears.
+
+Also from the audit: pipewire/pipewire-pulse are socket-activated and are pulled into the login
+transaction only by the volume daemon's `Wants=`; the heal, `alsactl restore`, the UCM sequence and
+the volume daemon all write the mixer with no ordering between them (the daemon's 121-then-122
+trick makes it final at boot only).
+
+### 3.3 What I changed in response (bsp-sm8250 35, pocknix-steam 55, UNTESTED on a device)
+
+- heal + volume daemon address the card by its `/proc/asound/cards` index (audit 2);
+- volume daemon re-plants the gains when the Speaker sink is re-created (audit 1) and bounds
+  pw-cat with `timeout 10` (audit 5);
+- speaker-loud takes the last matching card object (audit 6);
+- dock watcher drops the configured-default pin 2 s after pushing the Speaker (audit 4);
+- launcher also waits, up to 20 s, for a default sink that is not `auto_null` (audit 3).
+
+Each is a few lines and reversible. They are candidates: nothing goes into an image until they pass
+the fresh undocked boot and dock rows 1, 2, 4, 5, 6 with the mic (a pumping test after a dock plug,
+not just a tone). Audit 7 (quantum) and the WirePlumber-native filter are deliberately not touched.
+
+## 4. Release recommendation
+
+Hold 20261010f. Reasons: the dock power finding (1.2) means every docked user is slowly draining
+while "charging", and the fix needs one verified docked boot; the audit found a docked-use audio
+regression (3.2 item 1) that the dock matrix could not see; and the power-key policy (1.3 item 5)
+deserves a decision before users hold the button at a dark dock.
+
+Proposed path to the next RC, in order:
+
+1. Verify kernel 16 docked: input limit 2000 mA, battery current >= 0, no APSD or upowerd spam,
+   undocked boot unaffected (500 mA SDP on a PC port still works, charging on the wall charger).
+2. Fresh undocked boot with bsp 35 + steam 55: sound, clicks, one audio device, slider law.
+3. Dock rows 1, 2, 4, 5, 6 with the mic, plus a pumping measurement (tools/rp5-audio/pumptest.py)
+   after a dock plug and after an unplug.
+4. Death 1 and the docked-boot freeze with the recorder on (hands needed: 10 replugs, 10 docked
+   boots).
+5. Decide the power-key policy; write the release notes with the remaining known issues (docked
+   wake delay, sleep-then-unplug USB).
+6. Respin, one fresh boot, publish.
+
+## 5. For Cliff, when back (one step at a time)
+
+1. Is the RP5 dark? Press power once. Tell me what the panel showed first (charging screen, logo,
+   nothing).
+2. Did you press and hold the power button around 20:12-20:13 last night?
+3. Leave it docked; I take it from there over ssh (postmortem, recorder, kernel 16 checks).

@@ -1,0 +1,257 @@
+From: Holodor <holodor@bonesaw.com>
+Date: Sat, 11 Oct 2026 05:30:00 +0900
+Subject: [PATCH] power: supply: qcom_pm8150b_charger: honour the USB-C/PD input budget
+
+On a USB-C source (dock, PD charger) the PM8150B's BC1.2 detection (APSD)
+never completes, so the driver stayed at the hardware's USB 2.0 default of
+500 mA for the whole session, re-ran APSD every second and logged "Apsd not
+ready" three times a second. A docked Retroid Pocket 5 at Steam's home
+screen drew 500 mA from a 5 V / 2 A PD contract and discharged its battery at
+~240 mA while reporting "charging" (measured 2026-10-11, blackbox + regmap).
+
+- USBIN_CURRENT_LIMIT_CFG only counts in software-override mode: set
+  ICL_OVERRIDE for any limit above the SDP default, clear it for 500 mA so
+  the hardware keeps handling plain SDP ports.
+- Take the input budget from the Type-C port manager's source supply
+  (tcpm-source-psy-*: the PD contract current, or the Rp it saw on CC) via a
+  power-supply notifier, falling back to the PMIC's own TYPE_C_SNK_STATUS Rp
+  bits; BC1.2 results only decide for legacy sources.
+- Re-run APSD at most five times per plug, then settle for 500 mA quietly.
+- Reset to 500 mA on unplug; report "online" as a boolean (upowerd logged
+  'value "TRUE" of type gboolean is invalid' three times a second on 16).
+- Log the limit once per change at info level.
+
+Holodor patch 0722 (linux-pocknix-sm8250 16).
+---
+--- a/drivers/power/supply/qcom_pm8150b_charger.c	2026-10-11 05:10:12.800939614 +0900
++++ b/drivers/power/supply/qcom_pm8150b_charger.c	2026-10-11 05:10:12.801498989 +0900
+@@ -302,6 +302,12 @@
+ 	int cable_irq;
+ 	bool wakeup_enabled;
+ 
++	/* Type-C: the port manager's source supply (PD contract / Rp), found lazily */
++	struct notifier_block psy_nb;
++	struct power_supply *typec_psy;
++	unsigned int icl_ua;
++	int apsd_reruns;
++
+ 	struct iio_channel *usb_in_i_chan;
+ 	struct iio_channel *usb_in_v_chan;
+ 
+@@ -331,7 +337,7 @@
+ 		return rc;
+ 	}
+ 
+-	*val = (stat & USBIN_PLUGIN_RT_STS_BIT);
++	*val = !!(stat & USBIN_PLUGIN_RT_STS_BIT);
+ 	return 0;
+ }
+ 
+@@ -357,7 +363,7 @@
+ 		return rc;
+ 	}
+ 	if (!(apsd_stat & APSD_DTC_STATUS_DONE_BIT)) {
+-		dev_err(chip->dev, "Apsd not ready");
++		dev_dbg(chip->dev, "Apsd not ready");
+ 		return -EAGAIN;
+ 	}
+ 
+@@ -449,6 +455,7 @@
+ static int smb5_set_current_limit(struct smb5_chip *chip, unsigned int val)
+ {
+ 	unsigned char val_raw;
++	int rc;
+ 
+ 	if (val > 4950000) {
+ 		dev_err(chip->dev,
+@@ -457,13 +464,104 @@
+ 	}
+ 	val_raw = val / CURRENT_SCALE_FACTOR;
+ 
+-	return regmap_write(chip->regmap, chip->base + USBIN_CURRENT_LIMIT_CFG,
+-		val_raw);
++	rc = regmap_write(chip->regmap, chip->base + USBIN_CURRENT_LIMIT_CFG,
++			  val_raw);
++	if (rc < 0)
++		return rc;
++
++	/*
++	 * USBIN_CURRENT_LIMIT_CFG is only honoured in software-override mode.
++	 * Without ICL_OVERRIDE the hardware keeps the limit it derived from APSD
++	 * (the USB 2.0 500 mA default until APSD completes, which it never does
++	 * on a USB-C/PD source), so a docked RP5 drew 500 mA and ran its battery
++	 * down while "charging". Override for anything above the SDP default and
++	 * hand control back to the hardware for a plain 500 mA SDP.
++	 */
++	rc = regmap_update_bits(chip->regmap, chip->base + CMD_ICL_OVERRIDE,
++				ICL_OVERRIDE_BIT,
++				val > SDP_CURRENT_UA ? ICL_OVERRIDE_BIT : 0);
++	if (rc < 0)
++		return rc;
++
++	if (chip->icl_ua != val)
++		dev_info(chip->dev, "input current limit %u mA\n", val / 1000);
++	chip->icl_ua = val;
++	return 0;
++}
++
++/* The Rp a Type-C source advertises on CC, as our sink limit (0 = default/none) */
++static unsigned int smb5_typec_rp_current(struct smb5_chip *chip)
++{
++	unsigned int stat;
++
++	if (regmap_read(chip->regmap, chip->base + TYPE_C_SNK_STATUS, &stat) < 0)
++		return 0;
++	if (stat & SNK_RP_3P0_BIT)
++		return 3000000;
++	if (stat & SNK_RP_1P5_BIT)
++		return 1500000;
++	return 0;
++}
++
++static int smb5_match_typec_psy(struct power_supply *psy, void *data)
++{
++	struct smb5_chip *chip = data;
++
++	if (strncmp(psy->desc->name, "tcpm-source-psy-", 16))
++		return 0;
++	chip->typec_psy = psy;
++	return 1;
++}
++
++/*
++ * What the Type-C port manager negotiated: the USB PD contract current, or the
++ * Rp current it saw on CC. 0 = nothing attached, default Rp, or no port manager.
++ */
++static unsigned int smb5_typec_psy_current(struct smb5_chip *chip)
++{
++	union power_supply_propval val;
++
++	if (!chip->typec_psy)
++		power_supply_for_each_psy(chip, smb5_match_typec_psy);
++	if (!chip->typec_psy)
++		return 0;
++	if (power_supply_get_property(chip->typec_psy, POWER_SUPPLY_PROP_ONLINE,
++				      &val) < 0 || !val.intval)
++		return 0;
++	if (power_supply_get_property(chip->typec_psy,
++				      POWER_SUPPLY_PROP_CURRENT_MAX, &val) < 0)
++		return 0;
++	return val.intval > 0 ? val.intval : 0;
++}
++
++static int smb5_psy_notifier(struct notifier_block *nb, unsigned long event,
++			     void *data)
++{
++	struct smb5_chip *chip = container_of(nb, struct smb5_chip, psy_nb);
++	struct power_supply *psy = data;
++
++	if (event != PSY_EVENT_PROP_CHANGED || psy == chip->chg_psy)
++		return NOTIFY_OK;
++	if (strncmp(psy->desc->name, "tcpm-source-psy-", 16))
++		return NOTIFY_OK;
++
++	/* the PD contract lands a moment after the plug: re-evaluate the limit */
++	chip->typec_psy = psy;
++	mod_delayed_work(system_wq, &chip->status_change_work,
++			 msecs_to_jiffies(200));
++	return NOTIFY_OK;
++}
++
++static void smb5_unreg_psy_notifier(void *data)
++{
++	struct smb5_chip *chip = data;
++
++	power_supply_unreg_notifier(&chip->psy_nb);
+ }
+ 
+ static void smb5_status_change_work(struct work_struct *work)
+ {
+-	unsigned int charger_type, current_ua;
++	unsigned int charger_type, current_ua, typec_ua;
+ 	int usb_online = 0;
+ 	int count, rc;
+ 	struct smb5_chip *chip;
+@@ -471,8 +569,26 @@
+ 	chip = container_of(work, struct smb5_chip, status_change_work.work);
+ 
+ 	smb5_get_prop_usb_online(chip, &usb_online);
+-	if (!usb_online)
++	if (!usb_online) {
++		/* back to the hardware's 500 mA default for whatever comes next */
++		chip->apsd_reruns = 0;
++		smb5_set_current_limit(chip, SDP_CURRENT_UA);
+ 		return;
++	}
++
++	/*
++	 * A USB-C source states its budget without BC1.2: the PD contract (via
++	 * the Type-C port manager's supply) or the Rp it advertises on CC, and
++	 * that figure is binding. BC1.2 (APSD) only decides for legacy sources,
++	 * and on a PD source APSD often never completes at all.
++	 */
++	typec_ua = smb5_typec_psy_current(chip);
++	if (!typec_ua)
++		typec_ua = smb5_typec_rp_current(chip);
++	if (typec_ua) {
++		current_ua = typec_ua;
++		goto apply;
++	}
+ 
+ 	for (count = 0; count < 3; count++) {
+ 		dev_dbg(chip->dev, "get charger type retry %d\n", count);
+@@ -488,12 +604,23 @@
+ 	}
+ 
+ 	if (rc < 0) {
+-		rc = regmap_update_bits(chip->regmap, chip->base + CMD_APSD,
+-					APSD_RERUN_BIT, APSD_RERUN_BIT);
+-		schedule_delayed_work(&chip->status_change_work,
+-				      msecs_to_jiffies(1000));
+-		dev_dbg(chip->dev, "get charger type failed, rerun apsd\n");
+-		return;
++		/*
++		 * Re-run APSD a few times, then settle for the 500 mA default
++		 * instead of retrying (and logging) every second for the whole
++		 * session.
++		 */
++		if (chip->apsd_reruns++ < 5) {
++			regmap_update_bits(chip->regmap, chip->base + CMD_APSD,
++					   APSD_RERUN_BIT, APSD_RERUN_BIT);
++			schedule_delayed_work(&chip->status_change_work,
++					      msecs_to_jiffies(1000));
++			dev_dbg(chip->dev, "charger type not ready, rerun apsd\n");
++			return;
++		}
++		dev_dbg(chip->dev, "charger type never detected, keeping %u mA\n",
++			SDP_CURRENT_UA / 1000);
++		current_ua = SDP_CURRENT_UA;
++		goto apply;
+ 	}
+ 
+ 	switch (charger_type) {
+@@ -509,6 +636,8 @@
+ 		break;
+ 	}
+ 
++apply:
++	current_ua = min_t(unsigned int, current_ua, CURRENT_MAX_UA);
+ 	smb5_set_current_limit(chip, current_ua);
+ 	power_supply_changed(chip->chg_psy);
+ }
+@@ -884,6 +1013,15 @@
+ 		return dev_err_probe(chip->dev, rc,
+ 				     "Failed to init status change work\n");
+ 
++	chip->psy_nb.notifier_call = smb5_psy_notifier;
++	rc = power_supply_reg_notifier(&chip->psy_nb);
++	if (rc)
++		return dev_err_probe(chip->dev, rc,
++				     "Failed to register power supply notifier\n");
++	rc = devm_add_action_or_reset(chip->dev, smb5_unreg_psy_notifier, chip);
++	if (rc)
++		return rc;
++
+ 	rc = (chip->batt_info->voltage_max_design_uv - 3487500) / 7500 + 1;
+ 	rc = regmap_update_bits(chip->regmap, chip->base + FLOAT_VOLTAGE_CFG,
+ 				FLOAT_VOLTAGE_SETTING_MASK, rc);

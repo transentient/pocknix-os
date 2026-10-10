@@ -12,9 +12,12 @@ CONF="${RUN}/speaker-loudness.conf"
 log() { echo "pocknix-speaker-loud: $*"; }
 
 card_id() {
+  # the LAST match: during a WirePlumber restart the previous card object can still be listed for a
+  # moment and the first match would be the dying one (bsp 35, audit 2026-10-11)
   timeout 5 pw-cli ls Device 2>/dev/null | awk '
     /^[[:space:]]*id [0-9]+,/ { id=$2; sub(",","",id) }
-    /device.name = "alsa_card.platform-sound"/ { print id; exit }'
+    /device.name = "alsa_card.platform-sound"/ { last=id }
+    END { if (last != "") print last }'
 }
 
 id=""
