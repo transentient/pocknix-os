@@ -1,5 +1,26 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 19:50: DOCK ROW 8 DEATH — the RP5 hard-reset on the 2nd replug cycle (cause unknown, charger-driver spam in that session)
+
+- 18:31, 20261010e card + bsp 34 watcher, docked session that began with a hot-plug at 17:30: Cliff
+  unplugged (OK: tone, Speaker default), waited, plugged, waited, unplugged -> blank screen; plugging
+  the dock again showed the Retroid logo + the charging screen = the device was OFF on dock power.
+  The dead boot's journal ends at [3720.46], right after the plug's WirePlumber restart; no shutdown
+  lines; no pstore on this kernel. The unplug 20 s earlier: pm8150b "Apsd not ready" x3 then the
+  dock hub's USB removal.
+- "Apsd not ready" = drivers/power/supply/qcom_pm8150b_charger.c smb5_apsd_get_charger_type():
+  APSD_DTC_STATUS_DONE_BIT clear -> dev_err + -EAGAIN on every property read; upower polls -> 3
+  lines/s. In the dead boot it started at [176.88] (the 17:30 hot-plug) and ran 6944 lines until the
+  unplug; the earlier hot-plug session (boot -2) and this docked boot have 0 lines (APSD completed:
+  USB_TYPE DCP, PD 5 V 2 A, charging). So APSD can stay undone after a hot-plug; harmless spam by
+  itself; relation to the death unproven.
+- Same family as the 10-09 "dock-at-boot freeze" (journal ends abruptly). A PMIC reset leaves no
+  kernel trace; only a serial console or a reproduction with the live journal stream on fusor
+  (scratch rp5-journal-stream.log, unit rp5-jstream) can narrow it. Replug counter: 1 plug measured
+  before the death (tone SILENT on that one = the device was already gone).
+- Matrix state: rows 2,4,5,6,9 PASS; row 8 = 1 death in ~6 plug cycles today; rows 3,4-in-game,7
+  not run. Cliff's call: reproduce (more replugs with the stream on) or ship with a documented
+  known issue ("replugging the dock may reset the device").
 ## 2026-10-10 19:20: dock matrix rows 2,4,5,6,9 PASS with bsp 34 (watcher restarts only on plug); 20261010f respun = RC
 
 - Row 4 on bsp 33 FAILED: the watcher's WirePlumber restart on UNPLUG left PipeWire's DisplayPort
