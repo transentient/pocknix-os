@@ -1,5 +1,22 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 19:20: dock matrix rows 2,4,5,6,9 PASS with bsp 34 (watcher restarts only on plug); 20261010f respun = RC
+
+- Row 4 on bsp 33 FAILED: the watcher's WirePlumber restart on UNPLUG left PipeWire's DisplayPort
+  sink retrying the dead AFE port (q6afe -110/-22 every 3 s), WirePlumber took 31 s to stop,
+  default = auto_null meanwhile, and Steam's Chromium audio never recovered for the session (a
+  D-pad press created no stream; Cliff: "no sound ... device says auto-null"). bsp 34 (6603a0b):
+  restart only on disabled->enabled; on unplug push the default to the Speaker (wpctl). Re-run:
+  plug = one restart, DP default, tone + video on the capture, Steam alive; unplug = no restart,
+  Speaker default in seconds, Cliff heard the tone + D-pad clicks, 0 AFE errors, Steam alive.
+- Rows 5/6 (sleep docked / undocked) PASS; docked wake: gamescope relit DP ~74 s after resume
+  (one watcher restart then), wifi back 9 s after resume. The power button could NOT sleep while my
+  claude-inhibit block was held (10-02 again): stop every inhibitor before a sleep row.
+- Row 9 BLE pad PASS (see 18:45). Row 8 (10 replugs) counter armed, Cliff doing them; rows 3/4
+  (game docked, unplug in game) wait for a Terraria install; row 7 (10 docked boots) last.
+- RESPUN 18:13: holodor-rp5-20261010f-seedless.img.zst sha256 dd3ce231...baca = e + bsp 34; kernel
+  check "agree (c320f535, 7.1.2-15)"; verified by mount. Flash script build/flash-lexar-rp5-20261010f.sh.
+  The card in the RP5 = e + bsp 34's watcher script patched live (same code as f).
 ## 2026-10-10 18:45: 20261010e fresh boot PASSED (kernel 15 declared, resize before plymouth 2 s); dock rows 2 + 9 PASS; AtomS3U is now a BLE gamepad
 
 - Fresh flash of e (byte-exact), test prep (key/sshd/wifi.txt). Boot 1: expand-root.log 07:54:01 ->
