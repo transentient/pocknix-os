@@ -1,5 +1,175 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-10 22:30: CURRENT STATE — read this first (Fable 5.1, /sleep-now; the RP5 is OFF after its 2nd docked reset, nothing published)
+
+**Where we are (2026-10-10 22:30).** The RP5 20261010 release is built, verified, and UNPUBLISHED.
+Cliff has not yet chosen among three options (he was asked at 20:25 and the session ended):
+(1) ship 20261010f with the dock marked experimental and two known issues in the release notes
+[my recommendation]; (2) hold the release for the dock investigation (needs a serial console or
+a PMIC reset-reason readout); (3) strip the DisplayPort audio device again (bsp 28 behaviour).
+Option 3 removes only dock AUDIO; the two resets happened with the dock as the power/display
+source and are not known to be audio-related, so 3 does not buy safety by itself.
+
+- **RC = build/image/sm8250/holodor-rp5-20261010f-seedless.img.zst** sha256 dd3ce231…baca
+  (18:12): kernel linux-pocknix-sm8250 7.1.2-15 DECLARED (Image sha c320f535…, build-sd-image's new
+  `check_kernel_matches_rootfs` printed "agree"), bsp-sm8250 34, bsp-common 29, steam 54, overlay
+  expand-root unit 4a59f3c + script c4953c3. Verified by mount. Its first boot on a fresh card is
+  UNTESTED: 20261010e (sha 69a61db4…2c69, = f minus the bsp 34 watcher change) passed the fresh
+  boot at 18:45; f differs only by pocknix-dp-audio-watch (bsp 34) which was patched live onto the
+  e card and ran rows 2,4,5,6,8,9. Flash script: build/flash-lexar-rp5-20261010f.sh (guarded).
+- **The Lexar in the RP5** = 20261010e + bsp 34's watcher script patched live + test key/sshd/
+  wifi.txt (prep-lexar-release-test.sh). Signed in to Steam, no games installed (Terraria was on
+  the earlier card, not this one). It holds a stale `claude-inhibit-replug2` unit from before the
+  death; it dies with the boot, nothing to do.
+- **The RP5 is OFF** since ~20:12 (2nd reset). Cliff was asked to press power and report whether
+  the charging icon showed first; no answer before /sleep-now. Both deaths left the device off
+  (the 1st came back on the dock's charging screen after a replug). When it is back, read
+  `journalctl -b -1 -k | tail` and the battery/charger state at the end of boot -1 FIRST; expect
+  nothing (both earlier deaths left no trace), but check.
+- **Dock matrix state (tools/dock/results-rp5-2026-10-10.md, tools/dock/README.md):** rows 1,2,4,5,
+  6,9 PASS on e + bsp 34; row 8 (replug x10) killed the device on its 2nd cycle (18:29); row 7
+  (docked boots x10) has 2 of 10; rows 3 and 4-in-game not run (need a game installed); Bluetooth
+  AUDIO not run (needs a real BT headset; the AtomS3U is a BLE gamepad only). Two unexplained
+  hard resets ~60 min into docked use (59 and 61 min after dock connect, battery 97-100 %).
+- **Odin 3:** untouched this session. localrepo sm8750 is ahead of its image (kernel 33, gamescope 8,
+  bsp-sm8750 28, bsp-common 29, steam 52, decky 21, medialibs 3); steam 54 NOT built for sm8750;
+  the overlay expand-root rework (sysinit, before plymouth, udev shim) is UNTESTED on the Odin.
+  Cliff: no Odin respin until its dock matrix has run.
+- fusor housekeeping done at 22:25: user unit rp5-jstream stopped; the two stale waiter shells
+  stopped. The journal stream log is scratch rp5-journal-stream.log (982 KB, session-scratch,
+  will vanish). Nothing else is running for this project.
+
+**What we did this session (2026-10-10, 08:00-22:30), in order.**
+1. E1/E3 experiments proved the first-boot ONLINE RESIZE corrupts the card only when it races
+   Steam's download. Fix (523b5c1, 4a59f3c, b81fcb0, c4953c3): pocknix-expand-root runs from
+   sysinit.target (DefaultDependencies=no, After=systemd-remount-fs, Before=plymouth-start + every
+   early writer), growpart with a no-op `udevadm` shim on PATH (growpart's trailing `udevadm settle`
+   waited 120 s because udevd is ordered after the writers we hold back), resize2fs, sync, stamp,
+   `systemctl --no-block reboot`. First boot shows the static splash 2-4 s then reboots; no door
+   animation on boot 1 (Cliff asked for that). build-sd-image removes the old multi-user.wants link.
+2. Cliff's four fresh-boot complaints, root-caused + fixed: long static splash = the udev settle
+   (shim); no sound during setup + no nav clicks = Steam's Chromium audio service connects to Pulse
+   ONCE at startup and autologin starts Steam ~2 s before pipewire-pulse exists (pocknix-steam 53/54
+   waits for `timeout 2 pactl info`, bounded 15 s); the "select audio device" dialog = the loudness
+   filter listed as a second device because Steam (libpipewire) lists Device objects + any sink
+   whose device.id names no real Device (bsp 31-34: pocknix-speaker-loud user service renders
+   speaker-loudness.conf.in with the card's live object id into device.id and runs `pipewire -c`);
+   "max sounds like 50 %" = measured on the NTG mic, loudness was exactly the 10-05 design (the mic
+   capture gain was 24 today vs 8 on 10-05 = +16 dB offset in absolute numbers), Cliff chose a
+   higher ceiling: WSA digital 122 (+6.7 dB, H2 -27 / H3 -32 dBc at full scale; bsp 33).
+3. Inquisitor review (Cliff asked): found that ALL 20261010a-d images booted KERNEL 15 while the
+   package record said 14 (build-sd-image copies build/image/<soc>/KERNEL from the last
+   `make kernel` and rsyncs KOUT modules; a pacman --ignore pin pins nothing). Cliff: declare 15.
+   Guard `check_kernel_matches_rootfs` added. Hardenings: speaker-loud waits for the card uncapped,
+   BindsTo pipewire + wireplumber.service.wants, 5 s timeouts in pocknix-speaker-volume.
+4. 20261010e respun (RC at the time), flashed fresh, fresh boot PASSED 18:45 (resize 2 s, clicks
+   + Steam startup sound heard, one audio device, kernel 15).
+5. Dock matrix run forward (Cliff: no backtrack). Row 4 on bsp 33 FAILED (WirePlumber restart on
+   UNPLUG left the DP sink retrying the dead AFE port, 31 s auto_null, Steam audio dead for the
+   session) -> bsp 34 (6603a0b): restart only on plug, `wpctl set-default` Speaker on unplug.
+   20261010f respun with it. Rows 2,4,5,6,9 PASS; row 8 death; 2nd death idle.
+6. AtomS3U (M5Stack ESP32-S3) turned into a BLE gamepad (tools/blepad: sketch + blepad.sh serial
+   protocol, arduino-cli user-local in ~/.local/bin, ESP32-BLE-Gamepad from git, FQBN
+   esp32:esp32:m5stack_atoms3:CDCOnBoot=cdc, /dev/ttyACM0). Row 9 PASS: Steam grabs it, Xbox glyphs.
+7. Measurements in tools/rp5-audio/loudness-2026-10-10.txt; dockcheck `frame` now grabs the 30th
+   frame after a 3 s settle (the HDMI dongle's first frames are black = false BLACK verdicts).
+
+**What we learned that is not in the code.**
+- Steam's CEF audio: one Pulse connection for the session; a pipewire-pulse restart or a 31 s
+  auto_null window kills Steam UI sound until Steam restarts; a plain WirePlumber restart does NOT.
+- Steam's device list: Device objects + device-less sinks; media.class is irrelevant to it.
+- Touch taps on Steam's OSK are silent by Steam's own code path (PlayNavSound not called);
+  gamepad A on a key plays deck_ui_typing.wav. Not our bug. Do NOT chase it.
+- USB-C after a docked idle SLEEP then unplug-as-wake: xhci is removed on that wake and never
+  re-created; the port comes back [device]/non-PD; no hub/alt mode/DP until a reboot (typec
+  data_role write EINVAL; dwc3 debugfs mode=host restores root hubs only; qcom,pmic-typec rebind
+  does nothing). Waking while still docked (row 5) is fine. Memory reference-lan-static-ips has it.
+- pm8150b charger: "Apsd not ready" spam after some hot-plugs (APSD never completes; harmless by
+  itself); it reports online=16 so upowerd logs "online TRUE invalid gboolean" 3x/s. Cosmetic, but
+  it floods the journal and hides real lines.
+- The NTG mic card index moves (card 1; the USB3 PLUS Video capture becomes card 2 when the HDMI
+  dongle is in). Mic capture gain must be noted with every measurement.
+- growpart calls `udevadm settle` at the end; our ordering makes that a 120 s timeout. Any future
+  early-boot tool that touches udev needs the same shim trick or a different ordering.
+
+**What we were WRONG about (do NOT re-derive).**
+- "The images were kernel 14 / a pacman pin keeps the tested kernel": WRONG. The KERNEL blob and
+  the modules come from the build dir. Every 20261010 image booted 15. Now guarded and declared.
+- "Volume regressed": WRONG. The chain measured identical to 10-05 once the mic gain offset was
+  accounted for. Cliff wanted it LOUDER (ceiling 122), that is a design change, not a regression.
+  Do NOT compare today's absolute dBFS numbers to 10-05's without the +16 dB gain note.
+- "The second audio device is a media.class problem": WRONG (bsp 25's Audio/Sink/Internal broke
+  pipewire-pulse entirely, HANDOFF 10-10 01:10). The list is driven by device.id. Do NOT touch
+  media.class again.
+- "sc4 compressor instead of the limiter for more loudness": killed. Every variant pumped 11-17 dB
+  on the pump test. Do NOT re-propose a compressor on the speaker chain.
+- "Restart WirePlumber on every DP change" (bsp 29-33): WRONG on unplug (row 4 failure). bsp 34 is
+  the shape; do NOT bring the unconditional restart back.
+- "A ROCKNIX-style separate data partition / btrfs would fix the resize corruption": not pursued.
+  Cliff judged option 2 (resize alone + reboot) smaller and it passed E3. Our root is a rw Arch
+  install with no initramfs (ABL loads /KERNEL directly), so ROCKNIX's mke2fs-at-first-boot does not
+  transplant. Do NOT re-propose unless the resize path fails again.
+- "The 60 min resets are an hourly timer of ours / charge-full / AICL rerun": checked, NOT it (no
+  timers in our packages, charge-full is a one-shot, AICL_RERUN_TIME_CFG=0). Still open, see below.
+- "Death 1 was caused by the replug": provisional only. Death 2 happened with ZERO cable activity.
+  The common factor is ~60 min on dock power at 97-100 % battery, not the replug.
+
+**Traps.**
+- NEVER echo the wifi PSK (config/local/ozma.nmconnection). NEVER raw dd outside the guarded
+  build/flash-lexar-*.sh scripts. NEVER pkill -f / pgrep -f.
+- Hold `systemd-inhibit --what=sleep:idle` on the RP5 while working over ssh, and STOP every
+  claude-inhibit-* unit before ANY sleep test or handoff: it blocked Cliff's power button twice
+  today (rows 5/6) and on 10-02.
+- Never set the speaker to 100 % without warning Cliff; measure with the NTG mic on fusor
+  (tools/rp5-audio: wavlevel.py/loud.py/pumptest.py/thd.py), never ask his ears.
+- Replug/boot counters that poll by ssh every 2 s flood logind (a session line every 2 s in the
+  journal). Poll at 5 s or slower.
+- dockcheck `frame` before the 30th-frame fix gave false BLACK; the committed version is fixed.
+- The 20261010 images a-d and the -k15/-seedless pair from 01:00 are superseded; only e and f
+  matter. Do not publish e; f is the RC.
+- RC must match the repo: any committed user-visible change => respin before publishing.
+- The Lexar card in the RP5 carries a test key + sshd + wifi.txt; it is NOT a clean user card.
+  A fresh flash of f is required before the "fresh boot" sign-off of f itself.
+- pocknix-dp-audio-watch (bsp 34) is what runs on the card (patched live). The installed package
+  record on that card says 33; the SCRIPT is 34's. f has the real 34 package.
+
+**NEXT (in order).**
+1. If the RP5 is back: `ssh deck@192.168.1.68`, hold an inhibitor, read boot -1's last 40 kernel
+   lines + `journalctl -b -1 -u upower -u pocknix-* --no-pager | tail`, note charger/battery sysfs at
+   the end, then STOP the inhibitor. Record in tools/dock/results-rp5-2026-10-10.md. Expect no trace.
+2. Get Cliff's release decision (1/2/3 above). If he says nothing, option 1 is my recommendation,
+   but shipping is HIS call, do not publish without it.
+3. Option 1 path: build/flash-lexar-rp5-20261010f.sh (guarded, run as root via the script), one
+   fresh undocked boot with Cliff (static splash 2-4 s -> reboot -> door animation -> setup with
+   clicks -> sign-in; one audio device; sound at the D-pad), then: publish-image as cliff, tag,
+   scripts/sync-public.sh --push, publish-release, README badge, release notes listing: (a) "the
+   dock may reset the device after about an hour of docked use; cause under investigation",
+   (b) "sleeping while docked and waking by unplugging leaves USB-C dead until reboot: wake with
+   the power button first, then unplug", (c) dock audio is experimental, (d) OSK touch taps silent.
+4. Dock investigation (own track, after the release): reproduce the ~60 min reset with the journal
+   stream on (fusor user unit rp5-jstream, scratch log; re-create it, it was session-scratch) and
+   a battery/charger sampler at 10 s; candidates: charge termination at 100 % with the dock as the
+   only input, PMIC safety/watchdog timers, thermal, DP/DRM ("audio comp timeout" seen at the 19:04
+   wake). A serial console on the RP5 would settle it; find the UART pads or use the ABL/fastboot
+   reset-reason if any. Also the sleep-then-unplug USB-C death (dwc3/pmic-typec role switch).
+5. Remaining matrix rows: 3 + 4-in-game (install Terraria on the card first), 7 (8 more docked
+   boots), Bluetooth audio (needs a real BT headset from Cliff).
+6. Owed from earlier lists: offline e2fsck of the Lexar; headphones plug/unplug with Steam
+   "Built-in Audio" pinned; three cold boots confirming the filter is owned by the card every time.
+7. Odin: build pocknix-steam 54 for sm8750 (build-packages.sh with the package as an ARGUMENT),
+   test the expand-root rework on an Odin card, then its dock matrix, then respin
+   (build/respin-odin3-20261009.sh, unrun).
+
+**Open questions.**
+- What resets the RP5 ~60 min into docked use? Unknown, no trace. Next: stream + sampler + a
+  reproduction without any ssh activity (rule out my polling), then PD-charger-only vs dock.
+- Does f's first boot behave exactly like e's? Almost certainly (watcher-only diff), untested.
+- Is the sleep-then-unplug USB-C death fixable in software (dwc3 role switch on resume)? Untested
+  beyond the three pokes above; the kernel's qcom dwc3 resume path is the place to read.
+- Bluetooth audio on the RP5: never tested on any build.
+
+Signed: Fable 5.1, 2026-10-10 22:30.
+
 ## 2026-10-10 20:25: DOCK = two unexplained hard resets ~60 min into docked use + the sleep-then-unplug USB-C death; release decision needed
 
 - Death 1 (18:29:38): docked since a 17:30:34 hot-plug (59 min), during replug cycle 2. Death 2
