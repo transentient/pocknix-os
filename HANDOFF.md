@@ -1,6 +1,45 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## 2026-10-11 17:30: CURRENT STATE — read this first (Fable 5.1; RP5 unreachable: no wifi, no USB ethernet on the 05:12 test kernel; three cures written, UNTESTED)
+## 2026-10-11 19:00: CURRENT STATE — read this first (Fable 5.1; RP5 still unreachable, card not in the reader; cures tightened, kernel 17 building)
+
+- **Device:** no answer on .47/.68, its wifi MAC and the hub's MAC absent from a LAN sweep, card not in
+  fusor's reader (Cliff last wrote 16:35; asked at 16:50 and 17:25 to power off, pull the card, put it
+  in the reader). Watcher bfwqo2pad (60 min from 18:36) polls both addresses, both MACs and the reader.
+- **Ruled out on fusor (18:35):** a module mismatch on the 05:12 test kernel. Its Image reports
+  `Linux version 7.1.2 ... #2 SMP PREEMPT Sun Oct 11 05:10:06`, vermagic `7.1.2 SMP preempt mod_unload
+  aarch64`, config without MODULE_SIG/MODVERSIONS, boot-image ramdisk = GPU firmware only: kernel 15's
+  ath11k_pci/r8152 load on it. 0722 touches only the charger driver (notifier registered after its own
+  supply). The no-wifi/no-ethernet/slow-splash state on 3/3 boots is UNEXPLAINED without the card.
+- **Card checklist (plan doc 1.4, 19:00 paragraph):** list-boots; per kernel-16 boot grep ath11k,
+  r8152, `usb 1-`, dwc3, NetworkManager, iwd, rfkill, radio, "input current limit", Oops/BUG/Call trace;
+  `/var/lib/pocknix/wifi-heal.log` (boot heal verdicts per boot); `/var/lib/NetworkManager/NetworkManager.state`
+  (WirelessEnabled - our 000-wifi sleep hook turns the radio off via NM, which PERSISTS it; a wake whose
+  post hook never ran leaves wifi off on later boots until the boot heal's radio cycle ~2 min in).
+  THEN `build/revert-lexar-k16.sh /dev/sdX`, card back, boot undocked.
+- **Cures tightened (commit 4df94fc, all UNTESTED):** (1) the `usb_1 /delete-property/ wakeup-source`
+  dts change from 7c6613e is REVERTED before any build - in device mode dwc3 does the full core
+  exit/reinit across suspend anyway (the sleep hook puts an attached controller in device mode), the
+  property only governs the undocked path that works, and the Odin has no wakeup-source and still died.
+  (2) bsp-common 32 (built 18:49, log build/pkg-bsp-common-32.log): 010-usb-host pre waits up to 5 s for
+  the dwc3 `mode` readback to say device (logs the ms) instead of a fixed 1 s. (3) 0722 v2 looks the
+  tcpm source supply up on every evaluation (no cached unreferenced pointer); compiled as a single
+  object with W=1 clean except kernel-doc, then documented. linux-pocknix-sm8250 17 = 16 + 0722 v2, NO
+  dts change: root unit kernel-sm8250-17 (log build/kernel-sm8250-17.log, started 18:48, ~40 min;
+  watcher b2t1qp2xd). (4) HiFi-RP.conf parses on fusor (alsaucm virtual card, ${CardId} substituted)
+  and every control name is one the device has shown. Design choice to confirm: DisplayPort
+  `JackHWMute "Speaker"` (speaker unavailable while docked; drop the line to keep it selectable).
+- **Deploy bundle** (scratchpad deploy/): bsp-common 32, bsp-sm8250 36, steam 55, powerd, blackbox
+  service, linux 16 (replace with 17 when its package lands). ORDER unchanged: postmortem.sh; pacman -U
+  bsp-common 32 + bsp-sm8250 36 + steam 55 (kernel only after the journal verdict); scp powerd; reboot
+  UNDOCKED; fresh-boot audio checks; hub plug; sleep-on-hub (expect `pocknix-usb-host: pre-sleep ...
+  host -> device after N ms`, ethernet back ~5 s after wake); dock rows with the mic.
+- Nothing published, nothing pushed. Commits since 17:30: d6d55ae (boot-journal-summary tool), 4df94fc.
+
+**NEXT:** 1) card in the reader -> checklist above -> revert to KERNEL.k15 -> card back -> boot undocked.
+2) kernel 17 package -> deploy bundle. 3) Deploy + verify in the order above. 4) Release decision with
+Cliff after verification (HOLD recommended).
+
+## 2026-10-11 17:30: PREVIOUS STATE (Fable 5.1; RP5 unreachable: no wifi, no USB ethernet on the 05:12 test kernel; three cures written, UNTESTED)
 
 - **Device state:** booted (Steam up) on the 05:12 test KERNEL (= kernel 16, 0722) with NO wifi and NO
   ethernet from the USB-C hub (hub link LED on at the switch, nothing on the device); one reboot froze at

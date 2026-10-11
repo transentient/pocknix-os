@@ -85,11 +85,15 @@ alone is harmless (09-07 control sleep).
 Cure in software we own (bsp-common 31, `sleep.d/pre/010-usb-host` + `post/010-usb-host`): before
 suspend, if any USB device is attached, the controller is taken out of host mode through dwc3's
 debugfs `mode` switch (xhci removed, the device disconnected cleanly, the controller suspends
-idle), and host mode is restored after resume, so the dock re-enumerates like a fresh plug. Kernel
-side, for the next build: `usb_1` loses `wakeup-source` in the RP5 dtsi, so dwc3 fully exits and
-re-initialises the core across suspend (the i.MX glue's `needs_full_reinit` path). Note the Odin's
-`usb_1` never had `wakeup-source` and still died, so the full-reinit path alone is not the whole
-answer there; the pre-sleep teardown covers both devices.
+idle), and host mode is restored after resume, so the dock re-enumerates like a fresh plug. The dts
+change (`usb_1` without `wakeup-source`) that 7c6613e added was REVERTED at 18:45, before any build:
+in device mode dwc3 exits and re-initialises the core across suspend whatever the wakeup flag says
+(`dwc3_suspend_common`, DEVICE case), so the hook already gives the attached case a full reinit,
+while dropping the property would have changed the undocked sleep path that works today; and the
+Odin's `usb_1` never had `wakeup-source` and still died 09-07, so the property is not the cure.
+bsp-common 32 (built 18:49): the pre hook waits for the `mode` readback to say `device` (up to 5 s,
+the time is logged) instead of sleeping 1 s, because the switch is a kernel work item (xhci removal
++ core soft reset) that the suspend must not race.
 
 ### 1.3 Still open on the dock, in order of user pain
 
@@ -129,6 +133,21 @@ When Cliff is back:
 2. If it is stuck at the logo or never boots: hold power 10 s, boot again, undocked first.
 3. If kernel 16 never boots: card into fusor, `build/revert-lexar-k16.sh /dev/sdX` puts kernel 15
    back (it refuses to touch a card without `KERNEL.k15`).
+
+**19:00, from fusor (device still unreachable, card not in the reader):** the test Image on the card
+reports `Linux version 7.1.2 ... #2 SMP PREEMPT Sun Oct 11 05:10:06`, vermagic `7.1.2 SMP preempt
+mod_unload aarch64`; the kernel config has neither MODULE_SIG nor MODVERSIONS and the boot image's
+ramdisk holds only the GPU firmware, so kernel 15's modules (ath11k_pci, r8152) load on it: a module
+mismatch is ruled out. 0722 touches only the charger driver, registers its notifier after its own
+supply, and has no path to wifi or USB. What is left is the journal on the card. Read, in this
+order: `journalctl -D <mnt>/var/log/journal --list-boots`; per kernel-16 boot: `ath11k`, `r8152`,
+`usb 1-`, `dwc3`, `NetworkManager`, `iwd`, `rfkill`, `radio`, `input current limit`,
+`Oops|BUG|Call trace`; then `<mnt>/var/lib/pocknix/wifi-heal.log` (the boot heal logs what it saw on
+every boot, incl. UNRECOVERED) and `<mnt>/var/lib/NetworkManager/NetworkManager.state`
+(`WirelessEnabled`: our 000-wifi sleep hook turns the radio off through NetworkManager, which
+persists it; a wake whose post hook never ran leaves wifi off at every later boot until the boot
+heal's radio cycle ~2 min in). Kernel 17 (= 16 with 0722 v2, no dts change) builds as root unit
+kernel-sm8250-17 (log build/kernel-sm8250-17.log, started 18:48).
 
 ## 2. The keyboard sound during setup
 
@@ -219,6 +238,14 @@ To verify: a fresh UNDOCKED boot shows Speaker and Headphones (never auto_null);
 the default to DisplayPort with no restart; unplug moves it back; the mic shows no pumping after a
 plug. The volume planter's "write during playback" trick stays until the idle-write question
 (section 3.2 item "idle mixer writes don't land") is measured with the regmap cache bypassed.
+
+Checked on fusor 18:40 (no device needed): `HiFi-RP.conf` parses (alsaucm 1.2.16 with a virtual card
+and `${CardId}` substituted: the verb and all four devices load), and every control name it sets is
+one the RP5 has shown (the 10-09 amixer dump, the earlier verbs, or the upstream codec files). One
+design choice to confirm with Cliff on the device: the DisplayPort device declares
+`JackHWMute "Speaker"` like the Headphones device does, so while a dock is in the Speaker is
+unavailable and the default follows the dock without any watcher; the speaker is not selectable
+while docked. Dropping that one line keeps both selectable (DP still wins by priority 300 > 100).
 
 ### 3.3 What I changed in response (bsp-sm8250 35, pocknix-steam 55, UNTESTED on a device)
 
