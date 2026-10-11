@@ -179,7 +179,11 @@ Kernel 18 adds MODVERSIONS (the real per-symbol ABI check) and MODULE_ALLOW_BTF_
 module BTF no longer refuses the module), so a same-ABI swap boots and a real ABI change fails per
 symbol with a readable message. The charger patch itself did what it should on the docked boot (1500
 then 2000 mA), but the recorder shows the full battery still discharging at 50-200 mA under a 2 A
-budget, so the drain has a second cause to find (pocknix-charge-full or the PMIC at full).
+budget, so the drain has a second cause to find. pocknix-charge-full is not it (it only touches
+charge_control thresholds, which the pm8150b driver does not expose); next is the PMIC itself, docked at
+100 %: the AICL result and power-path status registers say whether the 2 A override actually took and what
+the input settled at. Image 20261011 (kernel 18 + the four packages) was respun at 23:16 and flashed to the
+Lexar at 23:18 on Cliff's go-ahead; he boots it tomorrow. The checklist for that boot is in HANDOFF.md.
 
 ## 2. The keyboard sound during setup
 

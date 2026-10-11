@@ -45,7 +45,38 @@
   build/flash-lexar-20261011.log. A fresh seedless card = first-boot Steam download + login again.
 - Nothing published, nothing pushed.
 
-**NEXT:** 1) flash verified + prep done -> Cliff moves the card to the RP5, boots UNDOCKED (first boot: Steam
+- **Card findings closed tonight:** the docked idle sleep on the 05:12 boot was the ONE sleep (06:14 JST), woken by
+  Cliff's power key at 14:04 (journal: 'Power key pressed short', forensics 05:04:31Z); the charger's '500 mA'
+  at monotonic 4363 s = 14:15 = his unplug for the hub swap, not a dock dropout. pocknix-speaker-volume crash-looped
+  56x on kernel 16 because the LPASS macro modules were refused (no sound card) - BTF again, not audio.
+- **FLASH STARTED 23:18 on Cliff's go-ahead** ("go ahead and flash the card and i will stick it back into the RP5
+  tomorrow"): unit flash-lexar-20261011, log build/flash-lexar-20261011.log (write, byte-exact readback, then
+  prep: deck ssh key, sshd, wifi.txt). Result line appended below when known.
+
+**TOMORROW (2026-10-12), when Cliff boots the fresh card UNDOCKED:** first boot of a seedless image downloads Steam
+(needs wifi.txt -> ozma) and asks for the Steam login; sshd is enabled with cliff's key (deck@192.168.1.68).
+Then, in order (a new device watcher is needed: scratchpad watch-rp5.sh is session-local; `ping 192.168.1.68`):
+  1. `ssh deck@192.168.1.68 'journalctl -b -k | grep -c "failed to validate module"'` must be 0; `uname -v` shows
+     the kernel-18 build date; `journalctl -b | grep "Reached target Multi-User"` < 40 s;
+     `cat /var/lib/pocknix/wifi-heal.log` ends with "ok (no action)"; `nmcli dev` shows wlan0 connected.
+  2. Audio on the FRESH UNDOCKED boot ([[feedback-test-the-fresh-undocked-boot]]): `pactl list sinks short` =
+     Speaker + Headphones (never auto_null); companders OFF (`amixer -c0 cget` WSA_COMP1/2, RX_COMP, HPH_COMP);
+     tone measured on the NTG (tools/rp5-audio, capture gain noted) - not ears.
+  3. Start the blackbox recorder for the session: `tools/dock/postmortem.sh` (its last step), or install
+     tools/dock/pocknix-blackbox.service (deploy-rp5.sh --skip-postmortem does both + reinstalls the same pkgs).
+  4. Hub sleep test: plug the USB-C hub (ethernet .47), short power press (sleep), wake: journal
+     `pocknix-usb-host: pre-sleep ... host -> device after N ms`, hub + ethernet back within ~5 s, no 'Host
+     System Error'. Then the same on the UGREEN dock: DP back after wake.
+  5. Docked, battery at 100 %: `input current limit 2000 mA` in dmesg AND the battery current >= 0 (blackbox
+     `uA`); if still negative, read the PMIC via regmap debugfs (tools/dock/pon-reason.sh shows the pattern):
+     AICL result / ICL_STATUS 0x1607, POWER_PATH_STATUS 0x160B, USBIN_CURRENT_LIMIT_CFG 0x1370, CMD_ICL_OVERRIDE
+     0x1342 - is the override bit set and what did AICL settle at? This is the open drain (plan 1.2).
+  6. powerd: Cliff holds power for a count of two while PON_RT_STS is read; a 5 s hold must power off, a phantom
+     key must not. Then the docked idle sleep with the recorder on.
+  7. Dock rows with the mic (tools/dock/README.md), pumping test after a plug (tools/rp5-audio/pumptest.py).
+  8. Release decision with Cliff: HOLD until 1-5 pass; the JackHWMute 'Speaker' choice on the DisplayPort device.
+
+**NEXT (was):** 1) flash verified + prep done -> Cliff moves the card to the RP5, boots UNDOCKED (first boot: Steam
 download + login). When it answers on .68: postmortem.sh is not needed (fresh card); start the blackbox
 recorder (`deploy-rp5.sh --skip-postmortem` reinstalls the same versions and adds the recorder, or just
 postmortem.sh's last step); wifi-heal.log must say "ok (no action)"; multi-user < 40 s; Speaker + Headphones
