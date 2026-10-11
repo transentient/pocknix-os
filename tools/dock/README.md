@@ -40,3 +40,17 @@ controller.
 
 `frame` takes the 30th captured frame after a 3 s settle: the dongle's first frames after a lock are
 black (2026-10-10, false BLACK on a live docked UI).
+
+## Tools added 2026-10-11 (RP5 investigation)
+
+- `postmortem.sh [deck@ip]` — first thing after a mystery reset: PMIC power-on/off reason (root,
+  regmap debugfs), previous boot's journal tail, telemetry + blackbox tails, starts the recorder.
+- `boot-journal-summary.sh deck@ip [-N]` — one boot's journal (short-monotonic) grepped for the
+  dock/sleep/power/wifi/usb lines.
+- `card-journal.sh /dev/sdX [boots]` — the same from a card in fusor's reader, without writing to
+  it (ext4 `ro,noload`): last N boots, wifi-heal.log, NetworkManager.state, rfkill, pon-reason,
+  blackbox, installed packages, /flash KERNEL md5, then a read-only `e2fsck -n -f` (CARD_FSCK=0 skips).
+- `deploy-rp5.sh [deck@ip] [--kernel] [--reboot] [--skip-postmortem]` — postmortem, then
+  `pacman -U` the newest bsp-common / bsp-sm8250 / steam from build/localrepo/sm8250 (kernel only
+  with --kernel, as a package), pocknix-powerd from the overlay, the blackbox recorder as a
+  service; holds and then releases a sleep:idle inhibitor.
