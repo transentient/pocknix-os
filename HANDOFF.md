@@ -57,11 +57,14 @@
   UNDOCKED; fresh-boot audio checks; hub plug; sleep-on-hub (expect `pocknix-usb-host: pre-sleep ...
   host -> device after N ms`, ethernet back ~5 s after wake); dock rows with the mic.
 - Nothing published, nothing pushed. Commits since 17:30: d6d55ae (boot-journal-summary tool), 4df94fc, 9aec219,
-  26d7b19 (card-journal tool), 3d714fc, plus the 20:10 commit (bsp-common 33, card fsck, this section).
+  26d7b19 (card-journal tool), 3d714fc, 42f48a5 (bsp-common 33, card fsck, this section), e480da7 (deploy-rp5.sh).
 
-**NEXT:** 1) card in the reader -> checklist above -> revert to KERNEL.k15 -> card back -> boot undocked.
-2) Deploy + verify in the order above. 3) Release decision with Cliff after verification (HOLD
-recommended).
+**NEXT:** 1) card in the reader -> `tools/dock/card-journal.sh /dev/sdX 3` (journals, wifi-heal.log branch per boot,
+NetworkManager.state, rfkill, read-only fsck) -> `build/revert-lexar-k16.sh /dev/sdX` -> card back -> boot undocked.
+2) Device answers -> `tools/dock/deploy-rp5.sh deck@<ip>` (postmortem, then bsp-common 33 + bsp-sm8250 36 + steam 55
+from the localrepo, powerd, blackbox service; `--kernel` adds linux 17 ONLY after the journal verdict on 0722;
+`--reboot` for the fresh UNDOCKED boot) -> verify in the order above. 3) Release decision with Cliff after
+verification (HOLD recommended).
 
 ## 2026-10-11 17:30: PREVIOUS STATE (Fable 5.1; RP5 unreachable: no wifi, no USB ethernet on the 05:12 test kernel; three cures written, UNTESTED)
 
