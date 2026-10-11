@@ -1,6 +1,46 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## 2026-10-11 20:10: CURRENT STATE — read this first (Fable 5.1; RP5 still unreachable, card not in the reader; kernel 17 packaged; test KERNEL proven = 15 + 0722 only; bsp-common 33 = wifi heal ladder fixed)
+## 2026-10-11 23:05: CURRENT STATE — read this first (Fable 5.1; ROOT CAUSE FOUND on the card; card reverted to kernel 15; kernel 18 building)
+
+- **Root cause of the dead day (card read 22:58, tools/dock/card-journal.sh /dev/sdb 4; journals saved as
+  /tmp/card-journal-b{0..3}.log):** the 05:12 bare /flash/KERNEL swap. All three kernel-16 boots (05:12,
+  16:32, 16:36) log `failed to validate module [ath11k] BTF: -22` and the same for bluetooth,
+  typec_displayport, lz4_compress, pwm_fan, nvmem sdam, snd_soc_lpass_macro_common, lpi pinctrl, camcc, tun,
+  nfnetlink, algif_aead. CONFIG_DEBUG_INFO_BTF_MODULES=y without MODULE_ALLOW_BTF_MISMATCH = the loader
+  REFUSES any module whose BTF does not validate against the running vmlinux, and the rebuilt Image's BTF
+  differs. Chain: no wlan0 -> `Timed out waiting for device /dev/zram0` and `.../wlan0` at 90 s -> Basic
+  System at 94 s (= the long splash) -> our boot heal ran its whole ladder on nothing (wifi-heal.log:
+  `UNRECOVERED (wifi dev: )` at 05:15, 14:06, 16:35, 16:39) -> multi-user at 218 s; typec_displayport
+  refused = "does not know it is docked". Kernel 15 on the same card (boot -3, 04:56): 0 failures,
+  multi-user at 32 s. NetworkManager.state WirelessEnabled=true, rfkill 0, pon-reason = normal power-off
+  path, every boot ended orderly. My 18:35 "module mismatch ruled out" was WRONG: vermagic + no
+  MODVERSIONS leaves BTF validation as a third gate I did not check. Memory:
+  reference-kernel-swap-btf-module-rejection.
+- **0722 verdict:** it worked as designed on the docked boot -2 (`input current limit 1500 mA` then
+  `2000 mA` at 3.5 s; the boot ran 11 h docked, no oops). BUT the blackbox at 05:27 (up=892 s) shows
+  `bat cap=100 st=Not charging uA=-201171 ... usb on=1 type=PD imax=2000000`: with a 2 A input budget the
+  battery STILL discharged at 50-200 mA while full. So the 500 mA limit was not the (only) drain: check
+  pocknix-charge-full (does it stop charging via input suspend?) and the PMIC's behaviour at full.
+- **Card reverted 23:01:** build/revert-lexar-k16.sh /dev/sdb -> KERNEL = KERNEL.k15 (md5 b88098db, verified
+  on a ro mount). Card back to the device, boot UNDOCKED. The card's packages: linux 15, bsp-common 29,
+  bsp-sm8250 33, steam 54.
+- **Kernel 18 building (unit kernel-sm8250-18, started 23:03, log build/kernel-sm8250-18.log):** = 17 +
+  CONFIG_MODVERSIONS=y + CONFIG_MODULE_ALLOW_BTF_MISMATCH=y (scripts/build-kernel.sh deltas + the
+  post-olddefconfig assertion): per-symbol CRCs become the real ABI check, a stale module BTF only skips
+  that module's BTF. A future bare swap of a same-ABI kernel then boots; a real ABI change is refused per
+  symbol. Rule stays: kernels go on as the PACKAGE and `deploy-rp5.sh --kernel` now always reboots
+  (modules under the running kernel change at install).
+- **Deploy (device answers on .68):** `tools/dock/deploy-rp5.sh deck@192.168.1.68` = postmortem, bsp-common 33 +
+  bsp-sm8250 36 + steam 55, powerd, blackbox service; then `--kernel` (18 once packaged, else 17) which
+  reboots. Fresh undocked boot checks, hub sleep test, dock rows with the mic, as before.
+- Nothing published, nothing pushed.
+
+**NEXT:** 1) card back in the RP5, boot undocked (Cliff). 2) `deploy-rp5.sh` base packages; `--kernel` after
+kernel 18 packages (~23:12). 3) Verify: wifi at boot (wifi-heal.log "ok (no action)"), multi-user < 40 s,
+Speaker + Headphones sinks, hub sleep/wake (`pocknix-usb-host` journal line), docked: `input current limit
+2000 mA` AND battery current >= 0 at 100 % (else chase pocknix-charge-full). 4) Release: HOLD until 3.
+
+## 2026-10-11 20:10: PREVIOUS STATE (Fable 5.1; RP5 still unreachable, card not in the reader; kernel 17 packaged; test KERNEL proven = 15 + 0722 only; bsp-common 33 = wifi heal ladder fixed)
 
 - **Device:** no answer on .47/.68, its wifi MAC and the hub's MAC absent from a LAN sweep, card not in
   fusor's reader (Cliff last wrote 16:35; asked at 16:50 and 17:25 to power off, pull the card, put it

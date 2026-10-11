@@ -165,6 +165,22 @@ that is gone or unusable, does nothing without a profile, and makes the boot uni
 splash itself waited on the old unit is not established; the card's `wifi-heal.log` will say which branch
 each dead boot took. `tools/dock/card-journal.sh` now ends with a read-only `e2fsck -n -f` of the rootfs.
 
+**23:05, card read.** Root cause of the whole day: the bare KERNEL swap. The rebuilt Image's BTF differs
+from the one the card's modules were built against, and the kernel is configured to refuse a module
+whose BTF does not validate (`failed to validate module [ath11k] BTF: -22`, likewise bluetooth,
+typec_displayport, lz4_compress, the LPASS audio macros and seven more), on every boot of that kernel.
+No wifi driver means no wlan0; the zram swap and the wlan0 device unit then time out at 90 s, which is
+the long splash; the boot wifi heal runs its full ladder on a device that is not there (its log says
+UNRECOVERED four times), which is the ~2 min to multi-user; and the refused DP alt-mode driver is why
+the device did not know it was docked. Kernel 15 on the same card shows none of this. I had called a
+module mismatch ruled out at 18:35 on the strength of the version magic and the absence of MODVERSIONS;
+that was wrong, BTF validation is a third gate. The card is reverted to kernel 15 (verified md5).
+Kernel 18 adds MODVERSIONS (the real per-symbol ABI check) and MODULE_ALLOW_BTF_MISMATCH (a stale
+module BTF no longer refuses the module), so a same-ABI swap boots and a real ABI change fails per
+symbol with a readable message. The charger patch itself did what it should on the docked boot (1500
+then 2000 mA), but the recorder shows the full battery still discharging at 50-200 mA under a 2 A
+budget, so the drain has a second cause to find (pocknix-charge-full or the PMIC at full).
+
 ## 2. The keyboard sound during setup
 
 Cliff's question: should a touch on an on-screen-keyboard key make a sound? Steam's own code

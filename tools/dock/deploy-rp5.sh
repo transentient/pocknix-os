@@ -1,6 +1,6 @@
 #!/bin/bash
 # deploy-rp5.sh — install the staged cure bundle on a reachable RP5, from fusor:
-#   tools/dock/deploy-rp5.sh [deck@192.168.1.68] [--kernel] [--reboot] [--skip-postmortem]
+#   tools/dock/deploy-rp5.sh [deck@192.168.1.68] [--kernel (implies --reboot)] [--reboot] [--skip-postmortem]
 # Order (HANDOFF 2026-10-11): postmortem.sh first (PMIC reason + previous boot), then
 # `pacman -U` the newest pocknix-bsp-common / pocknix-bsp-sm8250 / pocknix-steam from
 # build/localrepo/sm8250 (the kernel package only with --kernel: a kernel is installed as a
@@ -20,6 +20,10 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+# A kernel package replaces /usr/lib/modules/7.1.2 under the RUNNING kernel: any module loaded
+# after that (hub, DP alt mode, ...) is the new build's and the old kernel refuses it (BTF
+# validation, 10-11). So --kernel always reboots at the end.
+[ "$KERNEL" = 1 ] && REBOOT=1
 D=$(cd "$(dirname "$0")" && pwd)
 R=$(cd "$D/../.." && pwd)
 REPO="$R/build/localrepo/sm8250"
