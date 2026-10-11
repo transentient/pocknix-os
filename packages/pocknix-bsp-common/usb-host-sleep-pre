@@ -1,0 +1,34 @@
+#!/bin/sh
+# 010-usb-host (pre-sleep): take the USB controller out of HOST mode before system suspend
+# when a USB device is attached, and remember to put it back after resume (010-usb-host post).
+#
+# WHY (RP5 2026-10-10, Odin 2026-09-07): sleeping in host mode with a dock/hub attached kills
+# the host on resume: `dwc3-qcom: port-1 HS-PHY not in L2` as the glue cuts the clocks, then
+# `xhci-hcd: WARNING: Host System Error`, the hub is dropped and never re-enumerates, and
+# the Type-C port is stuck until a reboot. Tearing the host down here (xhci removed, the
+# device disconnected cleanly) means the controller suspends idle; after resume the post
+# script re-enters host mode and the dock re-enumerates like a fresh plug (~2 s).
+# Writes the dwc3 debugfs `mode` switch, which only acts when dr_mode is "otg" (our boards).
+set -u
+STATE=/run/pocknix/usb-host-sleep
+rm -f "${STATE}"
+for m in /sys/kernel/debug/usb/*.usb/mode; do
+  [ -f "${m}" ] || continue
+  cur=$(cat "${m}" 2>/dev/null) || continue
+  [ "${cur}" = host ] || continue
+  dev=
+  for d in /sys/bus/usb/devices/[0-9]*-[0-9]*; do
+    [ -e "${d}/idVendor" ] && { dev=${d##*/}; break; }
+  done
+  [ -n "${dev}" ] || continue
+  mkdir -p /run/pocknix
+  if echo device > "${m}" 2>/dev/null; then
+    echo "${m}" >> "${STATE}"
+    logger -t pocknix-usb-host "pre-sleep: ${m} host -> device (usb ${dev} attached)"
+  else
+    logger -t pocknix-usb-host "pre-sleep: could not switch ${m} (usb ${dev} attached)"
+  fi
+done
+# let the role work run (xhci removal + device disconnect) before the suspend proceeds
+[ -s "${STATE}" ] && sleep 1
+exit 0

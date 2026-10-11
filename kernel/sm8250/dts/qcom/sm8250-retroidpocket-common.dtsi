@@ -1490,6 +1490,20 @@
 
 &usb_1 {
 	status = "okay";
+
+	/*
+	 * HOLODOR 2026-10-11: no USB wake. With wakeup-source the dwc3 host is kept
+	 * alive across system suspend: the glue cuts the clocks expecting the HS PHY
+	 * in L2, and with a dock or hub attached it is not ("port-1 HS-PHY not in L2"),
+	 * so the controller comes back corrupted ("xhci-hcd: Host System Error", the
+	 * hub dropped, no re-enumeration, Type-C stuck until a reboot; 2026-09-07 and
+	 * 2026-10-10 on the RP5). Without the property dwc3 exits the core on suspend
+	 * and re-initialises it on resume (dwc3_suspend_common / dwc3_resume_common,
+	 * same path the i.MX glue takes with needs_full_reinit); attached devices
+	 * simply re-enumerate. The power button and the PMIC Type-C / charger
+	 * interrupts remain the wake sources.
+	 */
+	/delete-property/ wakeup-source;
 };
 
 &usb_1_dwc3 {
