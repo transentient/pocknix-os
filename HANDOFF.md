@@ -1,6 +1,37 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## 2026-10-11 05:40: CURRENT STATE — read this first (Fable 5.1; Cliff hiking; RP5 dark after a docked reboot onto the 0722 test kernel)
+## 2026-10-11 14:30: CURRENT STATE — read this first (Fable 5.1; Cliff back; RP5 rebooting onto the ethernet hub)
+
+- **The RP5 was ASLEEP, not dead** (Cliff pressed power ~14:00: panel lit at once). So the 05:12
+  docked reboot onto the 0722 test kernel (kernel 16) BOOTED and later idle-suspended. It woke with
+  NO wifi and NO dock (HDMI black, no ethernet from either the UGREEN dock or the USB-C hub Cliff
+  swapped in): the USB-host-dies-on-resume family, this time without any unplug. Cliff is restarting
+  it from Steam's power menu with nothing attached, then plugging the ethernet hub (.47) in.
+  `tools/dock/postmortem.sh` FIRST when it answers: `journalctl -b -1` is the whole 05:12 boot (did
+  wifi ever connect? when did it suspend? any power-key lines? xhci/HS-PHY on the wake?).
+- **Death 2 was a PHANTOM power key** (Cliff: "downstairs eating dinner", did not touch it). The
+  device woke itself 20 s into the docked suspend and the kernel reported KEY_POWER held 5 s; logind
+  `HandlePowerKeyLongPress=poweroff` did the rest. Driver mechanism in the plan doc section 1.1
+  (pm8941-pwrkey reports the key from a PON_RT_STS read in its irq; a "down" with no release irq
+  sticks). Cliff keeps the 5 s rule -> FIX, UNTESTED: overlay/usr/local/bin/pocknix-powerd now owns
+  the long press (PMIC PON_RT_STS check via regmap debugfs at the 5 s mark, stuck-state polling,
+  every KEY_POWER journaled with its source) + bsp-common 30 (`HandlePowerKeyLongPress=ignore`),
+  PACKAGED 14:25 (build/localrepo/sm8250/pocknix-bsp-common-0.1.0-30-any.pkg.tar.zst,
+  log build/pkg-bsp-common-30.log). Deploy on the device = pacman -U bsp-common 30 + scp the overlay
+  powerd to /usr/local/bin + `systemctl restart pocknix-powerd systemd-logind`? NO: logind.conf.d
+  changes need `systemctl kill -s HUP systemd-logind` or a reboot; do the reboot.
+- **Keyboard haptics CLOSED** by Cliff (this RP5's motor "feels squishy and wet"); do not re-propose.
+- Still pending from Cliff: the release decision (HOLD recommended, plan doc section 4).
+
+**NEXT:** 1) device answers (.47 hub or .68 wifi) -> postmortem.sh; kernel 16 checks (`journalctl -k |
+grep "input current limit"`, icl 0x28 on the hub, battery uA >= 0); 2) pacman -U linux 16 + bsp-common 30
++ bsp-sm8250 35 + steam 55, scp powerd, enable pocknix-blackbox.service, reboot UNDOCKED -> fresh-boot
+audio checks -> plug the hub -> charger + audio rows with the mic; 3) powerd test: Cliff holds power for a
+count of two (dead zone) while I read PON_RT_STS; 4) docked idle sleep with the recorder on (the 10-10
+20:12 scenario) — wake source + any phantom key, with the hub attached (USB host death expected; it is
+the known issue).
+
+## 2026-10-11 05:40: PREVIOUS STATE (Fable 5.1; Cliff hiking; RP5 dark after a docked reboot onto the 0722 test kernel)
 
 Full write-up: docs/plan-2026-10-11-rp5-dock-and-quality.md (dock findings, keyboard sound, audio audit,
 release recommendation = HOLD f). Short form:

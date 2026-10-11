@@ -20,11 +20,26 @@ normal systemd power-off:
 | 3690 s | `Power key pressed short.` (wake) |
 | 3695 s | `Power key pressed long.` then `Powering off...` |
 
-Our power policy (bsp-common `20-pocknix-powerkey.conf`) maps a 5 s hold to power off. The live
-journal stream "ended abruptly" because a shutdown kills ssh sessions before it logs much. Whether
-the long press was a hand or a phantom key is the one open question; Cliff was asked at 05:00.
-A docked wake lights the dock output only ~74 s after resume (row 5), so "screen dark, hold the
-button" is a plausible human sequence and a real usability bug either way.
+Our power policy (bsp-common `20-pocknix-powerkey.conf`) mapped a 5 s hold to power off. The live
+journal stream "ended abruptly" because a shutdown kills ssh sessions before it logs much.
+
+**Answered 2026-10-11 14:10: nobody touched the device.** Cliff was downstairs at dinner. So the
+device woke itself 20 s into the suspend and the kernel reported the power button held for 5 s:
+a phantom. Mechanism, from the driver (`drivers/input/misc/pm8941-pwrkey.c`): the PMIC key is
+reported from a read of the PON real-time status register inside the interrupt handler, with a
+"simulate a press if we see a release without one" rule; one interrupt whose status read says
+"down" with no release interrupt afterwards leaves KEY_POWER held in the kernel forever, and
+logind only counts seconds. InputPlumber is not in this path (the RP5 config sources only the
+gamepad; its virtual keyboard advertises KEY_POWER but never emits it). Cliff keeps the 5 s rule.
+
+**Fix (bsp-common 30 + overlay `pocknix-powerd`, written 14:20, UNTESTED):** the long press moves
+into our daemon. At the 5 s mark it reads the PMIC's PON_RT_STS register through regmap debugfs
+(SID and PON base parsed from the key's sysfs path, GEN2 bit 0 / GEN3 bit 7) and powers off only
+if the button is physically down; a phantom is logged and ignored. A stuck kernel key state
+(which would swallow the next real press, since the input core drops same-value reports) is
+detected by polling the key state every 5 s, and the release that clears it counts as a short
+press. logind's `HandlePowerKeyLongPress` becomes `ignore`. Every power-key event is now
+journaled with its source device, so the next phantom shows exactly where it came from.
 
 **Death 1 (18:29, during dock replug cycle 2) is a real power loss.** Its boot has no shutdown
 lines; the journal stops at the replug's DP-1 enable (the last seconds before a hard loss never
@@ -69,9 +84,14 @@ ends upowerd's "online TRUE invalid gboolean" spam). Built and booted as a test 
    recorder runs; read `pon-reason.sh` on the next boot (UVLO vs PS_HOLD vs fault settles it).
 4. **Dock-at-boot freeze family** (10-09, and possibly 05:12 today): docked cold boots, 10 of them,
    recorder on, `pon-reason` after each failure.
-5. Power-key policy: 5 s hold = power off is logind's fixed long-press threshold. Options: keep it
-   (document it), or `HandlePowerKeyLongPress=ignore` and let `pocknix-powerd` require a longer
-   hold with an on-screen cue. Cliff's call.
+5. ~~Power-key policy~~ decided 14:10: keep 5 s = power off, now PMIC-verified in `pocknix-powerd`
+   (section 1.1). Still to learn: what wakes the device 20 s into a docked suspend, and whether
+   the phantom key is the wake source itself (the kernel's wakeup-source counters and the
+   journal of the next docked sleep will say).
+7. **Docked idle sleep today (05:12 boot) woke with NO wifi and NO dock** (Cliff pressed power at
+   ~14:00: panel lit, no wlan, dock HDMI black, neither the UGREEN dock nor the ethernet hub
+   enumerated afterwards). On 10-10 a wake while still docked was "fine"; this one was not. The
+   boot's journal (now `-b -1`) is the evidence; read it before anything else on the next contact.
 6. PD above 5 V: our sink PDO is 5 V / 3 A only, so even a 9 V-capable dock gives at most 15 W.
    Worth a 9 V PDO once the SMB5's input-voltage window is confirmed (Android's choice is the
    reference). Not for this release.
@@ -200,7 +220,9 @@ Proposed path to the next RC, in order:
 
 ## 5. For Cliff, when back (one step at a time)
 
-1. Is the RP5 dark? Press power once. Tell me what the panel showed first (charging screen, logo,
-   nothing).
-2. Did you press and hold the power button around 20:12-20:13 last night?
-3. Leave it docked; I take it from there over ssh (postmortem, recorder, kernel 16 checks).
+Done 14:00-14:30: the RP5 was asleep, not dead (so the 05:12 docked boot on kernel 16 worked);
+it woke with no wifi and no dock; the 20:12 long press was nobody; the 5 s rule stays; the
+keyboard haptic question is closed (this unit's motor is bad); Cliff is swapping the UGREEN dock
+for the ethernet USB-C hub. Next: unplug, restart from Steam's power menu, plug the hub in; then
+over ssh: postmortem (journal of the 05:12 boot), kernel 16 checks, install kernel 16 + bsp-common
+30 + bsp-sm8250 35 + steam 55, deploy the new powerd, fresh undocked boot, dock rows with the mic.
