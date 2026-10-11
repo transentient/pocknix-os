@@ -44,3 +44,14 @@ if [ -n "$p1" ]; then
   fi
   rmdir "$fm"
 fi
+# Filesystem health, read-only (e2fsck -n never writes): a rootfs damaged by a power loss
+# explains slow boots, splash hangs and services that never start. CARD_FSCK=0 skips it.
+sudo umount "$mnt" 2>/dev/null; rmdir "$mnt" 2>/dev/null; trap - EXIT
+if [ "${CARD_FSCK:-1}" = 1 ]; then
+  echo "== e2fsck -n -f $p2 (read-only; a few minutes over the reader)"
+  t0=$(date '+%Y-%m-%d %H:%M:%S')
+  sudo e2fsck -n -f "$p2" 2>&1 | tail -n 25
+  echo "== e2fsck exit: ${PIPESTATUS[0]} (0 clean, 4 errors left = damaged, 8 operational error)"
+  echo "== reader I/O errors since the fsck started"
+  sudo journalctl -k --since "$t0" --no-pager 2>/dev/null | grep -iE 'I/O error|critical (medium|target)|sense|reset' | tail -n 10 || true
+fi

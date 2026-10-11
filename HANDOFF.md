@@ -1,15 +1,37 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## 2026-10-11 19:00: CURRENT STATE — read this first (Fable 5.1; RP5 still unreachable, card not in the reader; cures tightened, kernel 17 building)
+## 2026-10-11 20:10: CURRENT STATE — read this first (Fable 5.1; RP5 still unreachable, card not in the reader; kernel 17 packaged; test KERNEL proven = 15 + 0722 only; bsp-common 33 = wifi heal ladder fixed)
 
 - **Device:** no answer on .47/.68, its wifi MAC and the hub's MAC absent from a LAN sweep, card not in
   fusor's reader (Cliff last wrote 16:35; asked at 16:50 and 17:25 to power off, pull the card, put it
-  in the reader). Watcher bfwqo2pad (60 min from 18:36) polls both addresses, both MACs and the reader.
+  in the reader). Watchers bfwqo2pad (18:36-19:55, nothing) and b95127jsc (19:55-20:55) poll both addresses, both MACs and the reader (scratchpad watch-rp5.sh).
 - **Ruled out on fusor (18:35):** a module mismatch on the 05:12 test kernel. Its Image reports
   `Linux version 7.1.2 ... #2 SMP PREEMPT Sun Oct 11 05:10:06`, vermagic `7.1.2 SMP preempt mod_unload
   aarch64`, config without MODULE_SIG/MODVERSIONS, boot-image ramdisk = GPU firmware only: kernel 15's
   ath11k_pci/r8152 load on it. 0722 touches only the charger driver (notifier registered after its own
   supply). The no-wifi/no-ethernet/slow-splash state on 3/3 boots is UNEXPLAINED without the card.
+- **Established on fusor (20:15):** the test KERNEL on the card (scratchpad k16/image/KERNEL, md5 3acc947b) is
+  kernel 15 plus the 0722 charger patch and NOTHING else: embedded configs byte-identical (extract-ikconfig,
+  8580 lines, no diff), cmdlines identical, the same five appended dtbs with the RP5 dtb byte-identical
+  (kernel 15 taken from the 20261010f image's FAT, build/image/sm8250/pocknix-sm8250-sd.img, via 7z;
+  scratchpad rd/). CONFIG_CHARGER_QCOM_SMB5=y (built in, so 0722 is live), ATH11K_PCI=m. Fusor's own
+  NetworkManager logged no connectivity change today (no WAN outage seen from here).
+- **Found + fixed on fusor (bsp-common 33, UNTESTED):** our wifi heal could produce the 'no wifi on every
+  boot + slow boot' picture BY ITSELF, whatever started it. (1) healthy() was NM's internet check only (HTTP
+  to ping.archlinux.org): anything short of 'full' for 90 s after boot walked the ladder - connection up,
+  radio cycle, then a PCIe remove/rescan of the wifi chip (the firmware reload that renamed the netdev on
+  10-05 and can fail to come back). Now healthy = the default gateway answers a ping OR NM says full; the
+  PCIe reset runs only when the wifi device is gone or NM reports it unavailable with the radio on; no
+  profile = nothing to heal; the chip is found by driver (ath11k_pci/ath12k_pci) when the netdev is gone.
+  (2) pocknix-wifi-heal-boot.service was Type=oneshot wanted by multi-user.target; systemd orders a target
+  After= everything it Wants (systemd.target(5), Default Dependencies), so multi-user.target and every
+  After=multi-user.target unit (power mode, game affinity, fan control, diag) waited ~2.5 min for the
+  ladder on a boot without network; now Type=exec. Whether the SPLASH waited on it is NOT established
+  (plymouth-quit is not ordered after multi-user; the session is getty@tty1 autologin). Build: unit
+  pkg-bsp-common-33, BUILT 20:08 EXIT=0, log build/pkg-bsp-common-33.log. The card's wifi-heal.log shows which branch each
+  dead boot took. tools/dock/card-journal.sh now ends with a read-only `e2fsck -n -f` of the rootfs and a
+  reader I/O-error grep (CARD_FSCK=0 skips): a power-loss-damaged rootfs is a candidate for slow boots,
+  a splash hang and services that never start.
 - **Card checklist (plan doc 1.4, 19:00 paragraph):** list-boots; per kernel-16 boot grep ath11k,
   r8152, `usb 1-`, dwc3, NetworkManager, iwd, rfkill, radio, "input current limit", Oops/BUG/Call trace;
   `/var/lib/pocknix/wifi-heal.log` (boot heal verdicts per boot); `/var/lib/NetworkManager/NetworkManager.state`
@@ -29,12 +51,13 @@
   build/image/sm8250/KERNEL and the localrepo are now kernel 17 (a respin would ship 17). (4) HiFi-RP.conf parses on fusor (alsaucm virtual card, ${CardId} substituted)
   and every control name is one the device has shown. Design choice to confirm: DisplayPort
   `JackHWMute "Speaker"` (speaker unavailable while docked; drop the line to keep it selectable).
-- **Deploy bundle** (scratchpad deploy/): bsp-common 32, bsp-sm8250 36, steam 55, powerd, blackbox
+- **Deploy bundle** (scratchpad deploy/): bsp-common 33 (32 + heal ladder), bsp-sm8250 36, steam 55, powerd, blackbox
   service, linux 17. ORDER unchanged: postmortem.sh; pacman -U
-  bsp-common 32 + bsp-sm8250 36 + steam 55 (kernel only after the journal verdict); scp powerd; reboot
+  bsp-common 33 + bsp-sm8250 36 + steam 55 (kernel only after the journal verdict); scp powerd; reboot
   UNDOCKED; fresh-boot audio checks; hub plug; sleep-on-hub (expect `pocknix-usb-host: pre-sleep ...
   host -> device after N ms`, ethernet back ~5 s after wake); dock rows with the mic.
-- Nothing published, nothing pushed. Commits since 17:30: d6d55ae (boot-journal-summary tool), 4df94fc.
+- Nothing published, nothing pushed. Commits since 17:30: d6d55ae (boot-journal-summary tool), 4df94fc, 9aec219,
+  26d7b19 (card-journal tool), 3d714fc, plus the 20:10 commit (bsp-common 33, card fsck, this section).
 
 **NEXT:** 1) card in the reader -> checklist above -> revert to KERNEL.k15 -> card back -> boot undocked.
 2) Deploy + verify in the order above. 3) Release decision with Cliff after verification (HOLD

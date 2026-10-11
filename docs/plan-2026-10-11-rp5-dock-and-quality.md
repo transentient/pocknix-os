@@ -149,6 +149,22 @@ persists it; a wake whose post hook never ran leaves wifi off at every later boo
 heal's radio cycle ~2 min in). Kernel 17 (= 16 with 0722 v2, no dts change) was built and packaged at
 18:55 (log build/kernel-sm8250-17.log); it replaces 16 in the deploy bundle and in build/image.
 
+**20:15, from fusor:** the test KERNEL is proven to be kernel 15 plus the 0722 charger patch and
+nothing else. Kernel 15 was taken from the 20261010f image's FAT partition and both boot images were
+unpacked: embedded configs byte-identical (8580 lines), cmdlines identical, the same five dtbs with the
+RP5 dtb byte-identical; the charger driver is built in, wifi is a module from the rootfs. So the kernel
+side changed only the charger, and what the device did on those boots has to come from the journal. One
+thing fusor could settle: our own boot wifi heal could produce the picture by itself. Its health test
+was NetworkManager's internet check alone (an HTTP fetch from ping.archlinux.org), so any boot where that
+was not `full` within 90 s ran the whole ladder, ending in a PCIe remove/rescan of the wifi chip, the
+firmware reload that renamed the device on 10-05 and can fail to come back; and the boot unit was a
+oneshot that multi-user.target waits for (systemd orders a target after everything it wants), so power
+mode, game affinity and fan control waited ~2.5 min on such a boot. bsp-common 33 (UNTESTED) makes the
+health test the LAN gateway answering a ping (or NM `full`), reserves the PCIe reset for a wifi device
+that is gone or unusable, does nothing without a profile, and makes the boot unit Type=exec. Whether the
+splash itself waited on the old unit is not established; the card's `wifi-heal.log` will say which branch
+each dead boot took. `tools/dock/card-journal.sh` now ends with a read-only `e2fsck -n -f` of the rootfs.
+
 ## 2. The keyboard sound during setup
 
 Cliff's question: should a touch on an on-screen-keyboard key make a sound? Steam's own code
