@@ -51,7 +51,10 @@
   56x on kernel 16 because the LPASS macro modules were refused (no sound card) - BTF again, not audio.
 - **FLASH STARTED 23:18 on Cliff's go-ahead** ("go ahead and flash the card and i will stick it back into the RP5
   tomorrow"): unit flash-lexar-20261011, log build/flash-lexar-20261011.log (write, byte-exact readback, then
-  prep: deck ssh key, sshd, wifi.txt). Result line appended below when known.
+  prep: deck ssh key, sshd, wifi.txt). RESULT 23:24: WROTE 14283702272 bytes, readback sha 4edc2cc7...f9ea =
+  VERIFIED BYTE-EXACT 23:23:50 (no reader window drop this time); prep: authorized_keys for deck, sshd enabled,
+  wifi.txt (ssid ozma, country JP). Card unmounted, ready to pull. Cliff boots it on 10-12. Nothing on the card
+  is touched after this.
 
 **TOMORROW (2026-10-12), when Cliff boots the fresh card UNDOCKED:** first boot of a seedless image downloads Steam
 (needs wifi.txt -> ozma) and asks for the Steam login; sshd is enabled with cliff's key (deck@192.168.1.68).
