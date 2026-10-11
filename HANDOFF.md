@@ -33,9 +33,24 @@
 - **Deploy (device answers on .68):** `tools/dock/deploy-rp5.sh deck@192.168.1.68` = postmortem, bsp-common 33 +
   bsp-sm8250 36 + steam 55, powerd, blackbox service; then `--kernel` (18 once packaged, else 17) which
   reboots. Fresh undocked boot checks, hub sleep test, dock rows with the mic, as before.
+- **IMAGE 20261011 RESPUN 23:16 (Cliff asked for a fresh card instead of a package deploy):**
+  build/image/sm8250/holodor-rp5-20261011-seedless.img.zst sha256 6876679a...5e87d (3.4 GB zst, 14.1 GB raw) =
+  20261010f + linux-pocknix-sm8250 18 + bsp-common 33 + bsp-sm8250 36 + steam 55 (rootfs pacman -Q confirms all
+  four; sd-image kernel check 'agree (805ebb08, 7.1.2-18)'; log build/respin-rp5-20261011.log, script
+  build/respin-rp5-20261011.sh). The one 'target not found: linux' line is the known harmless base-kernel
+  removal warning (same in f's log). UNTESTED on a device. Flash to the Lexar (/dev/sdb, in the reader) is
+  scheduled for 23:35 (Cliff's objection window) by the scratchpad waiter: unit flash-lexar-20261011 =
+  build/flash-lexar-rp5-20261011.sh (write + byte-exact readback; the reader may drop a 120 KiB window ->
+  ~/rewrite-sd-window.sh) then build/prep-lexar-release-test.sh (deck ssh key, sshd, wifi.txt); log
+  build/flash-lexar-20261011.log. A fresh seedless card = first-boot Steam download + login again.
 - Nothing published, nothing pushed.
 
-**NEXT:** 1) card back in the RP5, boot undocked (Cliff). 2) `deploy-rp5.sh` base packages; `--kernel` after
+**NEXT:** 1) flash verified + prep done -> Cliff moves the card to the RP5, boots UNDOCKED (first boot: Steam
+download + login). When it answers on .68: postmortem.sh is not needed (fresh card); start the blackbox
+recorder (`deploy-rp5.sh --skip-postmortem` reinstalls the same versions and adds the recorder, or just
+postmortem.sh's last step); wifi-heal.log must say "ok (no action)"; multi-user < 40 s; Speaker + Headphones
+sinks; mic measurement; hub sleep/wake; dock rows; docked battery current at 100 %.
+1-old) card back in the RP5, boot undocked (Cliff). 2) `deploy-rp5.sh` base packages; `--kernel` after
 kernel 18 packages (~23:12). 3) Verify: wifi at boot (wifi-heal.log "ok (no action)"), multi-user < 40 s,
 Speaker + Headphones sinks, hub sleep/wake (`pocknix-usb-host` journal line), docked: `input current limit
 2000 mA` AND battery current >= 0 at 100 % (else chase pocknix-charge-full). 4) Release: HOLD until 3.
