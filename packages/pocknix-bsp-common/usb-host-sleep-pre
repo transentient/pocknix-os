@@ -6,9 +6,12 @@
 # the host on resume: `dwc3-qcom: port-1 HS-PHY not in L2` as the glue cuts the clocks, then
 # `xhci-hcd: WARNING: Host System Error`, the hub is dropped and never re-enumerates, and
 # the Type-C port is stuck until a reboot. Tearing the host down here (xhci removed, the
-# device disconnected cleanly) means the controller suspends idle; after resume the post
-# script re-enters host mode and the dock re-enumerates like a fresh plug (~2 s).
+# device disconnected cleanly, the DRD switch soft-resets the core) means the controller
+# suspends idle; after resume the post script re-enters host mode and the dock re-enumerates
+# like a fresh plug, which is the one recovery that has always worked (replug).
 # Writes the dwc3 debugfs `mode` switch, which only acts when dr_mode is "otg" (our boards).
+# The switch runs in a kernel work item: wait for the readback to confirm it before the
+# suspend goes on (the host exit with a hub + ethernet + DP attached takes a few 100 ms).
 set -u
 STATE=/run/pocknix/usb-host-sleep
 rm -f "${STATE}"
@@ -22,13 +25,17 @@ for m in /sys/kernel/debug/usb/*.usb/mode; do
   done
   [ -n "${dev}" ] || continue
   mkdir -p /run/pocknix
-  if echo device > "${m}" 2>/dev/null; then
-    echo "${m}" >> "${STATE}"
-    logger -t pocknix-usb-host "pre-sleep: ${m} host -> device (usb ${dev} attached)"
-  else
+  if ! echo device > "${m}" 2>/dev/null; then
     logger -t pocknix-usb-host "pre-sleep: could not switch ${m} (usb ${dev} attached)"
+    continue
   fi
+  echo "${m}" >> "${STATE}"
+  # wait (up to 5 s) until the role work has removed xhci and the core reads back 'device'
+  n=0
+  while [ "$(cat "${m}" 2>/dev/null)" != device ] && [ "${n}" -lt 50 ]; do
+    sleep 0.1
+    n=$((n + 1))
+  done
+  logger -t pocknix-usb-host "pre-sleep: ${m} host -> $(cat "${m}" 2>/dev/null) after $((n * 100)) ms (usb ${dev} attached)"
 done
-# let the role work run (xhci removal + device disconnect) before the suspend proceeds
-[ -s "${STATE}" ] && sleep 1
 exit 0
