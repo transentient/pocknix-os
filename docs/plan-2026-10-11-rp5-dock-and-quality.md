@@ -71,6 +71,26 @@ for anything above 500 mA; APSD re-run at most 5 times; `online` reported as a b
 ends upowerd's "online TRUE invalid gboolean" spam). Built and booted as a test kernel at 05:12
 (docked). The device did not come back on the network and the dock HDMI stayed black; see 1.4.
 
+### 1.2b The dead dock after sleep: mechanism and cure (written 2026-10-11 17:00, UNTESTED)
+
+Mechanism, from `drivers/usb/dwc3/dwc3-qcom.c` and `core.c`: on system suspend the glue reads the
+power-event status, prints `port-1 HS-PHY not in L2` when the HS PHY is still active, and cuts the
+controller clocks anyway. With the RP5's `wakeup-source` on `usb_1` the dwc3 core keeps the host
+alive across suspend (no `dwc3_core_exit`) and relies on the PHY being in L2; a dock or hub with an
+active device keeps it out of L2, so the controller resumes corrupted: `xhci-hcd: WARNING: Host
+System Error`, the hub is dropped, no re-enumeration, Type-C stuck in device role until a reboot
+(RP5 2026-10-10 row 8; Odin 2026-09-07 with the ethernet hub). With nothing attached the warning
+alone is harmless (09-07 control sleep).
+
+Cure in software we own (bsp-common 31, `sleep.d/pre/010-usb-host` + `post/010-usb-host`): before
+suspend, if any USB device is attached, the controller is taken out of host mode through dwc3's
+debugfs `mode` switch (xhci removed, the device disconnected cleanly, the controller suspends
+idle), and host mode is restored after resume, so the dock re-enumerates like a fresh plug. Kernel
+side, for the next build: `usb_1` loses `wakeup-source` in the RP5 dtsi, so dwc3 fully exits and
+re-initialises the core across suspend (the i.MX glue's `needs_full_reinit` path). Note the Odin's
+`usb_1` never had `wakeup-source` and still died, so the full-reinit path alone is not the whole
+answer there; the pre-sleep teardown covers both devices.
+
 ### 1.3 Still open on the dock, in order of user pain
 
 1. **Docked wake shows nothing for ~74 s** (row 5). Users will hold the power button. Needs a
@@ -184,6 +204,21 @@ Also from the audit: pipewire/pipewire-pulse are socket-activated and are pulled
 transaction only by the volume daemon's `Wants=`; the heal, `alsactl restore`, the UCM sequence and
 the volume daemon all write the mixer with no ordering between them (the daemon's 121-then-122
 trick makes it final at boot only).
+
+### 3.3b The cure (bsp-sm8250 36, written 2026-10-11 17:00, UNTESTED): state that no restart can undo
+
+The 3.2 audit's top item exists because the speaker's hardware state lived in scripts that run once
+while the UCM verb included the upstream `wsa-macro` / `wsa881x` SpeakerEnableSeq files, which turn
+the companders back ON and set PA 12 every time WirePlumber (re)creates the card. HiFi-RP.conf now
+declares the complete state itself (companders OFF, WSA digital 122, PA 8, boost 8.5 V; headphones
+class-AB, RX companders OFF, digital 122) in sequences that are idempotent, so a re-parse is
+harmless by construction. The DisplayPort device is unconditional (kernel 0721 accepts an audio
+prepare with the link down, so ACP can probe it undocked) with `DP0 Jack` + `JackHWMute Speaker`
+driving availability, and `pocknix-dp-audio-watch` (the WirePlumber restart on dock plug) is gone.
+To verify: a fresh UNDOCKED boot shows Speaker and Headphones (never auto_null); a dock plug moves
+the default to DisplayPort with no restart; unplug moves it back; the mic shows no pumping after a
+plug. The volume planter's "write during playback" trick stays until the idle-write question
+(section 3.2 item "idle mixer writes don't land") is measured with the regmap cache bypassed.
 
 ### 3.3 What I changed in response (bsp-sm8250 35, pocknix-steam 55, UNTESTED on a device)
 

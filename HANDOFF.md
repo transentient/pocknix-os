@@ -1,6 +1,54 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## 2026-10-11 14:30: CURRENT STATE — read this first (Fable 5.1; Cliff back; RP5 rebooting onto the ethernet hub)
+## 2026-10-11 17:30: CURRENT STATE — read this first (Fable 5.1; RP5 unreachable: no wifi, no USB ethernet on the 05:12 test kernel; three cures written, UNTESTED)
+
+- **Device state:** booted (Steam up) on the 05:12 test KERNEL (= kernel 16, 0722) with NO wifi and NO
+  ethernet from the USB-C hub (hub link LED on at the switch, nothing on the device); one reboot froze at
+  the Holodor splash (hub NOT attached, Cliff); power-button alone did not boot after a power-off, ABL
+  menu did. Three of three boots on the test kernel had no wifi; ath11k and r8152 are both modules. On
+  fusor the test image == production build (cmdline, dtbs, kernelrelease 7.1.2, only the charger driver
+  differs), so the cause is NOT a module mismatch; the journal on the card is the only evidence. Cliff was
+  asked (16:50, 17:25) to power off, pull the card and put it in fusor's reader: then
+  `journalctl -D <mnt>/var/log/journal --list-boots` + `-b <id>` for the three kernel-16 boots (ath11k,
+  r8152, usb, "input current limit", module errors), THEN `build/revert-lexar-k16.sh /dev/sdX` (puts
+  KERNEL.k15 back). Watcher b0thi9pev polls .47/.68 and the reader.
+- **Cliff's answers (14:10):** did NOT press power at 20:12 on 10-10 (-> phantom key, bsp-common 30 +
+  overlay powerd); keep the 5 s rule; OSK haptics CLOSED (bad motor); swap the UGREEN dock for the
+  ethernet hub. 16:35: "I am not paying ... so that you can go 'well the USB host just dies'": cure the
+  problem in code, not the symptom. Cures written since (all PACKAGED in build/localrepo/sm8250, UNTESTED):
+  1. **bsp-sm8250 36** — HiFi-RP.conf declares the whole speaker/headphone hardware state in idempotent
+     UCM sequences (companders OFF, WSA digital 122, PA 8, boost idx 15 = 8.5 V; RX companders OFF +
+     digital 122) instead of the upstream includes that re-enabled the companders on every WirePlumber
+     re-parse; DisplayPort device UNCONDITIONAL (kernel 0721 accepts prepare with the link down; DP0 Jack
+     + JackHWMute Speaker drive availability); pocknix-dp-audio-watch (WirePlumber restart on dock plug)
+     REMOVED. Verify: fresh UNDOCKED boot = Speaker + Headphones sinks present (not auto_null); dock plug
+     = default moves to DisplayPort without any restart; unplug = back to Speaker; mic: no pumping after
+     a plug (tools/rp5-audio/pumptest.py).
+  2. **bsp-common 31** — sleep.d pre/post 010-usb-host: before suspend, if a USB device is attached, the
+     dwc3 controller leaves host mode (debugfs /sys/kernel/debug/usb/*.usb/mode <- device; xhci torn
+     down cleanly) and re-enters host after resume (state file /run/pocknix/usb-host-sleep, journal tag
+     pocknix-usb-host). Mechanism: dwc3-qcom cuts the clocks with the HS PHY not in L2 when a device is
+     active ("port-1 HS-PHY not in L2" -> "xhci Host System Error" -> hub dropped, Type-C stuck; RP5
+     10-10, Odin 09-07). Verify: sleep on the hub, wake by power button: ethernet + hub back within ~5 s;
+     then sleep docked on the UGREEN: DP back. NOTE the Odin's sm8550 usb_1 has NO wakeup-source and
+     still died on 09-07, so the controller-level full reinit alone is not enough there; the pre-sleep
+     teardown is the cure that covers both.
+  3. **dts** sm8250-retroidpocket-common.dtsi: `&usb_1 { /delete-property/ wakeup-source; }` (dwc3 full
+     exit/reinit across suspend) — in the tree for the NEXT kernel build (not in kernel 16's image).
+  4. (14:20) **bsp-common 30 + overlay pocknix-powerd**: PMIC-verified 5 s long press.
+- Deploy bundle staged: scratchpad deploy/ = linux 16, bsp-common 31, bsp-sm8250 36, steam 55, powerd,
+  pocknix-blackbox.service. ORDER once the device is back on kernel 15 with wifi: postmortem.sh; pacman -U
+  bsp-common 31 + bsp-sm8250 36 + steam 55 (NOT the kernel until the journal verdict on 16); scp powerd to
+  /usr/local/bin; reboot UNDOCKED; fresh-boot audio checks; hub plug; sleep-on-hub test; dock rows.
+- Nothing published, nothing pushed. Commits: 866991c (powerd), 7c6613e (cures).
+
+**NEXT:** 1) card in the reader -> offline journals (what killed wifi/ethernet on kernel 16; also the
+frozen boot and the 05:12 boot's idle sleep/wake) -> revert to KERNEL.k15 -> card back -> boot undocked.
+2) Deploy + verify in the order above. 3) Kernel 17 = 16 (0722, if the journal clears it) + the usb_1
+dts change; full `make kernel DEVICE=sm8250` + package, install as a PACKAGE (never a bare KERNEL swap
+again). 4) Release decision with Cliff after the verification.
+
+## 2026-10-11 14:30: PREVIOUS STATE (Fable 5.1; Cliff back; RP5 rebooting onto the ethernet hub)
 
 - **The RP5 was ASLEEP, not dead** (Cliff pressed power ~14:00: panel lit at once). So the 05:12
   docked reboot onto the 0722 test kernel (kernel 16) BOOTED and later idle-suspended. It woke with
