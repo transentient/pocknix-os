@@ -24,20 +24,21 @@
   the dwc3 `mode` readback to say device (logs the ms) instead of a fixed 1 s. (3) 0722 v2 looks the
   tcpm source supply up on every evaluation (no cached unreferenced pointer); compiled as a single
   object with W=1 clean except kernel-doc, then documented. linux-pocknix-sm8250 17 = 16 + 0722 v2, NO
-  dts change: root unit kernel-sm8250-17 (log build/kernel-sm8250-17.log, started 18:48, ~40 min;
-  watcher b2t1qp2xd). (4) HiFi-RP.conf parses on fusor (alsaucm virtual card, ${CardId} substituted)
+  dts change: BUILT + PACKAGED 18:55 (unit kernel-sm8250-17, log build/kernel-sm8250-17.log; 4 patches in
+  40-holodor; Image 'Linux version 7.1.2 #1 ... 18:53'; the RP5 dtb's usb@a6f8800 keeps wakeup-source).
+  build/image/sm8250/KERNEL and the localrepo are now kernel 17 (a respin would ship 17). (4) HiFi-RP.conf parses on fusor (alsaucm virtual card, ${CardId} substituted)
   and every control name is one the device has shown. Design choice to confirm: DisplayPort
   `JackHWMute "Speaker"` (speaker unavailable while docked; drop the line to keep it selectable).
 - **Deploy bundle** (scratchpad deploy/): bsp-common 32, bsp-sm8250 36, steam 55, powerd, blackbox
-  service, linux 16 (replace with 17 when its package lands). ORDER unchanged: postmortem.sh; pacman -U
+  service, linux 17. ORDER unchanged: postmortem.sh; pacman -U
   bsp-common 32 + bsp-sm8250 36 + steam 55 (kernel only after the journal verdict); scp powerd; reboot
   UNDOCKED; fresh-boot audio checks; hub plug; sleep-on-hub (expect `pocknix-usb-host: pre-sleep ...
   host -> device after N ms`, ethernet back ~5 s after wake); dock rows with the mic.
 - Nothing published, nothing pushed. Commits since 17:30: d6d55ae (boot-journal-summary tool), 4df94fc.
 
 **NEXT:** 1) card in the reader -> checklist above -> revert to KERNEL.k15 -> card back -> boot undocked.
-2) kernel 17 package -> deploy bundle. 3) Deploy + verify in the order above. 4) Release decision with
-Cliff after verification (HOLD recommended).
+2) Deploy + verify in the order above. 3) Release decision with Cliff after verification (HOLD
+recommended).
 
 ## 2026-10-11 17:30: PREVIOUS STATE (Fable 5.1; RP5 unreachable: no wifi, no USB ethernet on the 05:12 test kernel; three cures written, UNTESTED)
 

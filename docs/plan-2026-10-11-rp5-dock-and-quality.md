@@ -146,8 +146,8 @@ order: `journalctl -D <mnt>/var/log/journal --list-boots`; per kernel-16 boot: `
 every boot, incl. UNRECOVERED) and `<mnt>/var/lib/NetworkManager/NetworkManager.state`
 (`WirelessEnabled`: our 000-wifi sleep hook turns the radio off through NetworkManager, which
 persists it; a wake whose post hook never ran leaves wifi off at every later boot until the boot
-heal's radio cycle ~2 min in). Kernel 17 (= 16 with 0722 v2, no dts change) builds as root unit
-kernel-sm8250-17 (log build/kernel-sm8250-17.log, started 18:48).
+heal's radio cycle ~2 min in). Kernel 17 (= 16 with 0722 v2, no dts change) was built and packaged at
+18:55 (log build/kernel-sm8250-17.log); it replaces 16 in the deploy bundle and in build/image.
 
 ## 2. The keyboard sound during setup
 
