@@ -324,6 +324,37 @@
 		#sound-dai-cells = <1>;
 	};
 
+	/*
+	 * HOLODOR 2026-10-12: the DisplayPort AUX pair reaches the USB-C
+	 * connector through a GPIO-driven SBU switch (part unmarked). The live
+	 * Android device tree of the Retroid Pocket 5 (kona HDK, 4.19.157) drives
+	 * it from the DP display node as "qcom,dp-gpio-aux-switch": aux-en on
+	 * tlmm 9 (held 0 while DisplayPort is up = enable active low) and aux-sel
+	 * on tlmm 8 (1 when the plug is in the CC2 = reversed orientation). The
+	 * kona reference's FSA4480 (i2c 0x43) is not populated here. Without this
+	 * node the AUX pair was never routed for a reversed plug: no picture on
+	 * either dock (tlmm 9 was last driven by the phantom redriver node that
+	 * ROCKNIX carried, with the same active-low polarity).
+	 */
+	dp_sbu_mux: usb-sbu-mux {
+		compatible = "gpio-sbu-mux";
+
+		enable-gpios = <&tlmm 9 GPIO_ACTIVE_LOW>;
+		select-gpios = <&tlmm 8 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&dp_aux_switch_default>;
+
+		mode-switch;
+		orientation-switch;
+
+		port {
+			dp_sbu_mux_in: endpoint {
+				remote-endpoint = <&pm8150b_typec_sbu_out>;
+			};
+		};
+	};
+
 	reserved-memory {
 		cont_splash_mem: splash_region@9c000000 {
 			reg = <0x0 0x9c000000 0x0 0x2300000>;
@@ -800,8 +831,10 @@
 	 * it failed silently. The phantom swallowed the plug orientation, so the
 	 * combo PHY never switched its lanes: a reversed USB-C plug had power
 	 * but no SuperSpeed and no DisplayPort (both docks, 2026-10-12). The SS
-	 * lanes go straight from the PHY to the connector; the PHY now owns the
-	 * orientation and mode switches (see usb_1_qmpphy below).
+	 * lanes go straight from the PHY to the connector; the PHY owns the lane
+	 * orientation (usb_1_qmpphy below) and a GPIO switch the AUX pair
+	 * (dp_sbu_mux in the root node). tlmm 9 was this node's enable pin: it is
+	 * the AUX switch enable.
 	 */
 };
 
@@ -1024,6 +1057,12 @@
 				};
 			};
 
+			port@2 {
+				reg = <2>;
+				pm8150b_typec_sbu_out: endpoint {
+					remote-endpoint = <&dp_sbu_mux_in>;
+				};
+			};
 		};
 	};
 };
@@ -1305,6 +1344,13 @@
 		bias-pull-up;
 	};
 
+	dp_aux_switch_default: dp-aux-switch-default-state {
+		pins = "gpio8", "gpio9";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
 	fan_pwr_en_state: fan-pwr-en-state {
 		pins = "gpio7";
 		function = "gpio";
@@ -1492,7 +1538,9 @@
 	/*
 	 * no redriver on this board: the PHY flips its lanes for a reversed plug
 	 * (orientation-switch only, as sm8150-hdk; mode-switch is not needed for
-	 * the lane flip and kernel 23 with it did not come back on the network)
+	 * the lane flip and kernel 23 with it hung at the logo on a docked boot:
+	 * the PHY re-initialised itself on the mode change). The AUX pair is
+	 * switched by dp_sbu_mux, which carries the mode-switch instead.
 	 */
 	orientation-switch;
 };

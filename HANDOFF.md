@@ -1,3 +1,40 @@
+# 2026-10-13 00:10: NIGHT SESSION (Cliff present, RP5 in ANDROID on adb usb + wifi 192.168.1.71:5555)
+
+**Two root causes found tonight, both from the LIVE Android device tree + the mic** (scratchpad android/):
+1. **Reversed-plug DP = GPIO AUX switch, not a hardware limit.** Android's DP node: `qcom,dp-gpio-aux-switch`,
+   aux-en tlmm 9 (0 while DP up = active low), aux-sel tlmm 8 (1 = CC2/reversed). i2c15 is DISABLED on
+   Android (fsa4480@43 never probes). ROCKNIX's phantom redriver used tlmm 9 active-low as "enable" = the AUX
+   switch enable: normal DP worked <= 22 because of it; 24/25 leave the pin to the bootloader (normal-plug
+   DP on 24/25 UNPROVEN). **Kernel 26** (building, unit kernel-sm8250-26, log build/kernel-sm8250-26.log):
+   dts `dp_sbu_mux` (gpio-sbu-mux, enable tlmm 9 ACTIVE_LOW, select tlmm 8 ACTIVE_HIGH, mode-switch +
+   orientation-switch, connector port@2), pinctrl dp_aux_switch_default, CONFIG_TYPEC_MUX_GPIO_SBU=y.
+   Deploy: `tools/dock/deploy-rp5.sh deck@<ip> --kernel --skip-postmortem` once the RP5 is back on Linux.
+   Test matrix: Elecom + UGREEN, normal + reversed, capture frame each (DP dead in BOTH orientations =
+   enable polarity wrong; one only = select polarity).
+2. **Speaker: Android max is 13.9 dB louder than our ceiling, cleaner, no pumping** (mic gain 0, Android
+   media 15/15, com.android.music AudioPreview on file:///sdcard/Download/*.wav): tone f0 -8.6 dBFS H2 -31
+   H3 -38 (ours 10-10 at digital 122: -22.5 / -27 / -32); pink24 -25.3 crest 12.8, pink40 -40.5 (linear, no
+   loudness DSP); probeburst pumping -0.3 dB with the companders ON (mixer_paths_qrd.xml speaker path:
+   WSA_COMP1/2 1, Spkr COMP/BOOST/VISENSE/SWR DAC_Port 1, digital default 96). Our chain loses ~14 dB in its
+   own gain structure. NEXT on Linux: scratchpad rp5-audio-state.sh (every stage as it is) + the reduced-level
+   sweep scratchpad/linux-sweep.sh (digital 96..122, PA 8/12, COMP, BOOST; f0/H2/H3 per step at slider 40 %).
+   **Cliff 00:00: "could we do less than full volume tests"** - reduced level only; a ceiling check = one
+   announced 3 s tone with his ok.
+Android dump: scratchpad/android/{live.dts (dtc -I fs of /sys/firmware/devicetree/base), typec.txt, i2c.txt,
+drivers.txt, dmesg.txt, logcat.txt, vendor-audio/*.xml, audio_flinger.txt, dumpsys-*.txt}. adb over wifi
+(`adb -s 192.168.1.71:5555`) survives undocking. Android dock watcher: scratchpad/android-dock-watch.sh ->
+android/dock-watch.log (needs fusor's capture dongle, which is OFF fusor's USB since ~23:50; mic on card 1).
+**00:15 UPDATE:** Android PROVES the hardware: the Elecom dock shows a picture in BOTH plug orientations on
+Android (capture frames build/dock-evidence/android-elecom-orient{A,B-flipped}-20261013-*.png; Android's
+"DP connected" toast in the second). Kernel 26 PACKAGED 00:06 (build/localrepo/sm8250/linux-pocknix-sm8250-7.1.2-26,
+dtb verified: usb-sbu-mux enable <tlmm 9 ACTIVE_LOW> select <tlmm 8 ACTIVE_HIGH>, connector port@2, pinctrl).
+Next: RP5 boots Holodor docked -> scratchpad/dp-state.sh <ip> k25-pre (raw tlmm 8/9/65 via /dev/mem + orientation
++ drm + frame) -> deploy 26 -> dp-state.sh k26-<orient> -> flip -> again. Android reachable on the dock at
+192.168.1.47:5555 (adb tcpip), wifi .71 when undocked.
+
+Owed in this order: capture dongle back -> Android reversed dock proof -> boot Linux -> audio state + sweep ->
+deploy 26 -> dock matrix on 26 -> overnight row is VOID (the RP5 left the dock for Android).
+
 # Holodor — handoff to fusor (2026-08-02)
 
 ## 2026-10-12 20:05: CURRENT STATE — read this first (Fable 5.1; kernel 25 on the device, docked overnight; both docks pass; reversed plug = everything but video)
