@@ -58,6 +58,33 @@
   Cliff: the Elecom is a DST-090BP1SV (HDMI out, "125 W PD pass-through"); the UGREEN is a Revodok CM828. On the
   Elecom the DP alt mode probe failed (`typec_displayport port0-partner.0: probe ... -71`) and the RP5 screen stayed
   on; its 0.5 A contract is suspicious for a 125 W hub: capture its PDO list on the kernel-20 plug (watcher running).
+- **15:13-15:30 Elecom DST-090BP1SV on kernel 20 (v4): POWER PASS, VIDEO + USB FAIL (hub-side quirks + unknown).**
+  tcpm log (read once, /tmp/tcpm-hub.log on the device, copy scratchpad k20-elecom-plug.txt): the hub's PDOs are
+  **5 V 0.5 A [RUDE], 9 V 1.34 A, 15 V 2 A, 20 V 4.25 A**; our dts asks 5 V only -> `Requesting PDO 0: 5000 mV,
+  500 mA [mismatch]`; v4 applied exactly that (`iclmax=0a cfg=0a ovr=00 load=b5`), battery at 100 % trickling
+  -100..-200 mA with the screen on. So the hub is fine and the contract is honoured; 5 V is just a 2.5 W profile on
+  this hub. **Kernel 21 = dts sink-pdos + 9 V / 2 A, op-sink 18 W** (USBIN_ADAPTER_ALLOW_CFG 0x1360 reads 0x07 =
+  5 V or 9-12 V allowed; the 65 W charger offers 9 V 3 A -> 18 W, the Elecom 9 V 1.34 A -> 12 W). Building 15:19
+  (unit kernel-sm8250-21). UNTESTED; test on the bare charger first (blackbox: vmax=9000000, iclmax=28, no OV).
+  DisplayPort: the hub is a PLUG (VDO 0x0c05, no receptacle bit: cap=UFP_D, DP 1.3, pins C+D in the DFP_D field,
+  the kernel swaps them for plugs), tcpm entered the mode after the hub's DR swap (we are host), Configure ACKed,
+  sysfs `configuration = USB [sink]` (= partner as UFP_D, we are the source: correct), `pin_assignment C [D]`
+  (D = 2 lanes + USB, the hub prefers multi-function), `hpd = 1`. The first typec_displayport probe failed -71 =
+  "port can only be DFP_U" (we were still the UFP before the swap; harmless). BUT msm_dp never gets a link: with
+  drm.debug=0x100 `msm_dp_hpd_plug_handle` -> phy init -> 3.5 s of silence (drm_dp_read_dpcd_caps = AUX timeouts,
+  no log) -> runtime suspend -> `After hpd_state=0`, `link_ready = false`; forcing pin C is identical. AUX (SBU) is
+  dead on this plug. USB: `usb 1-1: new high-speed USB device` then `can't set config #1, error -71`, disconnected;
+  no SuperSpeed device ever; no ethernet (.47 unreachable). Orientation of this plug: cc2=5 polarity=1 (REVERSED).
+  HYPOTHESIS (test = Cliff flips the cable at the RP5 end; watcher by8pk3rs5 captures): a reverse-orientation bug
+  in the SBU/SS lane routing (nb7vpq904m AUX_CC_REG / lane swap or the pm8150b sbu mux) - the UGREEN worked 10-11
+  in whatever orientation it had. If the flipped plug brings DP + USB up, the fix is in the retimer path.
+  TRAP: reading /sys/kernel/debug/dri/0/DP-1/dp_test_* with no link OOPSES (3 NULL derefs, kernel tainted D, still
+  running); dp_debug is safe. CONFIG_DYNAMIC_DEBUG is off; drm debug via /sys/module/drm/parameters/debug.
+- **Slider (15:15):** Cliff moved Steam's slider to ~50 % -> Speaker sink 0.45, loud filter stays 1.00. Steam does
+  NOT move the filter. The 0.50 on the filter earlier came from the no-sink first boot (the filter was the only
+  sink = default; the rocker/slider set it; WirePlumber restored it next boot). Robustness fix for bsp-sm8250 38:
+  pocknix-speaker-volume pins the filter sink's volume to 1.0 (assert at start + whenever it changes). The
+  remaining "100 % = where 40-50 % should be" needs the NTG measurement (tools/rp5-audio) with the device by the mic.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
