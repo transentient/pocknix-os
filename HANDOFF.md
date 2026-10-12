@@ -215,6 +215,13 @@
   (that is the fix working); a flip is tested with the device up so the journal catches any fault.
   NEXT: Cliff docks NORMAL (regression: DP + SS hub + ethernet; dock watcher armed) -> then FLIP (expect SS + DP in
   reverse for the first time) -> blackbox/typec/USB evidence -> HANDOFF + memory.
+- **19:01 KERNEL 24, ELECOM PLUGGED REVERSED (orientation=reverse): USB + ETHERNET + CHARGING ALL UP.** First time ever
+  in this orientation: USB2 hub 1da0:2188, USB3.1 hubs 1da0:0188 / 2109:0822 at 10 Gbps, Realtek 8153 ethernet at
+  5 Gbps = enu1u1u4 192.168.1.47, 9 V 1.34 A contract, battery -1.75 A at 97 %. The phantom-redriver removal + PHY
+  orientation-switch is the fix for the SuperSpeed side. DisplayPort in reverse: alt mode entered + configured
+  (USB [sink], pin D, hpd=1) but `drm=disconnected`, DSI still enabled 20 s after the plug - under investigation
+  (AUX / SBU polarity in reverse: the connector's SBU graph link went to the phantom and was dropped in 23/24; the
+  combo PHY's dp_aux_init/configure use `reverse` for the DP lanes).
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
