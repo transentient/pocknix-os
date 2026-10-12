@@ -114,7 +114,7 @@
   FORCE_9V / FORCE_12V / CONTINUOUS (bit3) set BEFORE their PD stack requests; CONTINUOUS also needs
   USBIN_CONT_AICL_THRESHOLD_CFG 0x1384 = contract - 1 V (4.0-5.5 V in 100 mV steps, >= 5.6 V in 200 mV from raw 16);
   switcher freq 0x1150 (vendor 5 V = 600 kHz, 9 V = 1050 kHz; the chip already reads 0x08 = 1050 kHz, untouched).
-  **0722 v5 = kernel 22** (building 15:52, unit kernel-sm8250-22): CONTINUOUS from init, threshold follows the tcpm
+  **0722 v5 = kernel 22** (REAL build started 15:51, unit kernel-sm8250-22, log build/kernel-sm8250-22.log; a first start at 15:49 was a false one: the python edit had aborted on a whitespace mismatch, nothing was written and the unit was rebuilding 21 - stopped): CONTINUOUS from init, threshold follows the tcpm
   contract voltage (VOLTAGE_NOW of the tcpm psy), 4.0 V when unplugged/5 V, 8.0 V at 9 V; log line
   `input voltage 9000 mV: continuous allowance, AICL threshold 8000 mV`. PASS = on the bare charger `usbint=10`,
   `pp=95`, `vmax=9000000`, `iclmax=28` (2 A), battery charging (negative current) or FULL at 100 % with ~0; then

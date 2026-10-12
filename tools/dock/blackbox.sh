@@ -17,6 +17,9 @@
 #   ovr=0x1342 CMD_ICL_OVERRIDE (bit0 = USB 2.0/3.0 100/500/900 override, NOT high-current)  load=0x1365 USBIN_LOAD_CFG (bit4 SW ICL survives APSD)
 #   iclopt=0x1366 USBIN_ICL_OPTIONS (bit0 high-current mode, bit1 USB51 500 mA, bit2 USB3)  opt1=0x1362 USBIN_OPTIONS_1 (bit3 APSD/BC1.2 on)
 #   aiclopt=0x1380 USBIN_AICL_OPTIONS (bit7 suspend on collapse, 4 periodic rerun, 3 ADC, 2 AICL on)
+#   allow=0x1344 USBIN_ADAPTER_ALLOW_OVERRIDE (bit3 continuous, 2 force 12 V, 1 force 9 V, 0 force 5 V; 0 = the
+#     0x1360 windows), cont=0x1384 continuous AICL threshold (4.0-5.5 V in 100 mV, >= 5.6 V in 200 mV from 16).
+#   usbint bit3 = USBIN_OV, pp bit6 = USBIN suspended (kernel 21 at 9 V: usbint=18 pp=d8 = input refused).
 #   2026-10-11 docked boot: icl=0a aicl=0a (500 mA) with imax=2000000 = the drain; 0722 v3 (kernel 19) should show iclmax=28.
 set -u
 OUT=/var/lib/pocknix/blackbox.log
@@ -44,7 +47,7 @@ while :; do
   if [ -r "$RM" ]; then
     line+=" | smb chg1=$(rd $((0x1006))) chg2=$(rd $((0x1007))) chgint=$(rd $((0x1010))) icl=$(rd $((0x1107))) aicl=$(rd $((0x1108))) pp=$(rd $((0x110B)))"
     line+=" apsd=$(rd $((0x1307))) apsdr=$(rd $((0x1308))) usbint=$(rd $((0x1310))) tcsnk=$(rd $((0x1506))) tcsrc=$(rd $((0x1508))) tcsm=$(rd $((0x1509))) tcmisc=$(rd $((0x150B)))"
-    line+=" iclmax=$(rd $((0x1106))) cfg=$(rd $((0x1370))) ovr=$(rd $((0x1342))) load=$(rd $((0x1365))) iclopt=$(rd $((0x1366))) opt1=$(rd $((0x1362))) aiclopt=$(rd $((0x1380)))"
+    line+=" iclmax=$(rd $((0x1106))) cfg=$(rd $((0x1370))) ovr=$(rd $((0x1342))) load=$(rd $((0x1365))) iclopt=$(rd $((0x1366))) opt1=$(rd $((0x1362))) aiclopt=$(rd $((0x1380))) allow=$(rd $((0x1344))) cont=$(rd $((0x1384)))"
   fi
   echo "$line" >> "$OUT"; sync -d "$OUT" 2>/dev/null || sync
   if [ "$(stat -c %s "$OUT")" -gt 8388608 ]; then tail -n 20000 "$OUT" > "$OUT.tmp" && mv "$OUT.tmp" "$OUT"; fi
