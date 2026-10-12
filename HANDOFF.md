@@ -102,6 +102,29 @@
   (3) the PMIC SBU switch (pm8150b_typec_sbu_out). Register dump in normal orientation saved: scratchpad
   typec-regs-normal.txt (PMIC 0x1500-0x156f + nb7 regmap); repeat REVERSED to diff. typec_displayport probe -71
   = "port can only be DFP_U" = harmless (first probe while we are still the UFP, before the hub's DR swap).
+- **15:42 kernel 21 (9 V PDO) ON THE DEVICE = FAIL, input over-voltage.** Booted docked on the Elecom (normal
+  orientation): `input current limit 1340 mA (USB PD contract)`, tcpm `vmax=9000000` (9 V negotiated), DP connected,
+  BUT blackbox `usbint=18` (USBIN_INT_RT_STS bit3 = USBIN_OV + PLUGIN), `pp=d8` then `13` (USBIN suspended, power
+  path = battery), `chg1=46` (charge disabled), battery `st=Full` discharging +200..+800 mA at 100 %. 0x1360 = 0x07
+  (5 V or 9-12 V) is not enough: the chip trips OV on the 5 -> 9 V step. Live fix impossible (regmap debugfs refuses
+  writes); the kernel 20 package is gone from localrepo (build-packages keeps one release) so NO rollback was done:
+  the RP5 is still on kernel 21 (its KERNEL.bak = the 20 image, untouched; a bare swap stays forbidden).
+  **On kernel 21 no PD source charges the RP5 (the 65 W charger offers 9 V too); a USB-A / 5 V-only source does.**
+  Vendor recipe (dl/smb5-lib.c smblib_set_usb_pd_allowed_voltage): USBIN_ADAPTER_ALLOW_OVERRIDE 0x1344 = FORCE_5V /
+  FORCE_9V / FORCE_12V / CONTINUOUS (bit3) set BEFORE their PD stack requests; CONTINUOUS also needs
+  USBIN_CONT_AICL_THRESHOLD_CFG 0x1384 = contract - 1 V (4.0-5.5 V in 100 mV steps, >= 5.6 V in 200 mV from raw 16);
+  switcher freq 0x1150 (vendor 5 V = 600 kHz, 9 V = 1050 kHz; the chip already reads 0x08 = 1050 kHz, untouched).
+  **0722 v5 = kernel 22** (building 15:52, unit kernel-sm8250-22): CONTINUOUS from init, threshold follows the tcpm
+  contract voltage (VOLTAGE_NOW of the tcpm psy), 4.0 V when unplugged/5 V, 8.0 V at 9 V; log line
+  `input voltage 9000 mV: continuous allowance, AICL threshold 8000 mV`. PASS = on the bare charger `usbint=10`,
+  `pp=95`, `vmax=9000000`, `iclmax=28` (2 A), battery charging (negative current) or FULL at 100 % with ~0; then
+  the Elecom (9 V 1.34 A -> iclmax=1a). If OV persists at 9 V, v6 = FORCE_9V after the fact + a re-plug test,
+  or drop the 9 V PDO (kernel 23 = 21 minus the dts line).
+- **HDMI capture (fusor):** UVC "USB3 PLUS Video" /dev/video0 (1920x1080 YUYV, needs sudo). Every grab so far
+  returned 0 frames (ffmpeg hung; v4l2-ctl --stream-count=1 wrote 0 bytes even with the device free). Either no
+  signal reaches the card from the Elecom's HDMI while drm says connected/enabled, or the UVC bridge needs a
+  re-plug after the hung grabs. PARKED; re-check after kernel 22 with `sudo v4l2-ctl -d /dev/video0 --stream-mmap
+  --stream-count=1 --stream-to=f.yuyv` and ffmpeg rawvideo yuyv422 1920x1080 -> png.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
