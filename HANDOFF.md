@@ -141,6 +141,10 @@
   (memory reference-rp5-dock-video-on-fusor-capture). Docked hold on kernel 22: input accepted throughout,
   charger tapered to 0 mA at 99 % (termination), hot sensor 49-61 C. So on the Elecom, normal orientation, kernel 22:
   POWER 9 V 1.34 A, VIDEO, USB 3.1 + ETHERNET all good. Open on this hub: the reversed plug (register dump pending).
+- **16:11 BARE 65 W CHARGER on kernel 22 = PASS:** tcpm `type=PD_PPS imax=2000000 vmax=9000000` (9 V 2 A, our new PDO),
+  blackbox `iclmax=28 cfg=28 ovr=00 load=b5 allow=08 cont=1c usbint=10 pp=95 chg1=03`, battery Charging -2.83 A at
+  4.46 V, 99 % = 18 W in. Charger + Elecom both prove 0722 v5 + the 9 V PDO. Remaining dock rows: UGREEN CM828
+  (watcher armed: PDOs once, contract, DP, USB, orientation), then the Elecom REVERSED for the orientation dump.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
