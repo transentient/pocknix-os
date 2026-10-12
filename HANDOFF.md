@@ -201,6 +201,20 @@
   **Rollback ready:** build/revert-lexar-k23.sh (card in fusor's reader: KERNEL.bak = the kernel-22 image the hook
   built just before the 23 install -> KERNEL; the 23 image kept as KERNEL.k23). **Kernel 24 PACKAGED 17:40** (linux-pocknix-sm8250-7.1.2-24; rp5.dtb carries orientation-switch only) = 23 minus mode-switch. If the card comes to fusor: run the revert first (known-good 22),
   boot, then install 24 as a package via ssh and test the flip; never a bare swap of 23/24 images.
+- **18:10-18:17 ROLLBACK + KERNEL 24.** Card in fusor's reader 18:10 (Cliff: "stuck at HOLODOR"); revert-lexar-k23.sh
+  restored the kernel-22 image (md5 4307...); the card's last journal is the 22 boot ending in the 17:12 deploy
+  reboot = kernel 23 never reached a persistent journal (no pstore/ramoops configured either). 22 image booted at
+  18:13 with the 23 package's modules (BTF mismatch allowed: 0 rejections), sinks + wifi fine. **Kernel 24 deployed
+  18:16 and BOOTED UNDOCKED** (md5 a01d8e41, BTF 0, /sys/class/typec_mux has 88e8000.phy-switch/mux, blackbox up;
+  fw_devlink "Fixed dependency cycle" lines between phy@88e8000 / usb / connector are the new graph, harmless).
+  MECHANISM of the 23 hang (from phy-qcom-qmp-combo.c): `mode-switch` made tcpm call qmp_combo_typec_mux_set on
+  the docked attach at ~3.5 s; it switches qmpphy_mode USB3DP -> USB3_ONLY and, with init_count > 0, powers the USB
+  PHY off, PSR-powers the DP PHY down, com_exit + re-init - under a dwc3 + DP display that were initialising = the
+  frozen logo. 24 has no mux (orientation-switch only = sm8150-hdk). The remaining risky moment on 24 is an
+  orientation CHANGE while docked: qmp_combo_typec_switch_set does the same USB-off / com re-init / DP aux re-init
+  (that is the fix working); a flip is tested with the device up so the journal catches any fault.
+  NEXT: Cliff docks NORMAL (regression: DP + SS hub + ethernet; dock watcher armed) -> then FLIP (expect SS + DP in
+  reverse for the first time) -> blackbox/typec/USB evidence -> HANDOFF + memory.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
