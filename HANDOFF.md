@@ -1,5 +1,33 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-12 20:05: CURRENT STATE — read this first (Fable 5.1; kernel 25 on the device, docked overnight; both docks pass; reversed plug = everything but video)
+
+- **Device tonight:** RP5 on kernel 25 (0721 + 0722 v5 + 0723; dts: phantom redriver gone, PHY orientation-switch,
+  9 V / 2 A sink PDO), bsp-common 33, bsp-sm8250 38, steam 56, powerd, blackbox service; docked on the Elecom
+  (plug REVERSED), charging at 9 V 1.34 A, no claude-inhibit units. Left docked overnight at ~100 % ON PURPOSE =
+  the release-gate row "docked overnight at 100 %": read /var/lib/pocknix/blackbox.log in the morning (capacity
+  must hold, usbint=10, pp=95, no OV, no reboot: `journalctl --list-boots`).
+- **Proven today (device, both docks, charger):** 0722 v5 = input limit per contract in software mode + continuous
+  allowance (5 V 3 A charger -> 9 V 2 A = 18 W; Elecom 9 V 1.34 A = 12 W; UGREEN 9 V 2 A); video on both docks
+  (capture frames in build/dock-evidence/); USB 3.1 hubs + ethernet on both; the reversed plug now has power +
+  USB SS + ethernet (kernel 24+) and NO DisplayPort (no FSA4480 on this board; DP_PHY_MODE alone does not swap
+  the AUX pair; provisional hardware limit; docs line: "no picture -> turn the plug over").
+- **Fixed today (packaged, on the device):** Steam bootstrap clock wait (steam 56), DP UCM device removed again
+  (bsp-sm8250 37), loud-filter volume pin (bsp 38), 0722 v3/v4/v5 (kernel 19/20/22), 9 V PDO (21->22), phantom
+  redriver + PHY switch (23 hung with mode-switch, 24 ok), 0723 (25). All committed; nothing pushed/published.
+- **TOMORROW'S ORDER:** 1. morning blackbox + boots (overnight row). 2. flip to NORMAL on 25: DP + SS + ethernet +
+  capture frame (the regression check still owed; a watcher script pattern is in this file). 3. UGREEN both
+  orientations. 4. bsp-common 34: NM leaves wlan0 without its /24 route (fusor cannot reach the RP5 over wifi
+  once a dock's ethernet goes away) - read why, fix in the dispatcher or NM config. 5. mic measurement of the
+  100 % speaker level (Cliff: "100 % = where 40-50 % should be"). 6. powerd 5 s test, hub sleep/wake (the
+  bsp-common 32 cure, untested), fresh undocked boot audio (bsp 37/38). 7. Release decision with Cliff: respin
+  from the current localrepo/KERNEL (25); docs: charging recovery paragraph, the plug-orientation line, honest
+  DISCHARGING status (still unimplemented), docked-draining warning.
+- **Traps learned today (memory has them):** tcpm debugfs log is consumed on read; dp_test_* debugfs oopses with
+  no link; nb7vpq904m unbind oopses; `ps|grep` patterns that match your own shell; ARP REACHABLE is a stale
+  cache; the capture grabber's first frame is black (--stream-skip); build-packages keeps ONE release per
+  package in localrepo (no older kernel to roll back to - KERNEL.bak on the card is the rollback).
+
 ## 2026-10-12 14:55: CURRENT STATE — read this first (Fable 5.1; kernel 19 booted, the night is explained, two first-boot bugs fixed, dock test next)
 
 - **The dead night is explained.** postmortem.sh on the 20261011 card's first boot: PM8150B FAULT=0x40 = **UVLO**
