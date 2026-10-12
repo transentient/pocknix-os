@@ -1,5 +1,56 @@
 # Holodor — handoff to fusor (2026-08-02)
 
+## 2026-10-12 14:55: CURRENT STATE — read this first (Fable 5.1; kernel 19 booted, the night is explained, two first-boot bugs fixed, dock test next)
+
+- **The dead night is explained.** postmortem.sh on the 20261011 card's first boot: PM8150B FAULT=0x40 = **UVLO**
+  (ran down to the hardware cutoff), power-on = HARD_RESET + SMPL, no orderly shutdown. Cliff 14:50: the RP5 WAS
+  still running Holodor when he pulled the card at 22:57; it sat all night on the Elecom hub + charger with the
+  screen on at the 500 mA input cap (0722 v1/v2 = USB 2.0 override) -> net drain -> empty. Recovery took ~3.5 h on
+  an Anker USB-A port with a data cable (Type-C/PD sources fall to 100 mA once the bootloader screen goes dark).
+- **SIGN CORRECTION (provisional until a docked kernel-19 sample):** the fuel gauge's current_now is POSITIVE when
+  discharging (today undocked, no charger: +340..+1460 mA with st=Discharging). So the 10-11 docked sample at 100 %
+  (`uA=-54687..-201171`, chg1=03 TAPER) was a trickle INTO the battery, not a drain. At idle the 500 mA cap covered
+  the load; the drain only appears under real load (screen on + gamescope all night). The cap itself is unchanged
+  and still wrong; **PASS docked now = `iclmax=28` + battery current <= 0 (charging) below 100 %**, 0 at FULL.
+- **First boot of 20261011 (kernel 18, undocked): BTF rejections 0, wifi-heal ok, boot fine.** Two bugs seen:
+  1. **"Steam download FAILED: could not resolve the Steam runtime version"** (Cliff). The deep discharge wiped the
+     PMIC RTC: the device booted on 2066-08-09, every curl got `SSL certificate ... has expired` until timesyncd
+     stepped the clock at 63 s; the supervisor retry at ~2 min succeeded (Steam ran, login worked). The RTC is
+     written back now (systohc), later boots start right. FIX: pocknix-steam 56 — pocknix-steam-bootstrap
+     `wait_for_clock` (year outside 2026..2040 -> wait <= 120 s for NTPSynchronized=yes, with a screen line).
+  2. **No sound on the fresh undocked boot** (Cliff: d-pad silent; `wpctl`: device present, Sinks EMPTY, only the
+     loud filter; profiles = off + pro-audio, no HiFi). Kernel log every ~3 s: `AFE enable for port 0x6020 failed
+     -110/-22`, `DSP returned error[9]`, `ASoC error (-22): at snd_soc_dai_prepare() on DISPLAY_PORT_RX_0`. The
+     bsp-36 unconditional DisplayPort device was WRONG: 0721 fixed only the drm/msm (hdmi-codec) side; the q6afe
+     DEVICE_START on the DP AFE port fails with no link, hw_params -> prepare -> -22, ACP drops the whole profile
+     (same class as 10-09). A/B on the device: lines 31-41 removed from /usr/share/alsa/ucm2/Qualcomm/sm8250/
+     HiFi-RP.conf + `systemctl --user restart wireplumber` -> Speaker + Headphones back in seconds; the next fresh
+     boot had both from the start. FIX: **bsp-sm8250 37** (DisplayPort device + verb-level DISPLAY_PORT_RX route
+     removed; the idempotent speaker/headphone sequences of 36 stay). Dock audio = post-release, needs a q6afe-dai
+     change (prepare of DISPLAY_PORT_RX must return 0 while the link is down, like 0721 does for dp_audio; port
+     68 = 0x6020; sound/soc/qcom/qdsp6/q6afe-dai.c q6afe_dai_prepare -> q6afe_port_start). Cliff 14:5x: "no extra
+     devices besides Built-in Audio" and no device picker at startup = as wanted.
+- **Volume complaint (Cliff 14:53, OPEN):** "slider at 50 % is too quiet; 100 % sounds like 40-50 % should".
+  Stages read on that boot: hardware correct (WSA digital 122, PA 8, WSA_COMP off, boost 15), law Mult 1.4226 for
+  v=0.50 (correct), BUT the loud filter sink `pocknix_speaker_loud` was ALSO at 0.50 (-18 dB) while the Speaker sink
+  was at 0.50: the slider attenuation applied TWICE (-33 dB total at 50 % instead of -15). The filter does NOT
+  mirror the Speaker (wpctl set on one leaves the other); something set both — Steam's slider (device "Built-in
+  Audio" folds both sinks via device.id, bsp 31) is the suspect; pocknix-volumed only touches the default sink.
+  After the kernel-19 reboot the filter starts at 1.00 and the Speaker at 0.50. NEXT: have Cliff move the slider,
+  read both volumes; if the filter follows, either pin the filter sink's volume to 1.0 in pocknix-speaker-volume
+  (re-assert whenever it changes) or make the law read the PRODUCT. Then measure the law on the NTG (tools/rp5-audio).
+- **Deployed 14:50 (deploy-rp5.sh --kernel):** bsp-common 33 (reinstall), bsp-sm8250 37, pocknix-steam 56,
+  linux-pocknix-sm8250 19 (package; /flash/KERNEL rebuilt by the hook, md5 1d109b6c; KERNEL.bak = the 18 rebuild),
+  powerd 9f4a4a6a, pocknix-blackbox.service enabled. Kernel-19 boot: BTF 0, `input current limit 500 mA
+  (unplugged)` at 3.4 s (v3 wording live), Speaker + Headphones at 1 min, wifi-heal ok, recorder running.
+  Commit 231800c (bsp 37 + steam 56). Localrepo has both packages; build/image KERNEL = 19: a respin ships all of it.
+- **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
+  current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
+  read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
+  decision with Cliff (HOLD until the dock rows pass; the release gate list is in the 12:50 reply: proven input
+  limit on both docks + charger at 100 % and 20 %, honest DISCHARGING status with a charger attached so upower's
+  3 % shutdown fires, docked-draining warning, recovery paragraph in the docs).
+
 ## 2026-10-12 11:00: CURRENT STATE — read this first (Fable 5.1; the dock drain was 0722's own override bit; kernel 19 building)
 
 - **Morning (Cliff ~10:40):** the RP5 sat overnight on the Elecom USB-C hub (ethernet hub, charger on the hub)
