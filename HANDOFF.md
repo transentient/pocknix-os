@@ -145,6 +145,15 @@
   blackbox `iclmax=28 cfg=28 ovr=00 load=b5 allow=08 cont=1c usbint=10 pp=95 chg1=03`, battery Charging -2.83 A at
   4.46 V, 99 % = 18 W in. Charger + Elecom both prove 0722 v5 + the 9 V PDO. Remaining dock rows: UGREEN CM828
   (watcher armed: PDOs once, contract, DP, USB, orientation), then the Elecom REVERSED for the orientation dump.
+- **16:13 UGREEN Revodok CM828 on kernel 22 = PASS (normal orientation):** PDOs 5 V 2 A [RSHUDE], 9 V 2.44 A, 15 V
+  2.66 A, 20 V 4.25 A; `Requesting PDO 1: 9000 mV, 2000 mA`; `input voltage 9000 mV ... threshold 8000 mV`, `input
+  current limit 2000 mA (USB PD contract)`; blackbox `iclmax=28 cfg=28 icl=1f` (AICL settled 1.55 A on the dock's
+  pass-through), `usbint=10 pp=95 allow=08 cont=1c`, battery Charging -2.0..-2.25 A at 100 %. DP alt mode VDO
+  0x0c05 (same as the Elecom), DR swap, `drm=connected`, DSI-1 disabled (gamescope on the dock; TV = Cliff's eyes,
+  no capture cable on this dock). USB: Genesys 05e3:0610 USB2.1 hub + 05e3:0625 USB3.2 hub (10 Gbps) + ASIX
+  AX88179B gigabit ethernet (5 Gbps). Capture: scratchpad k22-ugreen-plug.txt. The typec_displayport probe -71 line
+  appears here too (before the DR swap) = harmless.
+  **Both docks + the charger now pass on kernel 22 in the normal orientation. Open: the reversed plug.**
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
