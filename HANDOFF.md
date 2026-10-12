@@ -234,6 +234,19 @@
   path re-runs dp_aux_init on a flip). Kernel 25 building 19:16 (unit kernel-sm8250-25). Test: deploy (reboot, the
   device may be docked reversed - 24 proved a docked boot is fine), expect drm=connected + DSI off + Steam on the
   capture dongle in BOTH orientations; then the normal-orientation regression and the UGREEN.
+- **19:16-19:25 KERNEL 25 (0723) ON THE DEVICE, DOCKED REVERSED: USB + ETHERNET + CHARGING OK, DP STILL OFF.** The
+  patch is in (5 patches applied; /dev/mem read of the combo PHY: DP_PHY_MODE 0x88e8000+0x2a1c = 0x4c = reverse,
+  PD_CTL 0x67, AUX_CFG1 0x13) and the AUX read still times out -> DP_PHY_MODE is not (or not alone) the AUX swap.
+  The Qualcomm kona reference swaps the SBU/AUX pair in an **FSA4480 at i2c15 0x43** (vendor base dtb boot_a:
+  /soc/i2c@884000/fsa4480@43, referenced by the vendor DP node's fsa4480-i2c-handle); upstream has the fcs,fsa4480
+  typec mux driver + binding (mode-switch, orientation-switch, port -> connector SBU). On the RP5 that address does
+  NOT answer (bus 15 is empty: no 0x1c, no 0x43, no rtc6226@64), i.e. the chip is not populated; the ROCKNIX dts
+  described a redriver there instead. With AUX fixed-wired to SBU1/SBU2 and no PHY-side swap found, a reversed
+  plug most likely cannot carry DisplayPort on this board at all (Android likely identical). PROVISIONAL.
+  Technique: /dev/mem works for MMIO (STRICT_DEVMEM allows device memory): python mmap of 0x088e8000, 0x3000.
+  Kernel 25 keeps 0723 (harmless, correct ordering). NEXT: flip to NORMAL = regression check on 25 (DP + SS +
+  ethernet + capture frame; watcher armed), then the UGREEN once in each orientation, then decide the release
+  wording: "if the dock shows no picture, turn the USB-C plug over" (power/USB/ethernet work either way).
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
