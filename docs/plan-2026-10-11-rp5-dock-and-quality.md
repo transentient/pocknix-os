@@ -185,6 +185,14 @@ charge_control thresholds, which the pm8150b driver does not expose); next is th
 the input settled at. Image 20261011 (kernel 18 + the four packages) was respun at 23:16 and flashed to the
 Lexar at 23:18 on Cliff's go-ahead; he boots it tomorrow. The checklist for that boot is in HANDOFF.md.
 
+**10-12 11:00, the drain explained without the device.** The saved docked blackbox (up=892 s) shows the chip
+applying 500 mA (ICL_STATUS = AICL = 0x0a) while 0722 logged 2000 mA and tcpm held a 2 A PD contract: the
+CMD_ICL_OVERRIDE bit v1/v2 set is the vendor driver's USB 2.0/3.0 (100/500/900 mA) override, not a high-current
+one. v3 mirrors smblib_icl_override (USBIN_MODE_CHG + ICL_OVERRIDE_AFTER_APSD, override clear, APSD off during a
+PD contract) = linux-pocknix-sm8250 19, untested. The RP5 died overnight on the powered Elecom hub (Cliff, 10-12
+morning; state overnight unknown): consistent with a running device at a 500 mA input. The blackbox now records the
+mode registers; pass = iclmax=28 docked and battery current >= 0.
+
 ## 2. The keyboard sound during setup
 
 Cliff's question: should a touch on an on-screen-keyboard key make a sound? Steam's own code

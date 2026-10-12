@@ -1,6 +1,53 @@
 # Holodor — handoff to fusor (2026-08-02)
 
-## 2026-10-11 23:05: CURRENT STATE — read this first (Fable 5.1; ROOT CAUSE FOUND on the card; card reverted to kernel 15; kernel 18 building)
+## 2026-10-12 11:00: CURRENT STATE — read this first (Fable 5.1; the dock drain was 0722's own override bit; kernel 19 building)
+
+- **Morning (Cliff ~10:40):** the RP5 sat overnight on the Elecom USB-C hub (ethernet hub, charger on the hub)
+  with no card (the card was in fusor from 22:57). With the fresh 20261011 card in it was unresponsive; on the bare
+  charger it showed the empty-battery charging animation. He is charging it before any test. "Charging while docked
+  must be real: two docks now." Device state overnight is UNKNOWN (powered off, or left running without its card);
+  asked. PROVISIONAL reading: it was still running (hung without a rootfs) at a 500 mA input; a powered-OFF RP5 on
+  that hub would have charged through the bootloader's charger mode (the same mode that worked on the bare charger
+  this morning). The PMIC POFF reason at the next boot (postmortem.sh FIRST) says UVLO vs an orderly path.
+- **FOUND (no device needed): the drain is my patch.** The saved blackbox of the docked kernel-16 boot
+  (build/card-journal-20261011/card-read.log, up=892 s): `icl=0a aicl=0a` = ICL_STATUS 0x1107 = AICL_ICL_STATUS
+  0x1108 = 10 x 50 mA = **500 mA applied**, while the driver had logged `input current limit 2000 mA` at 3.5 s and
+  tcpm reported a 2 A PD contract (`type=PD imax=2000000`); power path = USBIN (pp=95, not suspended), charger in
+  TAPER (chg1=03), battery supplementing 50-200 mA at 100 %. Cause: 0722 v1/v2 set CMD_ICL_OVERRIDE bit 0 for any
+  limit above 500 mA. In the vendor driver (scratchpad dl/: LineageOS oneplus-sm8250 smb5-lib.c smblib_icl_override,
+  smb5-reg.h, qpnp-smb5.c) that bit is SW_OVERRIDE_USB51_MODE = the USB 2.0/3.0 100/500/900 mA override: it pinned
+  the input at exactly 500 mA. High-current mode there = USBIN_ICL_OPTIONS 0x1366 bit0 USBIN_MODE_CHG set (upstream
+  init already does) + CMD_ICL_OVERRIDE 0x1342 CLEAR + USBIN_LOAD_CFG 0x1365 bit4 ICL_OVERRIDE_AFTER_APSD set, and
+  BC1.2/APSD (USBIN_OPTIONS_1 0x1362 bit3) switched OFF while a PD contract is active (smblib_set_prop_pd_active).
+  The upstream driver alone (HW auto mode, APSD never completing on PD) sat at 500 mA too; so did v1/v2, just more
+  firmly. Same chip-side behaviour on every dock = Cliff's "two docks" observation.
+- **0722 v3 written** (kernel/sm8250/patches/40-holodor/0722-pm8150b-charger-typec-pd-input-limit.patch): mirrors
+  the vendor mode bits (smb5_set_icl_mode: high current <-> hardware auto, APSD off only during a PD contract); the
+  budget callback reads tcpm's USB_TYPE (PD / PD_DRP / PD_PPS); the log line names the source:
+  `input current limit 2000 mA (USB PD contract)` / `(Type-C current advertisement)` / `(Type-C Rp)` / `(BC1.2)` /
+  `(no BC1.2 result)` / `(unplugged)`. Compiles (single-object check in the 18 tree). **linux-pocknix-sm8250 19
+  building** as unit kernel-sm8250-19 (log build/kernel-sm8250-19.log, started 10:57; 18 took 8 min) -> localrepo +
+  build/image/sm8250/KERNEL = 19. UNTESTED.
+- **tools/dock/blackbox.sh** now records per sample: iclmax=0x1106 (ICL_MAX_STATUS, the limit the chip applies,
+  x50 mA), cfg=0x1370, ovr=0x1342, load=0x1365, iclopt=0x1366, opt1=0x1362, aiclopt=0x1380, and the contract
+  vmax=. **PASS docked = `iclmax=28` (2 A) within seconds of the plug and battery current >= 0 below 100 %**;
+  at 100 % expect TERMINATE/FULL with current about 0, never -50..-200 mA.
+- Open after v3 proves itself: the contract is 5 V / 2 A = 10 W (the dts sink-pdos list only 5 V 3 A; no 9 V
+  request), thin for gaming docked; the Elecom hub's own PD pass-through budget unknown. Not touched today.
+
+**TODAY'S ORDER (device answers on .68 -> the watcher is running):**
+1. `tools/dock/postmortem.sh` FIRST: POFF reason (UVLO = ran until empty), then it starts the blackbox.
+2. First-boot checks of 20261011 (kernel 18): `journalctl -b -k | grep -c "failed to validate module"` = 0;
+   multi-user < 40 s; wifi-heal.log `ok`; Speaker + Headphones sinks on the fresh UNDOCKED boot; tone on the NTG.
+3. `tools/dock/deploy-rp5.sh deck@192.168.1.68 --kernel --skip-postmortem` (installs 19 as a package, reboots);
+   after the reboot: BTF count 0 again, `journalctl -k | grep "input current limit"` shows the new wording.
+4. Dock on the Elecom hub + charger: blackbox `iclmax=28` and battery current >= 0 within 10 s; leave it 10 min,
+   capacity must not fall. Then the same on the UGREEN. If iclmax stays 0a: read `ovr load iclopt opt1` from the
+   blackbox line (which bit did not land) before touching anything else.
+5. Then as before: hub sleep/wake (pocknix-usb-host lines), powerd 5 s test, dock rows with the mic, release
+   decision (HOLD until 1-4 pass).
+
+## 2026-10-11 23:05: PREVIOUS STATE (Fable 5.1; ROOT CAUSE FOUND on the card; card reverted to kernel 15; kernel 18 building)
 
 - **Root cause of the dead day (card read 22:58, tools/dock/card-journal.sh /dev/sdb 4; journals saved as
   /tmp/card-journal-b{0..3}.log):** the 05:12 bare /flash/KERNEL swap. All three kernel-16 boots (05:12,
