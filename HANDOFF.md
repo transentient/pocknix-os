@@ -154,6 +154,8 @@
   AX88179B gigabit ethernet (5 Gbps). Capture: scratchpad k22-ugreen-plug.txt. The typec_displayport probe -71 line
   appears here too (before the DR swap) = harmless.
   **Both docks + the charger now pass on kernel 22 in the normal orientation. Open: the reversed plug.**
+- **16:19 UGREEN VIDEO PROVEN on the capture dongle** (Cliff moved the HDMI to it): build/dock-evidence/
+  ugreen-k22-steam-library-osk-20261012-1619.png = Steam library with the on-screen keyboard at 1080p.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
