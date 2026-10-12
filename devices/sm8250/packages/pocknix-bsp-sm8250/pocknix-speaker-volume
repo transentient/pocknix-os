@@ -83,6 +83,16 @@ def law(v):
     return min(10 ** (-RANGE_DB * (1.0 - v) / 20.0) / v ** 3, MAX_BOOST)
 
 state = {"sink": None, "filter": None, "last": None, "planted": None}
+def pin_filter():
+    """bsp 38: the loud filter sink stays at volume 1.0. It is an ordinary Audio/Sink, so whenever it is
+    the default (a boot with no sound card yet, 2026-10-12: the DisplayPort device had killed the HiFi
+    profile) Steam's slider and the rocker land on IT, WirePlumber stores that, and from the next boot on
+    the slider counts twice (filter -18 dB on top of the Speaker's -18 dB at 50 %: "too quiet")."""
+    out = run("wpctl", "get-volume", state["filter"]); m = re.search(r"Volume:\s*([0-9.]+)", out)
+    if m and abs(float(m.group(1)) - 1.0) > 0.005:
+        run("wpctl", "set-volume", state["filter"], "1.0")
+        print("pocknix-speaker-volume: loud filter volume was %s, pinned back to 1.0" % m.group(1), flush=True)
+
 def apply():
     for attempt in (0, 1):
         if not state["sink"]: state["sink"] = node_id(SINK)
@@ -93,6 +103,7 @@ def apply():
         state["sink"] = state["filter"] = None               # ids change when PipeWire restarts
     else:
         return False
+    pin_filter()
     mult = law(float(m.group(1)))
     if state["last"] is not None and abs(mult - state["last"]) < 1e-6: return True
     try:

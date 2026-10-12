@@ -85,6 +85,12 @@
   sink = default; the rocker/slider set it; WirePlumber restored it next boot). Robustness fix for bsp-sm8250 38:
   pocknix-speaker-volume pins the filter sink's volume to 1.0 (assert at start + whenever it changes). The
   remaining "100 % = where 40-50 % should be" needs the NTG measurement (tools/rp5-audio) with the device by the mic.
+- **15:28 kernel 21 PACKAGED** (linux-pocknix-sm8250-7.1.2-21, EXIT=0; rp5.dtb sink-pdos = <0x2601912c 0x2d0c8> =
+  5 V 3 A + 9 V 2 A, op-sink 18 W; build/image KERNEL = 21). **bsp-sm8250 38 building 15:29** (speaker-volume
+  pins the loud filter at 1.0). Deploy both with `deploy-rp5.sh --kernel` after the flip test (needs Cliff's OK for
+  the reboot). Kernel-21 test order: bare charger (blackbox vmax=9000000, iclmax=28, battery charging, no input
+  OV / `input current limit` churn), then the Elecom (expect 9 V 1.34 A -> iclmax=1a), then the UGREEN (PDOs
+  captured once from the tcpm log, video, contract).
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
