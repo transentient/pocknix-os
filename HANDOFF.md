@@ -199,8 +199,7 @@
   yet. The built rp5.dtb is sane (no dtc warnings; connector port@0/1, PHY with orientation-switch + mode-switch).
   Suspect `mode-switch` on the PHY (the qmp-combo typec mux path on attach); sm8150-hdk uses orientation-switch ONLY.
   **Rollback ready:** build/revert-lexar-k23.sh (card in fusor's reader: KERNEL.bak = the kernel-22 image the hook
-  built just before the 23 install -> KERNEL; the 23 image kept as KERNEL.k23). **Kernel 24 building 17:32**
-  (unit kernel-sm8250-24) = 23 minus mode-switch. If the card comes to fusor: run the revert first (known-good 22),
+  built just before the 23 install -> KERNEL; the 23 image kept as KERNEL.k23). **Kernel 24 PACKAGED 17:40** (linux-pocknix-sm8250-7.1.2-24; rp5.dtb carries orientation-switch only) = 23 minus mode-switch. If the card comes to fusor: run the revert first (known-good 22),
   boot, then install 24 as a package via ssh and test the flip; never a bare swap of 23/24 images.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
