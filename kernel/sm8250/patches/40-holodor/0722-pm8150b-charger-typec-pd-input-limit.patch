@@ -6,8 +6,9 @@ On a USB-C source (dock, PD charger) the PM8150B's BC1.2 detection (APSD)
 never completes, so the driver stayed at the hardware's USB 2.0 default of
 500 mA for the whole session, re-ran APSD every second and logged "Apsd not
 ready" three times a second. A docked Retroid Pocket 5 at Steam's home
-screen drew 500 mA from a 5 V / 2 A PD contract and discharged its battery at
-~240 mA while reporting "charging" (measured 2026-10-11, blackbox + regmap).
+screen drew 500 mA from a 5 V / 2 A PD contract and charged its battery only
+at a trickle (measured 2026-10-11, blackbox + regmap); the same device running
+all night at that cap ran its battery flat (PMIC UVLO, 2026-10-12).
 
 - USBIN_CURRENT_LIMIT_CFG only counts in software-override mode: set
   ICL_OVERRIDE for any limit above the SDP default, clear it for 500 mA so
@@ -35,6 +36,11 @@ screen drew 500 mA from a 5 V / 2 A PD contract and discharged its battery at
   from (USB PD contract / Type-C advertisement / Type-C Rp / BC1.2 / none).
 
 Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
+
+v4 (2026-10-12): a PD contract is always applied in software mode, whatever
+its size. v3 put contracts of 500 mA and below into hardware auto mode with
+APSD off, and the chip then used its stale APSD result: on a hub offering
+5 V / 0.5 A the Retroid Pocket 5 sat at ICL_MAX 3 A and drew 2 A.
 ---
 --- a/drivers/power/supply/qcom_pm8150b_charger.c
 +++ b/drivers/power/supply/qcom_pm8150b_charger.c
@@ -82,7 +88,7 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
  		return -EAGAIN;
  	}
  
-@@ -446,9 +458,58 @@
+@@ -446,9 +458,59 @@
  	return rc;
  }
  
@@ -98,12 +104,13 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
 + *  - hardware auto: USBIN_MODE_CHG set, both override bits clear, APSD on:
 + *    the chip applies what APSD derives, 500 mA until BC1.2 says otherwise.
 + *    The chip's power-on behaviour and our fallback without a Type-C budget.
++ *    Never used with APSD off: the chip then applies a stale result.
 + * CMD_ICL_OVERRIDE's ICL_OVERRIDE bit is the USB 2.0/3.0 (100/500/900 mA)
 + * override, not a high-current one: with it set and 2 A written to the limit
 + * register the chip applied exactly 500 mA (ICL_STATUS = AICL_STATUS = 0x0a
-+ * on a docked Retroid Pocket 5, 2026-10-11) and a full battery discharged on
-+ * a 5 V / 2 A contract while the log said 2000 mA. v1/v2 of this patch did
-+ * exactly that.
++ * on a docked Retroid Pocket 5, 2026-10-11) and a running device drained its
++ * battery overnight on a 5 V / 2 A contract while the log said 2000 mA. v1/v2
++ * of this patch did exactly that.
 + */
 +static int smb5_set_icl_mode(struct smb5_chip *chip, bool high_current,
 +			     bool apsd)
@@ -142,7 +149,7 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
  
  	if (val > 4950000) {
  		dev_err(chip->dev,
-@@ -457,13 +518,110 @@
+@@ -457,13 +519,117 @@
  	}
  	val_raw = val / CURRENT_SCALE_FACTOR;
  
@@ -153,7 +160,14 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
 +	if (rc < 0)
 +		return rc;
 +
-+	rc = smb5_set_icl_mode(chip, val > SDP_CURRENT_UA, !pd);
++	/*
++	 * A PD contract is always applied in software, whatever its size: with
++	 * BC1.2 detection switched off, hardware auto mode has no fresh result
++	 * to work from and falls back to whatever APSD_RESULT_STATUS last held
++	 * (2026-10-12: a hub offering 5 V / 0.5 A, the chip at 3 A on a stale
++	 * QC 2.0 result, 2 A actually drawn against the 0.5 A contract).
++	 */
++	rc = smb5_set_icl_mode(chip, pd || val > SDP_CURRENT_UA, !pd);
 +	if (rc < 0)
 +		return rc;
 +
@@ -255,7 +269,7 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
  	int usb_online = 0;
  	int count, rc;
  	struct smb5_chip *chip;
-@@ -471,8 +629,31 @@
+@@ -471,8 +637,31 @@
  	chip = container_of(work, struct smb5_chip, status_change_work.work);
  
  	smb5_get_prop_usb_online(chip, &usb_online);
@@ -288,7 +302,7 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
  
  	for (count = 0; count < 3; count++) {
  		dev_dbg(chip->dev, "get charger type retry %d\n", count);
-@@ -488,14 +669,27 @@
+@@ -488,14 +677,27 @@
  	}
  
  	if (rc < 0) {
@@ -322,7 +336,7 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
  	switch (charger_type) {
  	case POWER_SUPPLY_USB_TYPE_CDP:
  		current_ua = CDP_CURRENT_UA;
-@@ -509,7 +703,9 @@
+@@ -509,7 +711,9 @@
  		break;
  	}
  
@@ -333,7 +347,7 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
  	power_supply_changed(chip->chg_psy);
  }
  
-@@ -614,7 +810,8 @@
+@@ -614,7 +818,8 @@
  
  	switch (psp) {
  	case POWER_SUPPLY_PROP_CURRENT_MAX:
@@ -343,7 +357,7 @@ Holodor patch 0722 (linux-pocknix-sm8250 16, v2 in 17, v3 in 19).
  	default:
  		dev_err(chip->dev, "No setter for property: %d\n", psp);
  		return -EINVAL;
-@@ -884,6 +1081,15 @@
+@@ -884,6 +1089,15 @@
  		return dev_err_probe(chip->dev, rc,
  				     "Failed to init status change work\n");
  
