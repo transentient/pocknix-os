@@ -156,6 +156,16 @@
   **Both docks + the charger now pass on kernel 22 in the normal orientation. Open: the reversed plug.**
 - **16:19 UGREEN VIDEO PROVEN on the capture dongle** (Cliff moved the HDMI to it): build/dock-evidence/
   ugreen-k22-steam-library-osk-20261012-1619.png = Steam library with the on-screen keyboard at 1080p.
+- **16:22 REVERSED PLUG ON THE ELECOM (kernel 22) -> RP5 UNREACHABLE.** Cliff flipped the plug (~16:22); the reversed-plug
+  watcher never fired (it reads the device over ssh), wifi .68 stopped answering ICMP/TCP within a minute (ARP
+  neighbour entries still showed REACHABLE = stale cache, the MAC-based LAN watcher gave false positives twice), the
+  capture dongle shows black from the Elecom (expected reversed). Device last known: kernel 22, docked normal, 100 %,
+  Steam library with the OSK open at 16:19 (no input since). Candidates: (a) idle suspend ~3 min after the last input
+  while docked = the "never sleep with the hub attached" class (bsp-common 32 cure untested); (b) a crash on the
+  reversed plug (new: the 15:13 reversed plug on kernel 20 did NOT kill the device); (c) wifi loss only (the LAN
+  router-silent class). Asked Cliff what the screen shows; no buttons yet. When it answers: `journalctl --list-boots`,
+  `journalctl -b -1` tail if rebooted, postmortem.sh (PMIC reason), the blackbox tail (last samples before the gap),
+  and the typec sysfs orientation.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
