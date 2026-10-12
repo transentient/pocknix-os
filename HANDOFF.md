@@ -91,6 +91,17 @@
   the reboot). Kernel-21 test order: bare charger (blackbox vmax=9000000, iclmax=28, battery charging, no input
   OV / `input current limit` churn), then the Elecom (expect 9 V 1.34 A -> iclmax=1a), then the UGREEN (PDOs
   captured once from the tcpm log, video, contract).
+- **15:32 FLIP TEST = ORIENTATION BUG, ours.** Same Elecom hub, cable turned over at the RP5 end: `cc1=5 polarity 0`
+  (NORMAL) -> within seconds `dp=connected/enabled`, drm DP-1 connected, USB2 hub 1da0:2188 + USB3.1 Gen2x1 hub
+  1da0:0188 (10 Gbps) + VIA 2109:0822 + Realtek 8153 ethernet (enu1u1u4 = 192.168.1.47) + Parade billboard all
+  enumerated; contract still 5 V 0.5 A (kernel 20). REVERSED (`cc2=5 polarity 1`, the 15:13 plug): DP AUX dead,
+  HS hub `set config -71`, no SuperSpeed. The UGREEN success of 10-11 was presumably a normal-orientation plug.
+  Suspects (read next, fusor): (1) PM8150B VCONN after the hub's VCONN swap on the wrong CC pin in reverse (the
+  Elecom is a captive-cable PLUG whose electronics run on VCONN: everything died at once, HS included);
+  (2) nb7vpq904m / usb_1_qmpphy orientation (SS lane + AUX_CC swap) - check `orientation-switch` on the PHY node;
+  (3) the PMIC SBU switch (pm8150b_typec_sbu_out). Register dump in normal orientation saved: scratchpad
+  typec-regs-normal.txt (PMIC 0x1500-0x156f + nb7 regmap); repeat REVERSED to diff. typec_displayport probe -71
+  = "port can only be DFP_U" = harmless (first probe while we are still the UFP, before the hub's DR swap).
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
