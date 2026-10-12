@@ -125,6 +125,16 @@
   signal reaches the card from the Elecom's HDMI while drm says connected/enabled, or the UVC bridge needs a
   re-plug after the hung grabs. PARKED; re-check after kernel 22 with `sudo v4l2-ctl -d /dev/video0 --stream-mmap
   --stream-count=1 --stream-to=f.yuyv` and ffmpeg rawvideo yuyv422 1920x1080 -> png.
+- **16:01 KERNEL 22 (0722 v5) ON THE ELECOM = PASS AT 9 V.** Boot log: `input voltage 5000 mV: continuous
+  allowance, AICL threshold 4000 mV` -> `input current limit 3000 mA (Type-C Rp)` -> `input voltage 9000 mV:
+  continuous allowance, AICL threshold 8000 mV` -> `input current limit 1340 mA (USB PD contract)`. Blackbox at
+  47 s: `usbint=10` (no OV), `pp=95` (USBIN, soft start done), `allow=08 cont=1c`, `iclmax=1a cfg=1a` (1.3 A),
+  `icl=2b` (AICL), `chg1=03`, battery **Charging -2.59 A at 4.46 V, 99 %** = 9 V x 1.3 A = 11.7 W in. The hub that
+  killed the device overnight now charges it at full tilt. Versions on the device: kernel 22, bsp-common 33,
+  bsp-sm8250 38, steam 56, powerd, blackbox service (recorder with allow/cont fields). Commits 1b5c0f4, f630e2d.
+  NEXT physical steps (one at a time, Cliff): 10 min docked hold (I watch current/temps), bare 65 W charger (expect
+  9 V 2 A: vmax=9000000 iclmax=28), UGREEN (PDOs captured once from the tcpm log + video), then the REVERSED plug
+  for the orientation register dump (diff against scratchpad typec-regs-normal.txt).
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
