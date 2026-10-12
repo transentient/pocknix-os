@@ -135,6 +135,12 @@
   NEXT physical steps (one at a time, Cliff): 10 min docked hold (I watch current/temps), bare 65 W charger (expect
   9 V 2 A: vmax=9000000 iclmax=28), UGREEN (PDOs captured once from the tcpm log + video), then the REVERSED plug
   for the orientation register dump (diff against scratchpad typec-regs-normal.txt).
+- **16:03 ELECOM VIDEO PROVEN on fusor's capture card:** build/dock-evidence/elecom-k22-steam-home-20261012-1603.png =
+  Steam home at 1920x1080 (DP-1: 2 lanes x 5.4 Gbps, 148.5 MHz, EDID 256 B from the "USB3 PLUS Video" grabber;
+  DSI-1 disabled/Off = gamescope moved to the dock). The grabber's first frame is black: use --stream-skip=5
+  (memory reference-rp5-dock-video-on-fusor-capture). Docked hold on kernel 22: input accepted throughout,
+  charger tapered to 0 mA at 99 % (termination), hot sensor 49-61 C. So on the Elecom, normal orientation, kernel 22:
+  POWER 9 V 1.34 A, VIDEO, USB 3.1 + ETHERNET all good. Open on this hub: the reversed plug (register dump pending).
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
