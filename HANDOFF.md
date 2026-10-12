@@ -27,7 +27,10 @@
   `input current limit 2000 mA (USB PD contract)` / `(Type-C current advertisement)` / `(Type-C Rp)` / `(BC1.2)` /
   `(no BC1.2 result)` / `(unplugged)`. Compiles (single-object check in the 18 tree). **linux-pocknix-sm8250 19
   building** as unit kernel-sm8250-19 (log build/kernel-sm8250-19.log, started 10:57; 18 took 8 min) -> localrepo +
-  build/image/sm8250/KERNEL = 19. UNTESTED.
+  build/image/sm8250/KERNEL = 19. UNTESTED. **PACKAGED 11:08** (EXIT=0, 40-holodor: 4 patches applied; the packaged
+  /boot/Image carries the v3 strings "input current limit %u mA (%s)" / "USB PD contract"; deploy-rp5.sh --kernel
+  picks linux-pocknix-sm8250-7.1.2-19). build/image/sm8250/KERNEL is now 19 (sha 87ee6f82...): any image respun
+  from here ships 19, and that is fine, the 20261011 card is on 18.
 - **tools/dock/blackbox.sh** now records per sample: iclmax=0x1106 (ICL_MAX_STATUS, the limit the chip applies,
   x50 mA), cfg=0x1370, ovr=0x1342, load=0x1365, iclopt=0x1366, opt1=0x1362, aiclopt=0x1380, and the contract
   vmax=. **PASS docked = `iclmax=28` (2 A) within seconds of the plug and battery current >= 0 below 100 %**;
