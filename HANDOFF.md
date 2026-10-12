@@ -44,6 +44,20 @@
   powerd 9f4a4a6a, pocknix-blackbox.service enabled. Kernel-19 boot: BTF 0, `input current limit 500 mA
   (unplugged)` at 3.4 s (v3 wording live), Speaker + Headphones at 1 min, wifi-heal ok, recorder running.
   Commit 231800c (bsp 37 + steam 56). Localrepo has both packages; build/image KERNEL = 19: a respin ships all of it.
+- **14:53 Elecom plug on kernel 19 (v3) = FAIL, v3's own hole:** the hub offered a **5 V / 0.5 A PD contract**
+  (`type=PD imax=500000`, log `input current limit 500 mA (USB PD contract)`), and because v3 put contracts
+  <= 500 mA into HARDWARE AUTO mode with APSD off, the chip applied its stale APSD result (apsd=21 = QC 2.0 bit):
+  `iclmax=3c` (3 A), icl=28 (2 A drawn against a 0.5 A contract), battery charging at -1.3..-1.6 A. Cliff unplugged
+  it on request. **0722 v4 = kernel 20** (commit e734ba3): a PD contract is ALWAYS software mode
+  (`smb5_set_icl_mode(chip, pd || val > SDP_CURRENT_UA, !pd)`). Deployed 15:07, booted 15:08 on the bare charger:
+  BTF 0, `input current limit 3000 mA (Type-C Rp)` then `(USB PD contract)`, blackbox `iclmax=3c cfg=3c ovr=00
+  load=b5 iclopt=03 opt1=10` = 3 A software mode, battery -1.24 A at 100 %/4.41 V (TAPER). **PASS on the charger.**
+  Charger PDOs (tcpm log, read ONCE: the debugfs log is consumed by every read, see memory): 5 V 3 A, 9 V 3 A,
+  15 V 3 A, 20 V 5 A, PPS 4.5-21 V 5 A; we request PDO 0 (5 V 3 A = 15 W) because the dts sink-pdos list only
+  5 V. 9 V / 3 A = 27 W is on offer: post-release, check USBIN_ADAPTER_ALLOW_CFG (0x1360) before adding a 9 V PDO.
+  Cliff: the Elecom is a DST-090BP1SV (HDMI out, "125 W PD pass-through"); the UGREEN is a Revodok CM828. On the
+  Elecom the DP alt mode probe failed (`typec_displayport port0-partner.0: probe ... -71`) and the RP5 screen stayed
+  on; its 0.5 A contract is suspicious for a 125 W hub: capture its PDO list on the kernel-20 plug (watcher running).
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
