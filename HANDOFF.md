@@ -193,6 +193,15 @@
   192.168.1.0/24 dev wlan0 src 192.168.1.68 metric 600` fixed reachability. Root cause (why NM omits it) not yet
   read; candidate fix bsp-common 34 = dispatcher that ensures the wifi prefix route, or NM config. The LAN watcher
   script now requires a ping (an ARP REACHABLE entry was a stale false positive twice).
+- **17:10 KERNEL 23 DEPLOYED (docked, normal) -> RP5 SILENT.** deploy-rp5.sh installed 23 + rebooted at ~17:12; one
+  ping on .68 at 17:13:22 then nothing on .68 or .47 for 20+ min; the capture dongle shows pure black (Y=0) from the
+  Elecom. Asked Cliff what the RP5 screen shows (splash = boot hang; black/Steam = boot without network); no answer
+  yet. The built rp5.dtb is sane (no dtc warnings; connector port@0/1, PHY with orientation-switch + mode-switch).
+  Suspect `mode-switch` on the PHY (the qmp-combo typec mux path on attach); sm8150-hdk uses orientation-switch ONLY.
+  **Rollback ready:** build/revert-lexar-k23.sh (card in fusor's reader: KERNEL.bak = the kernel-22 image the hook
+  built just before the 23 install -> KERNEL; the 23 image kept as KERNEL.k23). **Kernel 24 building 17:32**
+  (unit kernel-sm8250-24) = 23 minus mode-switch. If the card comes to fusor: run the revert first (known-good 22),
+  boot, then install 24 as a package via ssh and test the flip; never a bare swap of 23/24 images.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release

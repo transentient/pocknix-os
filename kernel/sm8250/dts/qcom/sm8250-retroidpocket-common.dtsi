@@ -1489,9 +1489,12 @@
 	vdda-phy-supply = <&vreg_l9a_1p2>;
 	vdda-pll-supply = <&vreg_l18a_0p92>;
 
-	/* no redriver on this board: the PHY flips its lanes for a reversed plug */
+	/*
+	 * no redriver on this board: the PHY flips its lanes for a reversed plug
+	 * (orientation-switch only, as sm8150-hdk; mode-switch is not needed for
+	 * the lane flip and kernel 23 with it did not come back on the network)
+	 */
 	orientation-switch;
-	mode-switch;
 };
 
 &usb_1_qmpphy_dp_in {
