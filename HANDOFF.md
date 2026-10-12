@@ -166,6 +166,33 @@
   router-silent class). Asked Cliff what the screen shows; no buttons yet. When it answers: `journalctl --list-boots`,
   `journalctl -b -1` tail if rebooted, postmortem.sh (PMIC reason), the blackbox tail (last samples before the gap),
   and the typec sysfs orientation.
+- **16:22-16:58 THE REVERSED-PLUG BUG IS A PHANTOM REDRIVER (dts), fix = kernel 23.** Facts in order: (1) the reversed
+  episode on kernel 22 (16:21:56-16:42:25, Elecom, cc2/polarity 1): power 9 V fine, USB 2.0 hubs enumerated, NO
+  SuperSpeed device, NO DisplayPort for 20 min (blackbox dp=disconnected/disabled) = the lane path only. (2) The
+  NB7VPQ904M redriver the ROCKNIX dts describes at i2c15 0x1c does not answer: userspace `i2ctransfer -f` gets
+  ENXIO on 0x1c/0x1d/0x1e, `i2cdetect -q 15` finds NOTHING on the bus (pins gpio44/45 func1 high), and the kernel
+  driver (nb7vpq904m.c) never checks its regmap_write results, so every orientation/mode write failed silently
+  since day one. (3) Vendor archaeology: dd of dtbo_a (14 kona overlays, scratchpad vendor-dt/, split + dtc): the
+  QRD (board-id 0x0b) and HDK overlays carry the same `redriver@1c` on qupv3_se15_i2c with `status = "disabled"`.
+  So the board has no redriver; the SS lanes go PHY -> connector, and the combo PHY (which does the lane flip via
+  SW_PORTSELECT in qmp_combo_com_init) never learned the orientation because tcpm's switch chain ended at the
+  phantom (the PHY registers its switch/mux only with orientation-switch/mode-switch in its node: phy-qcom-qmp-
+  combo.c:4897). Upstream direct-PHY pattern = sm8150-hdk.dts (`&usb_1_qmpphy { orientation-switch; }`, connector
+  SS endpoint -> usb_1_qmpphy_out). **Kernel 23 dts:** typec-mux@1c removed (comment left), connector port@1 ->
+  usb_1_qmpphy_out, connector SBU port@2 removed, `&usb_1_qmpphy { orientation-switch; mode-switch; }`. Building
+  16:58 (unit kernel-sm8250-23). UNTESTED. Test = deploy (reboot) -> dock REVERSED (watcher) -> expect SS hub +
+  ethernet + DP in both orientations; normal must still work (regression check first).
+  SIDE EFFECTS to note: my `unbind` of the nb7 driver at 16:54 OOPSED in nb7vpq904m_remove (NULL deref; the
+  typec_mux class still lists 15-001c-switch) - the device is tainted (D) since the 16:1x dp_test reads too; the
+  reboot clears it. Kernel 23 also drops the enable GPIO tlmm 9 drive (was ACTIVE_LOW = driven low): if normal
+  orientation regresses on 23, that pin mattered after all (unlikely: the pin's pull-down leaves it low anyway).
+- **Wifi + dock ethernet (OPEN, release gate):** NM never adds the 192.168.1.0/24 prefix route on wlan0 (NM 1.54.2,
+  iwd backend; `nmcli -f IP4.ROUTE dev show wlan0` lists only the default). With the dock's ethernet up the LAN
+  route is the ethernet's; when the ethernet vanishes (reversed plug / undock), LAN replies leave via the router
+  (hairpin) and fusor could not reach .68 for 20 min while the RP5 showed wifi "up". A manual `ip route add
+  192.168.1.0/24 dev wlan0 src 192.168.1.68 metric 600` fixed reachability. Root cause (why NM omits it) not yet
+  read; candidate fix bsp-common 34 = dispatcher that ensures the wifi prefix route, or NM config. The LAN watcher
+  script now requires a ping (an ARP REACHABLE entry was a stale false positive twice).
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release

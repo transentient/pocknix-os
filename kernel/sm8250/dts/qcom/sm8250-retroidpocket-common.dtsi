@@ -790,47 +790,19 @@
 &i2c15 {
 	status = "okay";
 
-	typec-mux@1c {
-		compatible = "onnn,nb7vpq904m";
-		reg = <0x1c>;
-
-	 	enable-gpios = <&tlmm 9 GPIO_ACTIVE_LOW>;
-
-		vcc-supply = <&vreg_s4a_1p8>;
-
-		retimer-switch;
-		orientation-switch;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				redriver_usb_con_ss: endpoint {
-					remote-endpoint = <&pm8150b_typec_mux_in>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				redriver_phy_con_ss: endpoint {
-					remote-endpoint = <&usb_1_qmpphy_out>;
-					data-lanes = <0 1 2 3>;
-				};
-			};
-
-			port@2 {
-				reg = <2>;
-
-				redriver_usb_con_sbu: endpoint {
-					remote-endpoint = <&pm8150b_typec_sbu_out>;
-				};
-			};
-		};
-	};
+	/*
+	 * HOLODOR 2026-10-12: the ROCKNIX dts described an ON Semi NB7VPQ904M
+	 * redriver here (typec-mux@1c, enable tlmm 9) and routed the connector's
+	 * SuperSpeed and SBU lanes through it. The Retroid Pocket 5 has no such
+	 * chip: nothing on this bus acknowledges any address, the vendor Android
+	 * overlays for this board (kona QRD/HDK, dtbo fragment on qupv3_se15_i2c)
+	 * carry the same node with status "disabled", and every kernel write to
+	 * it failed silently. The phantom swallowed the plug orientation, so the
+	 * combo PHY never switched its lanes: a reversed USB-C plug had power
+	 * but no SuperSpeed and no DisplayPort (both docks, 2026-10-12). The SS
+	 * lanes go straight from the PHY to the connector; the PHY now owns the
+	 * orientation and mode switches (see usb_1_qmpphy below).
+	 */
 };
 
 &mdss {
@@ -1048,17 +1020,10 @@
 			port@1 {
 				reg = <1>;
 				pm8150b_typec_mux_in: endpoint {
-					remote-endpoint = <&redriver_usb_con_ss>;
+					remote-endpoint = <&usb_1_qmpphy_out>;
 				};
 			};
 
-			port@2 {
-				reg = <2>;
-
-				pm8150b_typec_sbu_out: endpoint {
-					remote-endpoint = <&redriver_usb_con_sbu>;
-				};
-			};
 		};
 	};
 };
@@ -1523,6 +1488,10 @@
 
 	vdda-phy-supply = <&vreg_l9a_1p2>;
 	vdda-pll-supply = <&vreg_l18a_0p92>;
+
+	/* no redriver on this board: the PHY flips its lanes for a reversed plug */
+	orientation-switch;
+	mode-switch;
 };
 
 &usb_1_qmpphy_dp_in {
@@ -1530,7 +1499,7 @@
 };
 
 &usb_1_qmpphy_out {
-	remote-endpoint = <&redriver_phy_con_ss>;
+	remote-endpoint = <&pm8150b_typec_mux_in>;
 };
 
 &venus {
