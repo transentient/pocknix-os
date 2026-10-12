@@ -222,6 +222,18 @@
   (USB [sink], pin D, hpd=1) but `drm=disconnected`, DSI still enabled 20 s after the plug - under investigation
   (AUX / SBU polarity in reverse: the connector's SBU graph link went to the phantom and was dropped in 23/24; the
   combo PHY's dp_aux_init/configure use `reverse` for the DP lanes).
+- **19:15 REVERSED DP ROOT CAUSE = upstream PHY ordering; 0723 = kernel 25.** With drm.debug the reversed plug shows
+  msm_dp_hpd_plug_handle -> phy_init -> 3.5 s of silence -> hpd_state=0: msm_dp_display_process_hpd_high's
+  drm_dp_read_dpcd_caps times out (dp_aux.c calls phy_calibrate per timeout = the four AUX_CFG1 settings). In
+  phy-qcom-qmp-combo.c the ONLY write of QSERDES_DP_PHY_MODE (0x4c reversed / 0x5c normal, with the lane PD bits) is
+  qmp_combo_configure_dp_mode(), called from qmp_v3/v4_configure_dp_phy = phy_configure() = msm_dp_ctrl link
+  training, AFTER the DPCD read; qmp_v4_dp_aux_init writes only the AUX_CFG constants. So on a reversed plug the AUX
+  pair ran in normal mode for the first read -> dead -> no link; USB SS on the same lanes was fine (SW_PORTSELECT in
+  com_init). No SBU mux chip exists on this board (vendor QRD/HDK overlays: only the PMIC's sbux ADC). Fix: 0723
+  writes DP_PHY_MODE per qmp->orientation in qmp_v4_dp_aux_init (tcpm sets the orientation at attach; the switch_set
+  path re-runs dp_aux_init on a flip). Kernel 25 building 19:16 (unit kernel-sm8250-25). Test: deploy (reboot, the
+  device may be docked reversed - 24 proved a docked boot is fine), expect drm=connected + DSI off + Steam on the
+  capture dongle in BOTH orientations; then the normal-orientation regression and the UGREEN.
 - **NEXT (in order):** dock on the Elecom hub + charger -> blackbox `iclmax=28`, `usb on=1 type=PD`, battery
   current <= 0 within 10 s, 10 min capacity not falling; then the UGREEN; then the bare charger. If iclmax stays 0a
   read `ovr load iclopt opt1`. Then the slider question above, hub sleep/wake, powerd 5 s, mic rows, release
