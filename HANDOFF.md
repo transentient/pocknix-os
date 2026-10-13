@@ -1,3 +1,17 @@
+# 2026-10-14 00:10: KERNEL 26 DOCK MATRIX = 4/4 PASS (DP in both orientations on both docks) - read this first
+
+Kernel 26 (gpio-sbu-mux AUX switch, tlmm 9 enable active-low + tlmm 8 select, from the live Android DT) deployed
+as a package 23:53, fresh undocked boot clean (0 BTF rejections, driver bound, tlmm 9 driven high = switch off).
+Elecom + UGREEN, normal + reversed: DP connected/enabled with a capture frame each, USB 3 + ethernet, 9 V charging.
+Table + evidence: tools/dock/results-rp5-2026-10-14.md, build/dock-evidence/k26-20261014/. The reversed-plug
+"hardware limit" of 10-12 is closed. Device now: kernel 26, bsp 38, common 33, steam 56, docked on the UGREEN
+(normal), slider 0.45 on the shipped (quiet, 24-bit) path, the 16-bit test rule REMOVED (watcher log 23:49).
+Night incident: the device woke at 23:49 still running the 00:45 tone -> ~0.25 s burst from the SPEAKER although
+headphones were plugged (Speaker + Headphones are separate sinks; the default does not move on jack insert).
+Owed: bsp-common 34 (wlan0 /24 route lost when dock ethernet leaves; restored by hand on this boot), the speaker
+rebuild from the 16-bit baseline (reduced level, Cliff present for the ceiling check), hub sleep/wake (bsp-common
+32 untested), powerd 5 s test, docked overnight row on 26, then respin + release notes.
+
 # 2026-10-13 00:50: STOPPED BY CLIFF ("I said fucking stop it", "/sleep-now") - READ THIS FIRST
 
 **DEVICE STATE IS LOUD AND UNREACHABLE.** My last audio test forced the Speaker sink to S16LE via
