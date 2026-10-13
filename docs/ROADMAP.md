@@ -220,3 +220,49 @@ device: the six tests in that plan, in particular which boot menu setting boots 
 to an internal Armada, and whether Holodor runs under ABL 1.1.8 (then bump our kit to 1.1.8).
 Triple boot (Android + Armada + Holodor internal) is blocked on what the closed ABL does with
 two internal boot partitions; options are in the plan.
+
+## Phase 8 - Feature parity with Android, and the next devices (Cliff, 2026-10-14)
+
+Prompted by a user's question ("can Holodor replace Android without losing TDP control, clock
+control, fan curves, OLED protection, charge separation?") and the 10-13/14 session. Status on
+2026-10-14: fan curves and CPU/GPU caps (four power modes) are at parity, Bluetooth audio works
+(Odin 3, tested early), the rest below is missing.
+
+Proposed for the RP5 release (the AMOLED is the one thing a later update cannot repair):
+- [ ] **OLED burn-in protection.** Dim after a few minutes of no input, screen off after a longer
+      idle, both in game mode and in Desktop Mode; idle suspend already covers the long tail. The
+      RP5 panel exposes /sys/class/backlight/ae94000.dsi.0 (0..4095) on both screen revisions.
+      Check first whether Steam's own "dim after inactivity" does anything on our build (its
+      config carries no such keys today); otherwise a small input-idle daemon in bsp-common.
+
+Right after the RP5 audio + docks are clean (Cliff 2026-10-14):
+- [ ] **Odin 3 GPU at half speed with ACD** (public issue #3, WhiteEagle-12, 2026-10-05; Cliff
+      replied 10-14). Every step from 734 MHz up delivers exactly half its throughput with the
+      stock `qcom,opp-acd-level` table; removing the levels restores full speed. Reproduce on our
+      Odin 3 on the rig (devfreq pin, ALU-bound Vulkan compute, 1100 vs 660 MHz), then root-cause
+      the GMU level mapping and write our own fix; a ~95 C passive trip on the GPU cooling device
+      goes in either way (101 C within two minutes at real full speed). `msm.disable_acd=1` is
+      the A/B switch. ROCKNIX and Armada ship the same table.
+
+After the RP5 release:
+- [ ] **Charge limit on the RP5 + bypass charging ("charge separation") on both.** Pocknix Control's
+      80/85/90/100 limit writes charge_control_end_threshold, which only the Odin 3 battmgr
+      exposes; the RP5 pm8150b driver needs the thresholds (our 0722 charger patch is the place).
+      Bypass = run from the charger with the battery idle: Odin battmgr constant_charge_current=0
+      (upstream sweep 09-27), RP5 PM8150B charging-enable bit. One toggle in the Power tab.
+- [ ] **Bluetooth audio on the RP5**: never tried on any build (works on the Odin 3). One headset test.
+- [ ] **Shared ROM card between Android and Holodor** (internal dual boot, SD slot free). The card is
+      Android *portable* storage = exFAT (adoptable storage is encrypted and invisible to Linux);
+      both kernels have exFAT built in; our pocknix-sdcard-automount mounts ext4 only (SteamOS
+      lineage) and needs exFAT with the deck uid/gid. ES-DE runs on both OSes with the same
+      ROMs/<system> tree: share ROMs + BIOS (+ scraped media), saves optional, states never, one
+      partition, FAT32 out (4 GB limit). Docs page for users.
+- [ ] **Retroid Pocket 6 / Snapdragon 8 Gen 2 port** (Cliff: "use everything we have learned ...
+      as quickly and efficiently as possible"). devices/sm8550 is a dormant family target (RP6 +
+      Odin 2 line, untouched since 07-16); mainline sm8550 support is mature; the MaSieS image
+      carries an RP6 dts adapted from LineageOS. Day one = Android ground truth before any Linux
+      fix (live device tree, mixer paths, charger and Type-C facts, speaker/jack measured on the
+      mic, dock video both orientations), then diff against ROCKNIX on the same board, one fix per
+      cause, verified at the register / HID / mic.
+- [ ] Backlog: per-game power mode (the four modes are global today; game tweaks exist for FEX,
+      audio and frame insertion, not power).
