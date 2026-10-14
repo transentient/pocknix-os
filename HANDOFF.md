@@ -1,3 +1,20 @@
+# 2026-10-15 01:55: kernel 29 BUILT (0726 DisplayPort prepare with no sink, UNTESTED); the dock-audio gap is the 10-09 finding re-opened by bsp 36/39; router-silence = ARP conflict hypothesis; overnight docked sleep still running
+
+Device UNTOUCHED since 00:03 (docked, overnight sleep, rtcwake 04:33): nothing before Cliff's press + wake-collect.sh
+overnight2 -10h. Morning order, all rig except Cliff's three steps: 1. press -> collect. 2. ARP undock test (rig; plan in
+tools/dock/results-rp5-2026-10-15.md; old sysctls restored by trap). 3. kernel 29: Cliff unplug -> install the 29 package +
+reboot (adapt scratchpad/deploy-k28.sh) -> fresh undocked boot: profiles [off, HiFi, HDMI] with HDMI available: no, speakers
+intact, no "AFE enable for port 0x6020 failed" -> Cliff replug -> switcher HDMI + dock-audio-test.sh PASS. Rollback = the 28
+package. Kernel 29 = 28 + 0726 (hdmi-codec exports sink presence; q6afe-dai DP/HDMI prepare returns 0 without DEVICE_START
+when no sink). PipeWire has NO runtime card re-probe (alsa-udev re-emits only on accessible/inaccessible), so the kernel
+probe succeeding is the only clean fix; the WirePlumber-restart "stopgap" is dropped from the plan. Still open: the
+first-stream AFE start timeout hidden by bsp 39's double priming (not an ordering issue: codec hw_params enables the DP
+audio engine before the cpu DAI's DEVICE_START). Record corrections: the 00:10 "NEW GAP" was the 10-09 finding (1038744)
+re-opened when bsp 36 deleted the watcher's plug-time WirePlumber restart and bsp 39 restored no re-probe (9eeefe8).
+Networking: the 10-08 "router goes silent to one client" signature matches a stale router ARP entry at the dock NIC's MAC
+after an undock, produced by the 10-14 ARP-conflict chain; bsp-common 35 removes the cause; heal ladder = symptom patch
+if proven; Cliff decides on cutting it down. Details in tools/dock/results-rp5-2026-10-15.md.
+
 # 2026-10-15 00:05: KERNEL 28 + bsp-sm8250 39 + bsp-common 35 ALL TESTED (docked sleep fixed, dock audio back, wifi route fixed, fresh undocked boot clean) - overnight docked sleep is the last proof
 
 On the RP5 now: kernel 7.1.2-28, bsp-sm8250 39, bsp-common 35, steam 56; fresh undocked boot 23:58 clean
