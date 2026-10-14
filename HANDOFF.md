@@ -19,7 +19,9 @@ What was proven tonight (all rig, Cliff's three plugs only):
 Commits: 20056af, cfaf13d, f4aa5a3, 4d113e7 (+ this handoff).
 
 Next (in order): 1. morning: Cliff's press -> wake-collect.sh overnight2 -10h (expect picture, pd ack=00, Rp
-0x1506=02, NIC 5 G, route). 2. DOCK AFTER AN UNDOCKED BOOT = NO DOCK AUDIO (00:03: "card 52 has no profile
+0x1506=02, NIC 5 G, route). 2. DOCK AFTER AN UNDOCKED BOOT = NO DOCK AUDIO - NOT NEW: identified 10-09 (1038744), fixed then by the
+watcher's WirePlumber restart on plug (bsp 29/34, proven 10-10), re-opened when bsp 36 deleted the watcher and
+bsp 39 did not restore any re-probe; 0721 never covered q6afe (00:03: "card 52 has no profile
 named HDMI": ACP probes profiles once at card creation, the undocked DP probe fails AFE -22, nothing re-probes):
 fix (a) kernel - q6afe-dai DISPLAY_PORT prepare succeeds without DEVICE_START while msm_dp has no link, so the
 HDMI profile always exists and is "available: no" via the DP0 Jack; or (b) the switcher restarts WirePlumber
