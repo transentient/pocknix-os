@@ -1,3 +1,29 @@
+# 2026-10-15 00:05: KERNEL 28 + bsp-sm8250 39 + bsp-common 35 ALL TESTED (docked sleep fixed, dock audio back, wifi route fixed, fresh undocked boot clean) - overnight docked sleep is the last proof
+
+On the RP5 now: kernel 7.1.2-28, bsp-sm8250 39, bsp-common 35, steam 56; fresh undocked boot 23:58 clean
+(HiFi, Speaker + Headphones, quiet tone measured). About to be redocked for the overnight docked sleep
+(Steam's idle timer; RTC dead-man wake armed ~4 h after the redock; Cliff's one short press in the morning,
+then scratchpad/wake-collect.sh overnight2 -10h). Evidence: tools/dock/results-rp5-2026-10-14.md (last three
+sections), scratchpad/cycles/{wake2,k27a,e5,e5k28,k28a,audio}.
+
+What was proven tonight (all rig, Cliff's three plugs only):
+- Docked sleep: kernel 27 (0724) keeps PD alive but the dock's DP receiver parks after ANY link-off > ~30 s
+  (no sleep needed, dp-off-cycle.sh); kernel 28 adds 0725 (sink D3 before a DRM off, D0 before training,
+  USB-C IRQ_HPD serviced) + DP AUX chardev: 3-min docked s2idle -> picture, PD, 9 V, NIC 5 G all back, Rp
+  stays 3.0 A; link-off test clean, the dock sends no Attention at all while down.
+- Dock audio over DP (bsp 39 HDMI profile + switcher): tone recorded on fusor's capture, first stream, on the
+  first dock boot and after a redock; undock -> HiFi + speakers in 3 s; redock -> HDMI at once; fresh undocked
+  boot -> HiFi with Speaker + Headphones, HDMI profile absent (unsupported) instead of killing the speakers.
+- wlan0 /24 route loss (bsp-common 35): the dock NIC answered ARP for the wifi address, NM conflict
+  detection withdrew the route; arp_ignore=1/arp_announce=2; proven by usb unbind/bind and a real unplug.
+Commits: 20056af, cfaf13d, f4aa5a3, 4d113e7 (+ this handoff).
+
+Next (in order): 1. morning: Cliff's press -> wake-collect.sh overnight2 -10h (expect picture, pd ack=00, Rp
+0x1506=02, NIC 5 G, route). 2. pocknix-dp-audio-switch event-driven (udevadm monitor -s drm) - it burns ~1 %
+CPU polling every second. 3. Steam's audio device list while docked (loud filter sink without its target).
+4. respin + release notes (RC must match repo). 5. speaker rebuild from the 16-bit baseline (low level, Cliff
+present), powerd 5 s test, Android docked-sleep ground truth (optional), RP6 port prep.
+
 # 2026-10-14 22:55: KERNEL 27 TESTED (PD alive, display still dark), ROOT CAUSE #2 = the dock's DP receiver parks after any long link-off, KERNEL 28 (0725) BUILDING
 
 State: RP5 docked on the UGREEN, kernel 27 + bsp-sm8250 38 + bsp-common 33 + steam 56, picture on the dock
