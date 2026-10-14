@@ -41,6 +41,10 @@ Done from source while the device sleeps:
   creation; a jack change updates availability and switches NOTHING by itself; WirePlumber only leaves a
   profile that became unavailable. So: plug -> HDMI needs our switcher; HDMI -> HiFi on unplug happens with
   or without it; at a docked boot ACP picks HiFi (higher priority), the switcher's start-up reconcile fixes it.
+- patches-staged/dp-sleep/0725 (NOT built): Type-C Attention-with-HPD-high -> EV_IRQ_HPD_INT (sink status read,
+  link maintenance on request) + sink D3 before a DRM-initiated off / D0 before the re-enable's training, from the
+  downstream driver; compile-tested W=1. Promote only if kernel 27 shows PD alive after the wake but the picture
+  still dark (README there). Commits this block: 7254aa4 (bsp 39 + common 34 + powerd + test), 71ad61d (0725).
 Test order when the RP5 is awake (after wake-collect / E4 / kernel 27 cycle from the 12:10 block): pacman -U
 bsp-sm8250 39 + bsp-common 34 -> `systemctl --user restart pocknix-dp-audio-switch` -> docked:
 tools/dock/dock-audio-test.sh (expect PASS; if the FIRST tone is silent and the second plays, the primer is not
