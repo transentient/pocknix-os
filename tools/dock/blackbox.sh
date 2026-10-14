@@ -21,6 +21,7 @@
 #     0x1360 windows), cont=0x1384 continuous AICL threshold (4.0-5.5 V in 100 mV, >= 5.6 V in 200 mV from 16).
 #   usbint bit3 = USBIN_OV, pp bit6 = USBIN suspended (kernel 21 at 9 V: usbint=18 pp=d8 = input refused).
 #   2026-10-11 docked boot: icl=0a aicl=0a (500 mA) with imax=2000000 = the drain; 0722 v3 (kernel 19) should show iclmax=28.
+#   2026-10-14 docked wake: pd ack=01 with a DP Attention (hdr 238f) in the RX buffer = PD receive wedged since the resume, DP never retrained.
 set -u
 OUT=/var/lib/pocknix/blackbox.log
 RM=/sys/kernel/debug/regmap/0-02/registers
@@ -48,6 +49,9 @@ while :; do
     line+=" | smb chg1=$(rd $((0x1006))) chg2=$(rd $((0x1007))) chgint=$(rd $((0x1010))) icl=$(rd $((0x1107))) aicl=$(rd $((0x1108))) pp=$(rd $((0x110B)))"
     line+=" apsd=$(rd $((0x1307))) apsdr=$(rd $((0x1308))) usbint=$(rd $((0x1310))) tcsnk=$(rd $((0x1506))) tcsrc=$(rd $((0x1508))) tcsm=$(rd $((0x1509))) tcmisc=$(rd $((0x150B)))"
     line+=" iclmax=$(rd $((0x1106))) cfg=$(rd $((0x1370))) ovr=$(rd $((0x1342))) load=$(rd $((0x1365))) iclopt=$(rd $((0x1366))) opt1=$(rd $((0x1362))) aiclopt=$(rd $((0x1380))) allow=$(rd $((0x1344))) cont=$(rd $((0x1384)))"
+    # PD PHY (0x1700): pdack=0x174B RX_ACKNOWLEDGE (1 = the RX buffer is owned by software: tcpm has not read the last
+    # message, every TX is refused with EBUSY), pdrx=0x174A RX_STATUS, pdsz=0x1742 RX_SIZE, pdhdr=0x1780/81 RX buffer header
+    line+=" | pd ack=$(rd $((0x174B))) rx=$(rd $((0x174A))) sz=$(rd $((0x1742))) hdr=$(rd $((0x1781)))$(rd $((0x1780)))"
   fi
   echo "$line" >> "$OUT"; sync -d "$OUT" 2>/dev/null || sync
   if [ "$(stat -c %s "$OUT")" -gt 8388608 ]; then tail -n 20000 "$OUT" > "$OUT.tmp" && mv "$OUT.tmp" "$OUT"; fi

@@ -1,3 +1,53 @@
+# 2026-10-14 12:10: DOCKED SLEEP ROOT CAUSE FOUND + KERNEL 27 PACKAGED (untested) - read this first
+
+Device: RP5 ASLEEP on the UGREEN dock since ~10:55 (Steam idle timer; I held no inhibitor and armed no RTC alarm
+after the 10:40 status read, so no remote wake: unreachable on .68 / dock NIC .72 / IPv6 link-local, HDMI capture
+no signal). Still kernel 26 + bsp-common 33, clean docked boot 10:37, Steam restarted (E3). Cliff is out for a few
+hours; he asked about fire risk and chose to leave it docked (9 V 2 A contract = inside the dock's 9 V 2.44 A
+rating, PMIC + dock OCP are hardware, 100 % at 4.41 V / 67 mA, 32-47 C). The overnight row (sleep 00:22 -> his
+press 09:59) PASSED on reset/charge/powerd/usb-host hooks/wifi-heal and FAILED on DisplayPort (dark after the
+wake). Rig: scratchpad dock-cycle.sh reproduced it (cycle1, 3 min RTC-timed sleep); E1 (session restart 20 min
+later) = AUX still dead; E3 (link drop without sleep) = retrains in < 1 s. E4 (sleep with the 010-usb-host hook
+disabled) NOT RUN yet.
+
+ROOT CAUSE (verified in 7.1.2 source: drivers/spmi/spmi-pmic-arb.c): IRQCHIP_MASK_ON_SUSPEND masks every
+non-wake PMIC irq for suspend and qpnpint_irq_unmask() writes LATCHED_CLR + EN_SET together on resume, so an edge
+that arrives during sleep is wiped. The dock re-sends its DP Attention after suspend_noirq, the PD PHY buffers it
+(token 0x174b = 01, software-owned), the msg-rx edge is lost, nobody reads the buffer: every PD tx -EBUSY "RX
+message pending", every rx dropped, until replug; the dock's retrain request is never serviced and the resume
+link training runs into 320 AUX timeouts. Vendor msm-4.19 makes sig-rx/msg-rx wake irqs (Android autosleeps
+again); upstream msm_dp also never puts the sink in D3 for suspend (only when sink_count == 0).
+
+KERNEL 27 = kernel/sm8250/patches/40-holodor/0724-usb-typec-qcom-pmic-resync-typec-pd-after-system-suspend.patch
+(ours, PKGBUILD pkgrel 27): dev_pm_ops on qcom-pmic-typec: resume_noirq logs INT_LATCHED_STS (typec + pdphy),
+complete() delivers a message left in the PD PHY rx buffer ("PD message (header 0x..) received during suspend,
+delivering it now") and re-reads CC/VBUS through tcpm_vbus_change/tcpm_cc_change; pd_receive no longer hands tcpm
+an unread message on a bad RX_SIZE. Not the vendor wake-irq design on purpose (a dock Attention would cost 10 min
+awake per sleep on Steam). v1 built + packaged 12:06; the adversarial review (second agent) found one real race
+(check and read of the rx buffer in two lock holds + disable_irq/enable_irq resend = one message delivered twice;
+a duplicate Soft_Reset escapes tcpm's message-ID filter) and three nits (stale latched bytes re-logged after an
+aborted suspend, never-acked lines sticky in LATCHED_STS, log volume). v2 = token check inside pd_receive's
+critical section (both readers), no irq toggling, latched bytes masked to the requested lines and cleared after
+the log; compiles W=1 clean; rebuild + package started 12:14 as unit k27-kernel-build2 (log scratchpad/k27/build2.log,
+EXIT= line at the end) -> build/localrepo/sm8250/linux-pocknix-sm8250-7.1.2-27-aarch64.pkg.tar.zst (5 dtbs; the 26
+package is gone from fusor's localrepo, rollback = the device's pacman cache + /flash/KERNEL.bak, deploy-k27.sh
+lists both first). Scripts: scratchpad/wake-collect.sh <label>
+(state + journal + dmesg + tcpm log ONCE + capture after a wake the rig did not arm), scratchpad/deploy-k27.sh
+(scp + pacman -U + reboot via a --collect unit).
+
+NEXT, in order, when Cliff presses the button (one short press, nothing else): wake-collect.sh wake2 (expect the
+same wedge: pd ack=01, "RX message pending", DP dark) -> E4 on kernel 26: chmod -x
+/usr/lib/pocknix/sleep.d/pre/010-usb-host, dock-cycle.sh 180 e4, chmod +x back (expected worst case: Host
+System Error = dead USB until a remote reboot; tells whether the dock's AUX survives when the host stays) ->
+deploy-k27.sh -> dock-cycle.sh 180 k27a: expect the "received during suspend" line, pd ack=00 after the wake, PD
+alive; picture back if the wedge was what killed the AUX, else part (b): Type-C IRQ_HPD -> msm_dp link
+maintenance (dp_display.c ~520-600 / dp_ctrl.c 1997-2040 exist for the HPD-pin path only) and the vendor's sink
+D3 before suspend. Then the rest: Android docked sleep/wake ground truth (Cliff's hands), speaker rebuild from the
+16-bit baseline, bsp-common 34 (wlan0 route, sdam hook name spmi_sdam1, powerd backlight EINVAL), powerd 5 s test,
+results doc (tools/dock/results-rp5-2026-10-14.md has the overnight row + root cause), respin + release notes.
+Memory: reference-rp5-pmic-irq-lost-in-suspend. Rule learned again: before leaving the docked RP5 idle, arm
+`rtcwake -m no -s 3600` as the dead-man wake (or hold the sleep:idle block when the sleep is not wanted).
+
 # 2026-10-14 00:10: KERNEL 26 DOCK MATRIX = 4/4 PASS (DP in both orientations on both docks) - read this first
 
 Kernel 26 (gpio-sbu-mux AUX switch, tlmm 9 enable active-low + tlmm 8 select, from the live Android DT) deployed
