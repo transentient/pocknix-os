@@ -19,9 +19,14 @@ What was proven tonight (all rig, Cliff's three plugs only):
 Commits: 20056af, cfaf13d, f4aa5a3, 4d113e7 (+ this handoff).
 
 Next (in order): 1. morning: Cliff's press -> wake-collect.sh overnight2 -10h (expect picture, pd ack=00, Rp
-0x1506=02, NIC 5 G, route). 2. pocknix-dp-audio-switch event-driven (udevadm monitor -s drm) - it burns ~1 %
-CPU polling every second. 3. Steam's audio device list while docked (loud filter sink without its target).
-4. respin + release notes (RC must match repo). 5. speaker rebuild from the 16-bit baseline (low level, Cliff
+0x1506=02, NIC 5 G, route). 2. DOCK AFTER AN UNDOCKED BOOT = NO DOCK AUDIO (00:03: "card 52 has no profile
+named HDMI": ACP probes profiles once at card creation, the undocked DP probe fails AFE -22, nothing re-probes):
+fix (a) kernel - q6afe-dai DISPLAY_PORT prepare succeeds without DEVICE_START while msm_dp has no link, so the
+HDMI profile always exists and is "available: no" via the DP0 Jack; or (b) the switcher restarts WirePlumber
+once when DP-1 connects and the card has no HDMI profile (verify Steam UI sounds survive). Then a docked boot +
+HDMI profile + rig sleep cycle. 3. pocknix-dp-audio-switch event-driven (udevadm monitor -s drm) - it burns
+~1 % CPU polling every second. 4. Steam's audio device list while docked (loud filter sink without its target).
+5. respin + release notes (RC must match repo). 6. speaker rebuild from the 16-bit baseline (low level, Cliff
 present), powerd 5 s test, Android docked-sleep ground truth (optional), RP6 port prep.
 
 # 2026-10-14 22:55: KERNEL 27 TESTED (PD alive, display still dark), ROOT CAUSE #2 = the dock's DP receiver parks after any long link-off, KERNEL 28 (0725) BUILDING
