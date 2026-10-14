@@ -2,9 +2,12 @@ From: Holodor <holodor@bonesaw.com>
 Date: Wed, 14 Oct 2026 13:40:00 +0900
 Subject: [PATCH] drm/msm/dp: service the sink's IRQ_HPD over USB-C and put the sink in D3 across a DRM-initiated off
 
-STAGED, NOT IN THE BUILD (2026-10-14). Promote to 40-holodor as 0725 only if the kernel 27 docked
-sleep cycle shows PD alive after the wake (the 0724 re-sync delivered the dock's Attention) but the
-DisplayPort link still does not come back, or if a dock's retrain request while awake is ignored.
+Promoted to the build 2026-10-14 22:55 (kernel 28) on rig evidence from kernel 27: the 0724 re-sync kept PD alive
+across a docked sleep, yet the resume's link training hit nothing but AUX timeouts; and holding the DP link down for
+3 min WITHOUT sleeping (drm connector force off, USB host alive, alt mode entered) did the same: the dock sent IRQ_HPD
+Attentions every 10 s, bounced HPD after ~30 s and its EDID could no longer be read. Exit + Enter Mode over PD revived
+it at once. The sink was never told to power down (no DP_SET_POWER D3 on a DRM-initiated off) and its IRQ_HPD was
+never serviced; both are below.
 
 Two things the downstream driver (msm-4.19 techpack dp_display.c) does that upstream does not:
 
@@ -24,7 +27,7 @@ Two things the downstream driver (msm-4.19 techpack dp_display.c) does that upst
    write D0 again in atomic_enable's ST_DISPLAY_OFF re-entry before the forced link training
    (today only msm_dp_display_process_hpd_high() writes D0, which a resume never runs).
 
-Compile-tested against 7.1.2 + our stack (W=1 clean). Not run on a device.
+Compile-tested against 7.1.2 + our stack (W=1 clean). First device run: kernel 28.
 
 ---
 --- a/drivers/gpu/drm/msm/dp/dp_display.c
