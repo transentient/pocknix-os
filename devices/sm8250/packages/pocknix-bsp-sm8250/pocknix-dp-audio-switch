@@ -1,0 +1,98 @@
+#!/bin/bash
+# pocknix-dp-audio-switch (user service, pocknix-bsp-sm8250 39): select the sound card's "HDMI"
+# profile (UCM verb HDMI-RP.conf = audio over the USB-C dock's DisplayPort) while card0-DP-1 is
+# connected, and the "HiFi" profile (Speaker/Headphones) otherwise. Same shape as ROCKNIX's
+# output_monitor (_switch_audio: wpctl set-profile <card> HDMI|HiFi on hotplug), polling the DRM
+# connector instead of sway. Never restarts WirePlumber (a restart under Steam breaks its audio).
+#
+# Why a profile switch and not one profile with both: PipeWire's ACP drops a whole profile when one
+# of its devices fails to open at probe time; the DP device fails that undocked (see HDMI-RP.conf).
+#
+# Workaround, labelled as such: the DSP's first start of the DISPLAY_PORT_RX port after a profile
+# switch has timed out on this device (kernel/sm8250/patches-staged/dp-audio/README.md: first
+# stream silent, the next plays), so after switching to HDMI we play 1 s of silence twice into the
+# sink. Root cause still open; measure with tools/dock/dock-audio-test.sh.
+set -u
+POLL=${POCKNIX_DP_POLL:-1}
+SETTLE=${POCKNIX_DP_SETTLE:-2}
+CONN=/sys/class/drm/card0-DP-1/status
+CARD_NAME=${POCKNIX_AUDIO_CARD:-alsa_card.platform-sound}
+DP_SINK=alsa_output.platform-sound.HDMI__DisplayPort__sink
+
+log() { echo "dp-audio-switch: $*"; }
+dp_state() { cat "$CONN" 2>/dev/null || echo none; }
+
+# object id of our ALSA card device in PipeWire (device.name = alsa_card.platform-sound)
+card_id() {
+  timeout 5 pw-dump 2>/dev/null | python3 -c '
+import json,sys
+want=sys.argv[1]
+for o in json.load(sys.stdin):
+    if o.get("type")=="PipeWire:Interface:Device" and o.get("info",{}).get("props",{}).get("device.name")==want:
+        print(o["id"]); break' "$CARD_NAME" 2>/dev/null
+}
+# index of a profile by name on that device
+profile_index() {
+  timeout 5 pw-dump "$1" 2>/dev/null | python3 -c '
+import json,sys
+name=sys.argv[1]
+for o in json.load(sys.stdin):
+    for p in o.get("info",{}).get("params",{}).get("EnumProfile",[]):
+        if p.get("name")==name: print(p["index"]); sys.exit(0)' "$2" 2>/dev/null
+}
+current_profile() {
+  timeout 5 pw-dump "$1" 2>/dev/null | python3 -c '
+import json,sys
+for o in json.load(sys.stdin):
+    for p in o.get("info",{}).get("params",{}).get("Profile",[]):
+        print(p.get("name","")); sys.exit(0)' 2>/dev/null
+}
+set_profile() {
+  local want=$1 id idx cur try
+  for try in 1 2 3 4 5; do
+    id=$(card_id); [ -n "$id" ] && break; sleep 2
+  done
+  [ -n "$id" ] || { log "no $CARD_NAME in PipeWire, cannot switch to $want"; return 1; }
+  cur=$(current_profile "$id")
+  [ "$cur" = "$want" ] && { log "card $id already on $want"; return 0; }
+  idx=$(profile_index "$id" "$want")
+  [ -n "$idx" ] || { log "card $id has no profile named $want"; return 1; }
+  if timeout 5 wpctl set-profile "$id" "$idx"; then
+    log "card $id: profile $cur -> $want (index $idx)"
+  else
+    log "wpctl set-profile $id $idx failed"; return 1
+  fi
+}
+prime_dp_sink() {
+  # workaround for the first-stream DSP start timeout (see header); two short silent streams
+  local n
+  for n in 1 2; do
+    sleep 1
+    timeout 4 pw-cat -p --target "$DP_SINK" --raw --format s16 --rate 48000 --channels 2 /dev/zero >/dev/null 2>&1 &
+    sleep 1.2; kill $! 2>/dev/null; wait $! 2>/dev/null
+  done
+  log "DP sink primed"
+}
+apply() {
+  case "$1" in
+    connected) set_profile HDMI && prime_dp_sink ;;
+    *) set_profile HiFi ;;
+  esac
+}
+
+last=$(dp_state); log "start, DP-1 $last"
+apply "$last"
+pending=; since=0
+while sleep "$POLL"; do
+  cur=$(dp_state)
+  if [ "$cur" != "$last" ]; then
+    if [ "$cur" != "$pending" ]; then pending=$cur; since=$SECONDS; fi
+    if [ $((SECONDS - since)) -ge "$SETTLE" ]; then
+      log "DP-1 $last -> $cur"
+      apply "$cur"
+      last=$cur; pending=
+    fi
+  else
+    pending=
+  fi
+done

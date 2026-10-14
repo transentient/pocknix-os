@@ -115,10 +115,14 @@ def restore_brightness(reason):
         return
     target = int(mx * RESTORE_FRAC)
     try:
-        open(path, "w").write(str(target))
+        # close inside the try: sysfs reports the error at flush/close (EINVAL while the
+        # panel is off, e.g. a docked wake with the internal display disabled), and an
+        # unclosed file raised it as "Exception ignored" at garbage collection instead.
+        with open(path, "w") as f:
+            f.write(str(target))
         print(f"pocknix-powerd: {reason}: brightness {cur} -> {target} (of {mx})", flush=True)
     except OSError as e:
-        print(f"pocknix-powerd: brightness restore failed: {e}", flush=True)
+        print(f"pocknix-powerd: {reason}: brightness restore {cur} -> {target} refused ({e.strerror}); panel off?", flush=True)
 
 def battery_state():
     # (capacity%, on_ac) from sysfs; (None, True) if unreadable so we never block a suspend on a guess.

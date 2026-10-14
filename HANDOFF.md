@@ -1,3 +1,52 @@
+# 2026-10-14 13:00: DOCK AUDIO BACK (bsp-sm8250 39, HDMI profile), bsp-common 34, kernel 27 - all UNTESTED, RP5 asleep
+
+Cliff (12:30, away ~6 h): "Dock audio over display port was pulled? Why did you do that? Put it back." and
+"What can you take care of by reading the armada and rocknix code, and our dumps of device tree from Android?"
+Done from source while the device sleeps:
+- DisplayPort audio is back as its OWN UCM verb / PipeWire profile "HDMI" (devices/sm8250/.../HDMI-RP.conf:
+  DisplayPort device hw:0,3, DP0 Jack, DISPLAY_PORT_RX route in the device sequences) selected by the new user
+  service pocknix-dp-audio-switch (polls card0-DP-1 status, wpctl set-profile HDMI/HiFi via pw-dump + python3,
+  never restarts WirePlumber, primes the DP sink twice after the switch = labelled workaround for the first-stream
+  AFE start timeout). Ground truth for the design: PipeWire acp/alsa-mixer.c pa_alsa_profile_set_probe marks a
+  WHOLE profile unsupported when one device's open+hw_params fails (that is how bsp 27 and 36 killed the speakers
+  on undocked boots), the probe never calls snd_pcm_prepare; ROCKNIX ships dock audio the same way (HDMI profile
+  + output_monitor's _switch_audio). Offline UCM parse OK (verbs HiFi + HDMI). Package built:
+  build/localrepo/sm8250/pocknix-bsp-sm8250-0.1.0-39-any.pkg.tar.zst. Hands-free verification exists now:
+  fusor's HDMI capture dongle (MacroSilicon "USB3 PLUS Video") is also ALSA capture card "Video";
+  tools/dock/dock-audio-test.sh <rp5-ip> plays a -20 dBFS 1 kHz tone into the DP sink and measures it on fusor.
+- bsp-common 34: 003-sdam-debug finds the SDAM nvmem by device-tree node (nvram@b100) via
+  /usr/lib/pocknix/sdam-debug-lib (nvmem ids share one counter; it was spmi_sdam1 on kernel 26). The wlan0 /24
+  route loss and the ethernet-at-USB-2-after-wake are NOT fixed: both need a hands-free repro when awake
+  (route: unbind the dock NIC `echo 2-1.2 > /sys/bus/usb/drivers/usb/unbind` while `ip monitor route` runs;
+  ethernet speed: compare the hub's SS link after the usb-host hook's device->host switch).
+- overlay/usr/local/bin/pocknix-powerd restore_brightness: the sysfs write is closed inside the try (EINVAL on a
+  docked wake with the panel off was an "Exception ignored" at GC); ships with the respin, or scp it.
+- Android DT (build/android-evidence-20261012/live.dts) vs ours, USB controller: Android dwc3 has
+  maximum-speed super-speed-plus, dr_mode drd, snps,has-lpm-erratum, snps,disable-clk-gating, hird-threshold
+  0x10, tx-fifo-resize; ours dis_enblslpm_quirk + usb-role-switch + wakeup-source. Nothing there explains the
+  480M re-enumeration after a wake; not changed.
+- Armada 20260927 image (~/odin3-backups/armada-preview-20260927): p1 FAT = KERNEL (75 MB bootimg) + rocknix_abl,
+  p2 1 GB ext4 = bootupd/ostree boot, p3 23.4 GB ext4 = the OSTree root (Armada is OSTree-based, not squashfs).
+  p3 (btrfs, label root) is extracted to build/armada-extract/p3.img (git-ignored), mountable read-only:
+  `sudo mount -t btrfs -o loop,ro build/armada-extract/p3.img /mnt/armada`, root =
+  /mnt/armada/root/ostree/deploy/default/deploy/<hash>.0. FINDINGS (kernel 7.2.6): their RetroidPocket.conf
+  has the SAME HiFi + HDMI use-case split, their HDMI-RP.conf = verb-level DISPLAY_PORT_RX route, device
+  "HDMI" hw:0,3 48 kHz 2 ch DP0 Jack, no speaker gains in it; NO userland profile switcher at all (no
+  set-profile anywhere), so on Armada the HDMI profile is picked by hand (KDE) or never: our switcher is the
+  difference. Their RP5 dtb carries the same four dwc3 quirks as ours (dis_u2_susphy, dis_enblslpm, dis-u1/u2-
+  entry), wakeup-source on usb_1, the gpio-sbu-mux (same AUX switch as our kernel 26), the NB7VPQ904M redriver
+  node we deleted as a phantom (kernel 23), and 5 V-only PDOs (no 9 V sink PDO). Sleep hooks: only a wake-irq
+  ledger (reads /sys/power/pm_wakeup_irq post-resume: worth copying) and a lid-close power-key gate; nothing
+  for the USB host or Type-C. PipeWire ACP (acp.c, read 10-14): auto-profile/auto-port act only at card
+  creation; a jack change updates availability and switches NOTHING by itself; WirePlumber only leaves a
+  profile that became unavailable. So: plug -> HDMI needs our switcher; HDMI -> HiFi on unplug happens with
+  or without it; at a docked boot ACP picks HiFi (higher priority), the switcher's start-up reconcile fixes it.
+Test order when the RP5 is awake (after wake-collect / E4 / kernel 27 cycle from the 12:10 block): pacman -U
+bsp-sm8250 39 + bsp-common 34 -> `systemctl --user restart pocknix-dp-audio-switch` -> docked:
+tools/dock/dock-audio-test.sh (expect PASS; if the FIRST tone is silent and the second plays, the primer is not
+enough and the AFE first-start issue is still open) -> undock: speakers back (profile HiFi), fresh UNDOCKED boot:
+Speaker + Headphones present (the whole point) -> route repro -> sleep rows.
+
 # 2026-10-14 12:10: DOCKED SLEEP ROOT CAUSE FOUND + KERNEL 27 PACKAGED (untested) - read this first
 
 Device: RP5 ASLEEP on the UGREEN dock since ~10:55 (Steam idle timer; I held no inhibitor and armed no RTC alarm
