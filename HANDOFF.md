@@ -1,3 +1,36 @@
+# 2026-10-14 22:55: KERNEL 27 TESTED (PD alive, display still dark), ROOT CAUSE #2 = the dock's DP receiver parks after any long link-off, KERNEL 28 (0725) BUILDING
+
+State: RP5 docked on the UGREEN, kernel 27 + bsp-sm8250 38 + bsp-common 33 + steam 56, picture on the dock
+(revived by an alt-mode Exit+Enter at 22:50), RTC dead-man wake armed for 23:33 (rtcwake). Kernel 28 build
+started 22:52 as the systemd unit holodor-k28-* (log: scratchpad/k28-build.log, ends with EXIT=n), pkgrel 28,
+commit 20056af. bsp-sm8250 39 and bsp-common 34 still NOT installed.
+
+Evidence (tools/dock/results-rp5-2026-10-14.md, last section; scratchpad/cycles/wake2, k27a, e5):
+- wake2 (Cliff's press, kernel 26, 10 h 47 min asleep): the predicted PD wedge (token 01, Attention parked).
+- k27a (kernel 27, dock-cycle.sh 180): PD alive after the wake (0724 TESTED OK: ack=00, no "RX message
+  pending"), but every AUX transaction times out from the first DPCD read of the resume modeset; the dock
+  also holds Rp 1.5 A (0x1506 = 0x04, SinkTxNG) after a sleep, so tcpm refuses every host-initiated exchange
+  ("Sink TX No Go"); a reboot clears it.
+- E5 (dp-off-cycle.sh 180: drm `force` off + `echo change > card0/uevent`, no sleep, USB alive): the dock
+  sends IRQ_HPD every 10 s, bounces HPD at ~30 s, its EDID read fails, nothing retrains. Alt-mode Exit+Enter
+  (sysfs `active` 0/1) revives it in 20 s. => the sink is never put in D3 and its IRQ_HPD never serviced
+  (upstream msm_dp); the vendor driver does both = 0725, promoted. Plus CONFIG_DRM_DISPLAY_DP_AUX_CHARDEV
+  (/dev/drm_dp_aux0; both rig scripts now print DPCD 0x600/0x201/0x202-0x205).
+- Side findings: the dock's ethernet came back at 5 Gbit after the k27a wake (not USB 2), the wlan0 /24 route
+  survived wake2; neither open item reproduced tonight. The dock's PD identity is Nintendo 0x057e / 0x2003
+  (a Switch-style dock controller).
+
+Test order (all rig, no hands; one Cliff press only if it ever sleeps unarmed):
+1. scratchpad/deploy-k28.sh (package + reboot), wait for a picture, dp-off-cycle.sh 180 e5k28: picture back
+   after the 180 s off = D3/D0 works. DPCD 0x600 should read 02 while off (D3) and 01 after.
+2. dock-cycle.sh 180 k28a: docked sleep; picture back + Rp after the wake (0x1506: 02 = 3.0 A good, 04 = NG).
+3. If Rp drops to 1.5 A again: E4 on 28 = chmod -x /usr/lib/pocknix/sleep.d/pre/010-usb-host, dock-cycle 180
+   e4, chmod +x back (worst case Host System Error -> systemd-run systemctl reboot).
+4. pacman -U bsp-sm8250 39 + bsp-common 34 (build/localrepo/sm8250), systemctl --user restart
+   pocknix-dp-audio-switch, tools/dock/dock-audio-test.sh 192.168.1.68; then Cliff: undock -> HiFi + speakers,
+   redock -> HDMI; then a FRESH UNDOCKED BOOT must show Speaker + Headphones.
+5. Cliff: Android docked sleep/wake ground truth on the same dock (does Android's picture come back?).
+
 # 2026-10-14 13:00: DOCK AUDIO BACK (bsp-sm8250 39, HDMI profile), bsp-common 34, kernel 27 - all UNTESTED, RP5 asleep
 
 Cliff (12:30, away ~6 h): "Dock audio over display port was pulled? Why did you do that? Put it back." and
