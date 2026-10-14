@@ -6,11 +6,11 @@
 set -u
 H=$1; L=${2:-dockaudio}; OUT=${OUT:-/tmp/claude-1000/-home-cliff-projects-holodor/f1db4bd6-8285-4cf8-b727-659d9bda1897/scratchpad/cycles/$L}; mkdir -p "$OUT"
 SSH="ssh -o ConnectTimeout=5 -o BatchMode=yes deck@$H"
-CARD=$(arecord -l 2>/dev/null | sed -n 's/^card \([0-9]\+\): Video .*/\1/p' | head -1)
+CARD=$(sed -n 's/^ *\([0-9]\+\) \[Video *\].*/\1/p' /proc/asound/cards | head -1)   # arecord -l shows nothing for a user without a seat; /proc/asound/cards always does
 [ -n "$CARD" ] || { echo "no 'Video' capture card on fusor"; exit 1; }
 echo "== RP5 audio state"; $SSH 'timeout 5 wpctl status 2>/dev/null | sed -n "/Audio/,/Video/p" | grep -E "Devices|Sinks|\*|HDMI|HiFi|DisplayPort|Speaker" | head -12; systemctl --user is-active pocknix-dp-audio-switch; journalctl --user -u pocknix-dp-audio-switch --no-pager -n 6 -o cat' | tee "$OUT/state.txt"
 echo "== record 6 s on fusor card $CARD while the RP5 plays 4 s of 1 kHz at -20 dBFS to the DP sink"
-( timeout 8 arecord -D hw:$CARD,0 -f S16_LE -r 48000 -c 2 -d 6 "$OUT/dock.wav" >/dev/null 2>&1 ) &
+( sudo timeout 8 arecord -D hw:$CARD,0 -f S16_LE -r 48000 -c 2 -d 6 "$OUT/dock.wav" >/dev/null 2>&1 ) &
 sleep 1
 $SSH 'timeout 8 pw-play --target alsa_output.platform-sound.HDMI__DisplayPort__sink --volume 0.1 <(python3 -c "
 import struct,math,sys
