@@ -7,6 +7,8 @@ switching both ways, docked sleep with HDMI, Steam clicks on the dock. RESPIN RU
 build + make sd-image, log scratchpad/respin-20261015.log; it walks every package incl. mesa - long). Then: sha,
 release notes draft (docs/release-notes/), Cliff's word on the notes, publish. Device: docked, idle, no inhibitors;
 Steam's idle timer sleeps it; no rtcwake armed (Cliff is present).
+- 17:32 RESPIN DONE: build/image/sm8250/pocknix-sm8250-sd.img (17519607808 bytes, sha256 in tools/dock/results-rp5-2026-10-15.md 17:32 entry), kernel check passed (7.1.2-41 boot = rootfs), package set = the green matrix (kernel 41 / bsp-sm8250 41 / bsp-common 36 / steam 56). Not flashed, not published: Cliff's call.
+- 17:4x amp driver audit (vendor wsa881x vs upstream): init table + boost preset + PA gain encoding identical; DRE gain-select is the only difference and cannot exceed our fixed +18 dB. The "read compander registers from Android" item is CLOSED by source; Android mixer_paths/ACDB pull stays on the §6 list for the speaker-protection project.
 16:10 UPDATE: AUDIO REBUILD LANDED (kernel 41 building = kernel 39 content made final; bsp-sm8250 41 on the device):
 - kernel: 0100 (ROCKNIX 24-bit BE) out; 0727 S16-only FE; 0728 q6asm stream-leak error path + channels 1-6,8; 0729 v2
   AFE core hw vote (route the error reply + retry; its v1 sat in a switch fall-through and killed every port command on
@@ -2270,7 +2272,6 @@ cleaned up and released; Rode mic ready for the speaker work (NOT started today)
 - My sleep block on the RP5 (claude-inhibit) was STOPPED 14:2x. scp trap: a local filename with ':' needs ./
 - mesa 0005 + kernel series 60 committed AFTER the release tag (see git log).
 
-
 Cliff 12:1x: "The Odin sounds perfect", jack work done; release now; then RP5 + try the sweep patches.
 (The previous session could not be resumed after `claude update`; his unsent prompt was recovered from
 ~/.claude/history.jsonl. The old transcript 26fcfca8 is intact.)
@@ -2736,7 +2737,6 @@ the consolidated state; the bullets are the evidence trail.
 - Parity fixes committed before the tag: packages/decky-loader + python-aiohttp-{cors,jinja2} were
   UNTRACKED though RC2 ships them; overlay pocknix-expand-root (stamp on every exit) was dirty and
   IS the byte-identical file on the RC2 card (dbbd56f). 09-24 docs committed (export-ignore).
-
 
 
 ### Where we are (state, not journey)
