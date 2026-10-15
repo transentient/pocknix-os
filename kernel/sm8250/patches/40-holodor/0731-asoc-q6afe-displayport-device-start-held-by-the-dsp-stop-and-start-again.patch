@@ -1,0 +1,78 @@
+From: Holodor <holodor@bonesaw.com>
+Subject: [PATCH] ASoC: qcom: q6afe: DisplayPort DEVICE_START held by the DSP - wait 150 ms, stop and start again
+
+Traced on the Retroid Pocket 5 (SM8250, vendor ADSP firmware; ftrace +
+kprobes 2026-10-15): the DSP executes AFE_PORT_CMD_DEVICE_START for
+DISPLAY_PORT_RX but in about 40 % of the starts does not deliver the
+response, and the port passes no audio until it is stopped and started
+again. q6afe waited 3 s and failed the prepare, so the stream (and
+PipeWire's one-time card probe, which marks the whole profile unsupported)
+was lost. Alternatives tried and measured silent: starting with the DP
+audio engine off (the DSP acknowledges at once but the port never binds
+to the engine, 6/6 silent), toggling the engine after a completed start
+(6/6 silent), treating the held response as started (silent). The stop +
+start cure was measured on 2026-10-07 and again today.
+
+Wait 150 ms for that start and, when it is held, stop the port and start
+it again, up to three times, inside the same prepare.
+---
+--- a/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 15:13:21.192723344 +0900
++++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 15:40:15.810668703 +0900
+@@ -1046,6 +1046,25 @@
+ }
+ EXPORT_SYMBOL_GPL(q6afe_get_port_id);
+ 
++/*
++ * HOLODOR: the DSP executes DEVICE_START for the DisplayPort port but, in
++ * about 40 % of the starts, does not deliver the response and the port passes
++ * no audio until it is stopped and started again (Retroid Pocket 5, traced
++ * with ftrace + kprobes 2026-10-15; the stop+start cure measured 2026-10-07).
++ * Starting with the DP audio engine off, toggling the engine afterwards, or
++ * waiting 3 s all leave the stream silent. So: wait 150 ms for that start,
++ * and on a held response stop the port and start it again (q6afe_port_start).
++ */
++#define DP_START_TIMEOUT_MS 150
++
++static unsigned int afe_cmd_timeout_ms(struct q6afe_port *port, uint32_t rsp_opcode)
++{
++	if (port && port->id == AFE_PORT_ID_HDMI_OVER_DP_RX &&
++	    rsp_opcode == AFE_PORT_CMD_DEVICE_START)
++		return DP_START_TIMEOUT_MS;
++	return TIMEOUT_MS;
++}
++
+ static int afe_apr_send_pkt(struct q6afe *afe, struct apr_pkt *pkt,
+ 			    struct q6afe_port *port, uint32_t rsp_opcode)
+ {
+@@ -1073,7 +1092,7 @@
+ 	}
+ 
+ 	ret = wait_event_timeout(*wait, (result->opcode == rsp_opcode),
+-				 msecs_to_jiffies(TIMEOUT_MS));
++				 msecs_to_jiffies(afe_cmd_timeout_ms(port, rsp_opcode)));
+ 	if (!ret) {
+ 		ret = -ETIMEDOUT;
+ 	} else if (result->status > 0) {
+@@ -1687,6 +1706,7 @@
+ 	struct afe_port_cmd_device_start *start;
+ 	struct q6afe *afe = port->afe;
+ 	int port_id = port->id;
++	int attempt;
+ 	int ret, param_id = port->cfg_type;
+ 	struct apr_pkt *pkt;
+ 	int pkt_size;
+@@ -1731,6 +1751,14 @@
+ 	start->port_id = port_id;
+ 
+ 	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_START);
++	for (attempt = 1; ret == -ETIMEDOUT && port_id == AFE_PORT_ID_HDMI_OVER_DP_RX &&
++	     attempt <= 3; attempt++) {
++		/* see afe_cmd_timeout_ms(): held by the DSP, stop + start again */
++		dev_info(afe->dev, "DisplayPort DEVICE_START held by the DSP, stop + start (%d)\n",
++			 attempt);
++		q6afe_port_stop(port);
++		ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_START);
++	}
+ 	if (ret)
+ 		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
+ 			port_id, ret);
