@@ -1,5 +1,5 @@
 [Unit]
-Description=pocknix: after a wifi firmware crash+recovery, power-cycle the chip if the link does not come back
+Description=pocknix: wifi heal, firmware recovery -> chip power cycle (the resume gateway check is launched by sleep.d/post/000-wifi)
 After=NetworkManager.service
 Wants=NetworkManager.service
 

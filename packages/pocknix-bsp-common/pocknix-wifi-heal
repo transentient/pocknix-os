@@ -1,5 +1,5 @@
 #!/bin/sh
-# pocknix-wifi-heal: ONE case, from ground truth. Odin 3 2026-09-03 (kernel log, boot d7df4d05): after a resume iwd
+# pocknix-wifi-heal: TWO cases, both from ground truth. FIRST: Odin 3 2026-09-03 (kernel log, boot d7df4d05): after a resume iwd
 # roams to the AP's other radio, the WCN7860 firmware crashes 0.6 s later, ath12k auto-recovers ("pdev 0 successfully
 # recovered"), the reconnect then hits the AP's stale association (auth timeouts, "comeback 2s"), iwd gives up and
 # NetworkManager is left "failed"/"disconnected" with no retries. The verified cure was a full chip power-on (Cliff's
@@ -9,6 +9,19 @@
 # (bsp-common <= 35 walked connection-up / radio-cycle / PCIe-reset rungs on any "limited" verdict; the one such fault
 # that got a root cause was the dock-ethernet ARP conflict, fixed at its cause in 35; the ladder never logged a cure
 # and its reset renamed the interface on 2026-10-05. Removed 2026-10-15 on Cliff's call.)
+#
+# SECOND case, from ground truth (RP5 2026-10-15 23:2x, release card, journal + ssh): after a long idle sleep the
+# radio comes back (000-wifi post hook), the kernel re-associates with the SAME association id and NetworkManager
+# goes straight to "activated"; from then on the router answers ARP but drops the station's IP traffic (gateway
+# ICMP dead, other LAN hosts fine, NM still reports "full"). A gratuitous ARP did nothing; `nmcli connection up`
+# (deauth + re-auth + new lease, new association id) cured it in 5 s. So: after every resume, once the wifi
+# reports connected, ping the gateway three times; if it never answers, reconnect ONCE and re-check.
+# Bounded: one reconnect per resume; if the reconnect does not bring the gateway back (a router that never answers
+# ICMP), a flag disables the reconnect until a resume sees the gateway answer again. The trigger is the sleep.d
+# post hook 000-wifi (the one that turns the radio back on): it runs `pocknix-wifi-heal --after-resume` as a
+# transient unit, so the check is deterministic and testable by hand (a /dev/kmsg line is NOT seen by journalctl -k
+# on this image, found 2026-10-15). Test knob: a gateway address in /run/pocknix-wifi-heal-test-gw replaces the
+# route's gateway for the next check (rig only).
 LOG=/var/lib/pocknix/wifi-heal.log
 WAIT=${POCKNIX_WIFI_HEAL_WAIT:-40}
 say() { echo "$(date -Iseconds) $*" >> "$LOG"; }
@@ -49,6 +62,45 @@ recover() {
   done
   say "UNRECOVERED after the chip power cycle (wifi: $(wifi_dev) $(wifi_state)) - sleep/wake or reboot"
 }
+gateway() {
+  if [ -s /run/pocknix-wifi-heal-test-gw ]; then cat /run/pocknix-wifi-heal-test-gw; return; fi
+  ip -4 route show default dev "$1" 2>/dev/null | awk '{print $3; exit}'
+}
+gw_answers() {  # $1 dev, $2 gw: three pings, ~6 s worst case
+  n=0
+  while [ "$n" -lt 3 ]; do
+    ping -c1 -W2 -I "$1" "$2" >/dev/null 2>&1 && return 0
+    n=$((n + 1))
+  done
+  return 1
+}
+NOICMP=/var/lib/pocknix/wifi-heal-gateway-silent
+after_resume() {
+  i=0
+  while [ "$i" -lt 25 ]; do
+    [ "$(wifi_state)" = "connected" ] && break
+    sleep 1; i=$((i + 1))
+  done
+  [ "$(wifi_state)" = "connected" ] || { say "resume: wifi $(wifi_state) after 25 s, no gateway check"; return; }
+  dev=$(wifi_dev); gw=$(gateway "$dev")
+  [ -n "$gw" ] || { say "resume: no IPv4 default route on ${dev}, nothing to check"; return; }
+  if gw_answers "$dev" "$gw"; then
+    [ -e "$NOICMP" ] && { rm -f "$NOICMP"; say "resume: gateway ${gw} answers again, resume reconnects re-armed"; }
+    say "resume: gateway ${gw} answers (no action)"; return
+  fi
+  [ -e "$NOICMP" ] && { say "resume: gateway ${gw} silent, but a reconnect did not cure that before: no action (remove ${NOICMP} to re-arm)"; return; }
+  PROF=$(nmcli -t -f NAME,DEVICE connection show --active 2>/dev/null | awk -F: -v d="$dev" '$2==d{print $1; exit}')
+  [ -n "$PROF" ] || PROF=$(profile)
+  [ -n "$PROF" ] || { say "resume: gateway ${gw} silent and no wifi profile to reconnect"; return; }
+  say "resume: wifi connected but gateway ${gw} silent for 3 pings -> nmcli connection up '${PROF}' (re-auth + new lease)"
+  nmcli connection up "$PROF" >/dev/null 2>&1 || true
+  sleep 2
+  if gw_answers "$dev" "$gw"; then say "resume: cured by the reconnect (gateway ${gw} answers)"
+  else : > "$NOICMP"; say "resume: UNCURED, gateway ${gw} still silent after the reconnect; resume reconnects disabled until it answers again"; fi
+}
+case "${1:-}" in
+  --after-resume) after_resume; exit 0 ;;
+esac
 say "watching the kernel log for a wifi firmware recovery (service start)"
 journalctl -k -f -n 0 -o cat 2>/dev/null | while IFS= read -r line; do
   case "$line" in *"successfully recovered"*) recover ;; esac
