@@ -1,0 +1,13 @@
+[Unit]
+Description=pocknix: after a wifi firmware crash+recovery, power-cycle the chip if the link does not come back
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/pocknix/pocknix-wifi-heal
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
