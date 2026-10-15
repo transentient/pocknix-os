@@ -1,5 +1,5 @@
 From: Holodor <holodor@bonesaw.com>
-Subject: [PATCH] ASoC: q6afe + drm/msm/dp: complete the DisplayPort DEVICE_START the DSP holds
+Subject: [PATCH] ASoC: q6afe: a held DisplayPort DEVICE_START is started; wait 150 ms, not 3 s
 
 Traced on the Retroid Pocket 5 (SM8250, vendor ADSP firmware; ftrace +
 kprobes on afe_apr_send_pkt, q6afe_callback, apr_callback,
@@ -68,21 +68,3 @@ the start before data flows.
  		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
  			port_id, ret);
  
---- a/drivers/gpu/drm/msm/dp/dp_audio.c	2026-10-15 14:49:18.470007968 +0900
-+++ b/drivers/gpu/drm/msm/dp/dp_audio.c	2026-10-15 15:06:35.135951411 +0900
-@@ -309,6 +309,15 @@
- 	msm_dp_audio_setup_sdp(audio);
- 	msm_dp_audio_setup_acr(audio);
- 	msm_dp_audio_safe_to_exit_level(audio);
-+	/*
-+	 * HOLODOR: this runs twice per stream (hw_params and prepare, see the
-+	 * DRM audio helper). The DSP's DEVICE_START for the DisplayPort port,
-+	 * issued between the two, completes only on a transition of this engine
-+	 * (traced 2026-10-15); when the engine is already on, switch it off and
-+	 * on again so the DSP finishes the start before data flows.
-+	 */
-+	if (msm_dp_display->audio_enabled)
-+		msm_dp_audio_enable(audio, false);
- 	msm_dp_audio_enable(audio, true);
- 	msm_dp_display_signal_audio_start(msm_dp_display);
- 	msm_dp_display->audio_enabled = true;
