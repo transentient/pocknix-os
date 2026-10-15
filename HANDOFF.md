@@ -6,7 +6,7 @@ gain we ship compensates it; Armada and ROCKNIX run the same path at +36 dB; the
 companders ON and is 13.9 dB louder and cleaner; PipeWire ACP takes a UCM verb's `Value { Priority N }`, WirePlumber re-selects
 the profile on every availability change -> the dock switch needs no script; 0.5.12 ignores our 52-default-volume device
 property, the DP sink's 0.40 is WirePlumber's global 0.064 default). Target: kernel sample path correct (kernel 30 = 0100
-staged out, BUILDING, measurement only), three UCM files on upstream includes + vendor numbers + HDMI Priority 9000, ONE
+staged out, BUILT 12:35 = build/localrepo/sm8250/linux-pocknix-sm8250-7.1.2-30-aarch64.pkg.tar.zst, measurement only), three UCM files on upstream includes + vendor numbers + HDMI Priority 9000, ONE
 WirePlumber drop-in (soft-mixer + default-sink-volume 0.125), delete the five audio services and the filter, root-cause the
 first-stream DSP timeout (trace plan in 3.6). FIVE DECISIONS pending from Cliff (doc section 5). Device: ASLEEP on the dock
 since ~12:21 (Steam idle timer, no rtcwake armed), kernel 29, docked boot; wake = Cliff's short press. Ready in the
