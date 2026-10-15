@@ -212,7 +212,10 @@ tone with Cliff present)
    jack, dock audio after each.
 7. 3.6: the first stream after a dock plug plays (the stake), with the trace evidence written up.
 
-## 5. Decisions for Cliff before implementation
+## 5. Decisions (Cliff, 10-15 12:40): 1 = YES, 100 % matches Android. 2 and 3 = MEASURE BOTH FIRST (companders on vs off;
+S16-only vs V3), then pick. 4 = DELETE. 5 = try the recommended order. "You can be as loud as you want for the next
+four hours" (until ~16:40): ceiling measurements allowed in that window.
+### Original questions
 1. Loudness target = Android's maximum at 100 % (13.9 dB above today), 50 % = -18 dB. Yes/no.
 2. Companders ON (vendor + upstream 1.2.14) as the starting point, measured at low level; the 10-05/10-06 "off" fixes
    were measured at the wrong gains. If pumping returns at the vendor's gains, it is reported, not patched.
