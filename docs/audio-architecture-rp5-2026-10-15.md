@@ -237,3 +237,14 @@ four hours" (until ~16:40): ceiling measurements allowed in that window.
   (the DP audio sequence and timing); (6) ADSP firmware version strings; (7) the DP alt-mode/typec sequence (have);
   (8) the live DT (have). Tooling: tools/dock/android-* collectors; keep the list in HANDOFF for the RP6.
 - Cliff: an Azropa Z1FC arrives for docked testing; test USB-C DisplayPort mode directly (not only dock->HDMI).
+
+## 7. Vendor source review (15:00) - what it settled
+- DisplayPort start order is identical in the vendor stack; the held DEVICE_START is DSP behaviour; the vendor masks it
+  with a permanent silence stream. Our remedy (kernel 0731) completes the start at its cause (an engine transition).
+- The compander tuning is in the vendor driver source, no Android dump needed: WSA8815 amps = DEFAULT speaker mode
+  (CTL3 bit7, CTL7 0x19, BOOST 0x58); upstream applies MODE_1 to every board. Kernel 0730 applies the vendor's sets and
+  the DEFAULT mode. If the measurement with the companders ON then matches Android (level and pumping), section 3.2
+  returns to companders ON per the vendor; otherwise linear stays.
+- Vendor source mirror used: github.com/LineageOS/android_kernel_oneplus_sm8250 (lineage-20): techpack/display/msm/dp/
+  (dp_audio.c, dp_catalog.c), techpack/audio/asoc/ (msm-dai-q6-hdmi-v2.c, kona.c, codecs/msm_hdmi_codec_rx.c,
+  codecs/bolero/wsa-macro.c, codecs/wsa881x.c), techpack/audio/dsp/q6afe.c, drivers/platform/msm/msm_ext_display.c.
