@@ -1,5 +1,5 @@
 From: Holodor <holodor@bonesaw.com>
-Subject: [PATCH] ASoC: qcom: q6afe: route the DSP's error reply to a core hw vote and retry it
+Subject: [PATCH] ASoC: qcom: q6afe: route the DSP error reply to a core hw vote and retry it
 
 On the Retroid Pocket 5 (SM8250, vendor ADSP firmware) the first
 AFE_CMD_REMOTE_LPASS_CORE_HW_VOTE_REQUEST, sent 3 ms after the audio
@@ -13,12 +13,12 @@ later is accepted (verified by reloading the macro driver on every boot
 for weeks). Route the basic result to the waiter under the response
 opcode it expects, and retry the vote with a 50 ms back-off (up to 1 s).
 ---
---- a/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 14:06:03.063866166 +0900
-+++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 14:06:03.074122788 +0900
-@@ -983,6 +983,24 @@
- 		case AFE_PORT_CMD_SET_PARAM_V2:
- 		case AFE_PORT_CMD_DEVICE_STOP:
- 		case AFE_PORT_CMD_DEVICE_START:
+--- a/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 15:13:21.167857204 +0900
++++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 15:13:21.180055560 +0900
+@@ -980,6 +980,24 @@
+ 				res->opcode, res->status);
+ 		}
+ 		switch (res->opcode) {
 +		case AFE_CMD_REMOTE_LPASS_CORE_HW_VOTE_REQUEST:
 +		case AFE_CMD_REMOTE_LPASS_CORE_HW_DEVOTE_REQUEST:
 +			/*
@@ -37,9 +37,9 @@ opcode it expects, and retry the vote with a 50 ms back-off (up to 1 s).
 +			afe->result.status = res->status;
 +			wake_up(&afe->wait);
 +			break;
- 		case AFE_SVC_CMD_SET_PARAM:
- 			port = q6afe_find_port(afe, hdr->token);
- 			if (port) {
+ 		case AFE_PORT_CMD_SET_PARAM_V2:
+ 		case AFE_PORT_CMD_DEVICE_STOP:
+ 		case AFE_PORT_CMD_DEVICE_START:
 @@ -1873,7 +1891,7 @@
  	struct q6afe *afe = dev_get_drvdata(dev->parent);
  	struct afe_cmd_remote_lpass_core_hw_vote_request *vote_cfg;

@@ -18,8 +18,8 @@ msm_dp_audio_prepare(), which the codec runs right after the cpu DAI's
 prepare, switch an already-enabled engine off and on so the DSP completes
 the start before data flows.
 ---
---- a/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 14:49:18.468472099 +0900
-+++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 15:07:29.699770558 +0900
+--- a/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 15:13:21.192723344 +0900
++++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 15:13:21.214696157 +0900
 @@ -1046,6 +1046,25 @@
  }
  EXPORT_SYMBOL_GPL(q6afe_get_port_id);
