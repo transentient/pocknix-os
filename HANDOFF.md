@@ -1,6 +1,7 @@
 # 2026-10-15 01:55: kernel 29 BUILT (0726 DisplayPort prepare with no sink, UNTESTED); the dock-audio gap is the 10-09 finding re-opened by bsp 36/39; router-silence = ARP conflict hypothesis; overnight docked sleep still running
 
-Device UNTOUCHED since 00:03 (docked, overnight sleep, rtcwake 04:33): nothing before Cliff's press + wake-collect.sh
+10:50 UPDATE: OVERNIGHT DOCKED SLEEP PASSED (two sleeps, 3.5 h + 5 h, picture/PD/9 V/NIC/route all back after Cliff's press; kernel 28 docked sleep is PROVEN). ARP tests done and STOPPED (one confirmation: the dock port ARPs with the wifi address under arp_announce=0 and the router then sends to the wrong MAC, DHCP included; one unexplained anomaly; I took the wifi down once, recovered via .72 + gratuitous ARP). Device in the shipped state, docked, kernel 28. NEXT = kernel 29 test: Cliff unplug -> deploy-k29.sh -> k29-check.sh -> Cliff replug -> dock-audio-test.sh. Details: tools/dock/results-rp5-2026-10-15.md.
+Original 01:55 text: Device UNTOUCHED since 00:03 (docked, overnight sleep, rtcwake 04:33): nothing before Cliff's press + wake-collect.sh
 overnight2 -10h. Morning order, all rig except Cliff's three steps: 1. press -> collect. 2. ARP undock test (rig; plan in
 tools/dock/results-rp5-2026-10-15.md; old sysctls restored by trap). 3. kernel 29: Cliff unplug -> install the 29 package +
 reboot (adapt scratchpad/deploy-k28.sh) -> fresh undocked boot: profiles [off, HiFi, HDMI] with HDMI available: no, speakers
