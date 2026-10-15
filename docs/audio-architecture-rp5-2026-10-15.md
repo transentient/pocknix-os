@@ -262,3 +262,16 @@ Kernel 41, bsp-sm8250 41, bsp-common 36. Every item of section 4 passed on the d
 and the slider-law measurement at 75/25 % (50 % = -27.9, 100 % = -13.8 dBFS measured; cubic in between). Open,
 not blocking: the DSP speaker-protection path (Android's +5 dB), the dock dongle's EDID dropout (alt-mode re-enter
 revives), the 150 ms DP start wait (tunable), the powerd brightness traceback, the USB-2 NIC fallback seen once.
+
+## 10. 21:20 addendum: headphone jack regression on the release card, fixed (bsp-sm8250 42)
+
+The 40/41 Headphones device ("upstream includes + vendor operating point") shipped a clipped jack: full-scale tone
+-28 dBFS, flat-topped, 25 % H3, a loud burst ducking a quiet probe 24 dB (UCA202, bare cable, no ears). Two proven
+mechanisms: alsa-ucm runs an Include'd EnableSequence AFTER the section's inline csets (so upstream's HPH_COMP 0 and
+CLS_H_ULP overrode ours), and `RX HPH Mode CLS_H_ULP` itself clamps the HPH output at ~80 mV on this device whatever
+the companders do. The matrix (tools/rp5-audio/jack/matrix-2026-10-15.txt, jack-matrix.sh, modes written with the
+sink suspended): CLS_AB + ULP power mode + all four companders off = -9.6 dBFS at 0.03 % THD, zero ducking, linear
+(the bsp 24 recipe; ULP instead of bsp 24's LOHIFI, which compresses a -1 dBFS burst 5 dB). 42 writes the sequence
+inline. Rule for this file: a device section is either upstream includes or its own sequence, never both. The slider
+on headphones is a hardware map (PlaybackMixerElem "HP": +6 dB at 100 %, -12 dB at 50 %, -30 dB at 25 %); the
+speaker is software volume. Unplugging the jack hands the default to the Speaker at 0.50 with the linear recipe.
