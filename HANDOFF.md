@@ -1,5 +1,18 @@
 # 2026-10-15 01:55: kernel 29 BUILT (0726 DisplayPort prepare with no sink, UNTESTED); the dock-audio gap is the 10-09 finding re-opened by bsp 36/39; router-silence = ARP conflict hypothesis; overnight docked sleep still running
 
+12:30 UPDATE: AUDIO AUDIT + TARGET DESIGN written for Cliff's review: docs/audio-architecture-rp5-2026-10-15.md (root: the
+ROCKNIX 0100 revert lets PipeWire drive the DSP at 24-bit, a path measured ~30 dB low on 10-13; every audio script/filter/
+gain we ship compensates it; Armada and ROCKNIX run the same path at +36 dB; the vendor runs +12 dB digital with the
+companders ON and is 13.9 dB louder and cleaner; PipeWire ACP takes a UCM verb's `Value { Priority N }`, WirePlumber re-selects
+the profile on every availability change -> the dock switch needs no script; 0.5.12 ignores our 52-default-volume device
+property, the DP sink's 0.40 is WirePlumber's global 0.064 default). Target: kernel sample path correct (kernel 30 = 0100
+staged out, BUILDING, measurement only), three UCM files on upstream includes + vendor numbers + HDMI Priority 9000, ONE
+WirePlumber drop-in (soft-mixer + default-sink-volume 0.125), delete the five audio services and the filter, root-cause the
+first-stream DSP timeout (trace plan in 3.6). FIVE DECISIONS pending from Cliff (doc section 5). Device: ASLEEP on the dock
+since ~12:21 (Steam idle timer, no rtcwake armed), kernel 29, docked boot; wake = Cliff's short press. Ready in the
+scratchpad: deploy-k30.sh, spk-measure.sh (safe level: slider 0.60 + pw-play 0.01 = -47 dBFS expected on a fixed path,
+-77 on the quiet one; stops/restarts the switcher, forces HiFi). Order after the press: deploy kernel 30 (docked boot) ->
+spk-measure.sh k30 -> compare with the 10-13 numbers -> decide 3.1 step 2.
 12:10 UPDATE: bsp-common 36 TESTED on the RP5 = wifi heal reduced to the one verified case (event-driven on the kernel's firmware-recovery line; boot unit, NM dispatcher hook, connectivity interval and the resume launch removed; a latent nmcli bug in the old profile lookup fixed). Cliff's 11:55 directives: root-cause the first-stream DSP timeout from ground truth; switcher -> udev/event-driven; FIX the Steam audio device menu (no weird items) and the volume law (100 % too loud, 50 % reasonable, the early-October tuning); the whole audio stack rebuilt as one professional design from the chips out (device tree, Armada, ROCKNIX), not scripts and configs everywhere. Plan: written audit + target design first (docs/), Cliff reviews, then implement + full test set + respin. Device: docked, kernel 29, wifi now wlan1 after the heal test.
 11:20 UPDATE: KERNEL 29 TESTED (fresh undocked boot: profiles [off, HiFi, HDMI available:no], no AFE lines, speakers -38.6 dBFS peak at the approved level; redock: switcher HiFi -> HDMI, dock tone -44.8 dBFS PASS at sink volume 1.0; the sink comes up at 0.40 = follow-up). On the device now: kernel 29, docked, HDMI profile active. Rig next: sleep cycle with HDMI active, docked boot. Then respin.
 10:50 UPDATE: OVERNIGHT DOCKED SLEEP PASSED (two sleeps, 3.5 h + 5 h, picture/PD/9 V/NIC/route all back after Cliff's press; kernel 28 docked sleep is PROVEN). ARP tests done and STOPPED (one confirmation: the dock port ARPs with the wifi address under arp_announce=0 and the router then sends to the wrong MAC, DHCP included; one unexplained anomaly; I took the wifi down once, recovered via .72 + gratuitous ARP). Device in the shipped state, docked, kernel 28. NEXT = kernel 29 test: Cliff unplug -> deploy-k29.sh -> k29-check.sh -> Cliff replug -> dock-audio-test.sh. Details: tools/dock/results-rp5-2026-10-15.md.
