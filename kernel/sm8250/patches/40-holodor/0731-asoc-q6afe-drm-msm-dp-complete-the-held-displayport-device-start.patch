@@ -19,8 +19,8 @@ prepare, switch an already-enabled engine off and on so the DSP completes
 the start before data flows.
 ---
 --- a/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 14:49:18.468472099 +0900
-+++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 14:51:15.515525203 +0900
-@@ -1046,6 +1046,25 @@
++++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 15:06:35.135907962 +0900
+@@ -1046,6 +1046,26 @@
  }
  EXPORT_SYMBOL_GPL(q6afe_get_port_id);
  
@@ -32,12 +32,13 @@ the start before data flows.
 + * Do not stall 3 s on it: wait briefly, the port is started either way, and
 + * msm_dp_audio_prepare() (the codec prepare that follows) toggles the engine
 + * to complete it. The late ack is stored by the callback harmlessly.
++ * port->id is the DAI index (dt-bindings), not the AFE port id.
 + */
 +#define DP_START_TIMEOUT_MS 150
 +
 +static unsigned int afe_cmd_timeout_ms(struct q6afe_port *port, uint32_t rsp_opcode)
 +{
-+	if (port && port->id == AFE_PORT_ID_HDMI_OVER_DP_RX &&
++	if (port && port->id == DISPLAY_PORT_RX &&
 +	    rsp_opcode == AFE_PORT_CMD_DEVICE_START)
 +		return DP_START_TIMEOUT_MS;
 +	return TIMEOUT_MS;
@@ -46,7 +47,7 @@ the start before data flows.
  static int afe_apr_send_pkt(struct q6afe *afe, struct apr_pkt *pkt,
  			    struct q6afe_port *port, uint32_t rsp_opcode)
  {
-@@ -1073,7 +1092,7 @@
+@@ -1073,7 +1093,7 @@
  	}
  
  	ret = wait_event_timeout(*wait, (result->opcode == rsp_opcode),
@@ -55,21 +56,21 @@ the start before data flows.
  	if (!ret) {
  		ret = -ETIMEDOUT;
  	} else if (result->status > 0) {
-@@ -1731,7 +1750,11 @@
+@@ -1731,7 +1751,11 @@
  	start->port_id = port_id;
  
  	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_START);
 -	if (ret)
-+	if (ret == -ETIMEDOUT && port_id == AFE_PORT_ID_HDMI_OVER_DP_RX) {
++	if (ret == -ETIMEDOUT && port->id == DISPLAY_PORT_RX) {
 +		/* see afe_cmd_timeout_ms(): started, ack held by the DSP */
-+		dev_dbg(afe->dev, "DisplayPort DEVICE_START ack held by the DSP, continuing\n");
++		dev_info(afe->dev, "DisplayPort DEVICE_START ack held by the DSP, continuing\n");
 +		ret = 0;
 +	} else if (ret)
  		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
  			port_id, ret);
  
 --- a/drivers/gpu/drm/msm/dp/dp_audio.c	2026-10-15 14:49:18.470007968 +0900
-+++ b/drivers/gpu/drm/msm/dp/dp_audio.c	2026-10-15 14:51:15.515575902 +0900
++++ b/drivers/gpu/drm/msm/dp/dp_audio.c	2026-10-15 15:06:35.135951411 +0900
 @@ -309,6 +309,15 @@
  	msm_dp_audio_setup_sdp(audio);
  	msm_dp_audio_setup_acr(audio);
