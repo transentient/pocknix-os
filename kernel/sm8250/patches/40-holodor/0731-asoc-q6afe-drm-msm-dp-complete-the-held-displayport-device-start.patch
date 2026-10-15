@@ -19,7 +19,7 @@ prepare, switch an already-enabled engine off and on so the DSP completes
 the start before data flows.
 ---
 --- a/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 14:49:18.468472099 +0900
-+++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 14:50:11.162748443 +0900
++++ b/sound/soc/qcom/qdsp6/q6afe.c	2026-10-15 14:51:15.515525203 +0900
 @@ -1046,6 +1046,25 @@
  }
  EXPORT_SYMBOL_GPL(q6afe_get_port_id);
@@ -37,7 +37,7 @@ the start before data flows.
 +
 +static unsigned int afe_cmd_timeout_ms(struct q6afe_port *port, uint32_t rsp_opcode)
 +{
-+	if (port && port->id == AFE_PORT_ID_DISPLAY_PORT_RX &&
++	if (port && port->id == AFE_PORT_ID_HDMI_OVER_DP_RX &&
 +	    rsp_opcode == AFE_PORT_CMD_DEVICE_START)
 +		return DP_START_TIMEOUT_MS;
 +	return TIMEOUT_MS;
@@ -55,3 +55,34 @@ the start before data flows.
  	if (!ret) {
  		ret = -ETIMEDOUT;
  	} else if (result->status > 0) {
+@@ -1731,7 +1750,11 @@
+ 	start->port_id = port_id;
+ 
+ 	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_START);
+-	if (ret)
++	if (ret == -ETIMEDOUT && port_id == AFE_PORT_ID_HDMI_OVER_DP_RX) {
++		/* see afe_cmd_timeout_ms(): started, ack held by the DSP */
++		dev_dbg(afe->dev, "DisplayPort DEVICE_START ack held by the DSP, continuing\n");
++		ret = 0;
++	} else if (ret)
+ 		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
+ 			port_id, ret);
+ 
+--- a/drivers/gpu/drm/msm/dp/dp_audio.c	2026-10-15 14:49:18.470007968 +0900
++++ b/drivers/gpu/drm/msm/dp/dp_audio.c	2026-10-15 14:51:15.515575902 +0900
+@@ -309,6 +309,15 @@
+ 	msm_dp_audio_setup_sdp(audio);
+ 	msm_dp_audio_setup_acr(audio);
+ 	msm_dp_audio_safe_to_exit_level(audio);
++	/*
++	 * HOLODOR: this runs twice per stream (hw_params and prepare, see the
++	 * DRM audio helper). The DSP's DEVICE_START for the DisplayPort port,
++	 * issued between the two, completes only on a transition of this engine
++	 * (traced 2026-10-15); when the engine is already on, switch it off and
++	 * on again so the DSP finishes the start before data flows.
++	 */
++	if (msm_dp_display->audio_enabled)
++		msm_dp_audio_enable(audio, false);
+ 	msm_dp_audio_enable(audio, true);
+ 	msm_dp_display_signal_audio_start(msm_dp_display);
+ 	msm_dp_display->audio_enabled = true;
