@@ -141,6 +141,11 @@ Fedora 44 ostree, kernel 7.2.6, PipeWire 1.6.9, WirePlumber 0.5.17, alsa-ucm-con
 ## 3. Target design (every item is a standard mechanism; no polling, no daemons, no filter sinks)
 
 ### 3.1 Kernel: a correct sample path
+MEASURED 10-15 12:40 (kernel 30 = 0100 staged out; raw ALSA A/B with a -73 dBFS tone, results-rp5-2026-10-15.md):
+the 24-bit BACK END (ROCKNIX 0100) cost ~22 dB, gone with upstream's S16 BE; the 24-bit FRONT END (q6asm) still
+costs 9.0 dB vs S16 (not a bit shift: a DSP scaling of 24-bit input). PipeWire adds nothing (its S24 result
+equals aplay S24). Decision 3 reduces to: S16-only FE now (own q6asm-dai patch), V3 block as an optional later
+experiment.
 Step 1: drop 0100 -> back ends at S16 as upstream intends; measure the Speaker with PipeWire's default (S24 FE).
 Step 2 if still low: the FE's 24-bit handling (q6asm sends the DSP a V2 format block with bits_per_sample 24 and no
 sample word size; the vendor drives 24-bit with the V3 block carrying sample_word_size 32). Own patch: either V3
