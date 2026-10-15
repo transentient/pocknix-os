@@ -1,5 +1,22 @@
 # 2026-10-15 01:55: kernel 29 BUILT (0726 DisplayPort prepare with no sink, UNTESTED); the dock-audio gap is the 10-09 finding re-opened by bsp 36/39; router-silence = ARP conflict hypothesis; overnight docked sleep still running
 
+16:10 UPDATE: AUDIO REBUILD LANDED (kernel 41 building = kernel 39 content made final; bsp-sm8250 41 on the device):
+- kernel: 0100 (ROCKNIX 24-bit BE) out; 0727 S16-only FE; 0728 q6asm stream-leak error path + channels 1-6,8; 0729 v2
+  AFE core hw vote (route the error reply + retry; its v1 sat in a switch fall-through and killed every port command on
+  34-37); 0730 v2 vendor wsa-macro codec-init table + full CTL7 field, mode 1 (RP5 = WSA8810); 0731 DP DEVICE_START
+  acknowledged at the DP audio engine edge (150 ms wait, held = started) with ROCKNIX 0017 DROPPED -> the first-stream
+  hold is SOLVED (6/6 cycles + probe + 3 streams after a real alt-mode re-enter + Steam clicks on the dock).
+- userland: bsp-sm8250 41 = three UCM files (upstream sequences + vendor numbers, LINEAR speakers: companders off,
+  digital 102 = -13.8 dBFS tone at 100 %, -28.3 at 50 %; HDMI verb Priority 9000), one WirePlumber drop-in; the five
+  services, the filter and the three old drop-ins deleted. Automatic HiFi<->HDMI switching by jack, both ways,
+  confirmed; Steam's device list structurally one device. bsp-common 36 (one-case wifi heal) TESTED.
+- speaker ceiling = the amplifier at the 8.5 V rail (-13.5 dBFS for the -20 dBFS tone at 100 %); Android +5 dB =
+  the DSP speaker-protection path mainline lacks; vendor boost/compander registers do not move it (measured).
+- TEST RIG NOTE: profile indices are off(0)/HDMI(1)/HiFi(2) since the Priority line; select by name (the cycle
+  script was wrong for three runs; fixed). wpctl set-profile pins the profile as a user choice: clear
+  ~/.local/state/wireplumber/default-profile after tests.
+- NEXT: install kernel 41 on the device (same content as 39), docked sleep result (running), then Cliff's unplug ->
+  fresh undocked boot checks -> replug; respin with kernel 41 + bsp-sm8250 41 + bsp-common 36; release notes.
 12:30 UPDATE: AUDIO AUDIT + TARGET DESIGN written for Cliff's review: docs/audio-architecture-rp5-2026-10-15.md (root: the
 ROCKNIX 0100 revert lets PipeWire drive the DSP at 24-bit, a path measured ~30 dB low on 10-13; every audio script/filter/
 gain we ship compensates it; Armada and ROCKNIX run the same path at +36 dB; the vendor runs +12 dB digital with the
