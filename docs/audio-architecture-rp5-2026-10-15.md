@@ -248,3 +248,10 @@ four hours" (until ~16:40): ceiling measurements allowed in that window.
 - Vendor source mirror used: github.com/LineageOS/android_kernel_oneplus_sm8250 (lineage-20): techpack/display/msm/dp/
   (dp_audio.c, dp_catalog.c), techpack/audio/asoc/ (msm-dai-q6-hdmi-v2.c, kona.c, codecs/msm_hdmi_codec_rx.c,
   codecs/bolero/wsa-macro.c, codecs/wsa881x.c), techpack/audio/dsp/q6afe.c, drivers/platform/msm/msm_ext_display.c.
+
+## 8. First-stream hold: root cause and fix (16:00)
+The DSP acknowledges the DisplayPort port's DEVICE_START at the DP audio engine's rising edge. ROCKNIX 0017 (engine
+enabled at hw_params, before the start; the vendor stack has the same order) made the DSP miss the edge in ~40 % of
+starts. Fix = drop 0017 (upstream's order: the hdmi-codec enables the engine in its prepare, after the cpu DAI's) +
+kernel 0731: q6afe waits 150 ms for that one command and reports the port started; the acknowledgement arrives at
+the edge. Measured 6/6 + probe. No priming, no switcher, no pulse, no stop/start. Section 3.6 is closed.
