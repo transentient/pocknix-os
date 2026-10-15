@@ -223,3 +223,17 @@ four hours" (until ~16:40): ceiling measurements allowed in that window.
    vendor-faithful one if it measures identical.
 4. Delete the five services and the filter outright (not disable). Recommendation: delete; the record keeps the why.
 5. Order: 3.1 kernel + 3.2/3.3 together (one bsp-sm8250 40 + kernel 30), then 3.6 while the matrix runs.
+
+## 6. Decisions 14:35 (Cliff) and the Android data list
+- Speaker chain LINEAR (companders off, digital 102) = bsp-sm8250 41. The compander is the vendor's loudness tool;
+  closing the last ~5 dB to Android cleanly needs the vendor's compander tuning.
+- DATA TO PULL FROM ANDROID (RP5 now, and on the RP6 from day one, before the first Linux boot): (1) codec register
+  dumps during playback at a known level on every output (speaker, headphones, DP): /sys/kernel/debug/regmap/* for
+  the wsa-macro (3240000.codec), rx-macro (3200000), tx/va macros, wcd938x, wsa881x (needs root; else the downstream
+  driver source for the register writes); (2) `tinymix contents` snapshots idle and during playback per output (we
+  have mixer_paths_qrd.xml, not the live values); (3) audio_policy_volumes.xml + the HAL's gain stages (we have the
+  xml); (4) the ACDB/calibration files (/vendor/etc/acdbdata: speaker protection = VI-sense calibration, the DSP's
+  smart-amp model) - likely why Android drives the amps harder safely; (5) logcat + dmesg of a dock plug with audio
+  (the DP audio sequence and timing); (6) ADSP firmware version strings; (7) the DP alt-mode/typec sequence (have);
+  (8) the live DT (have). Tooling: tools/dock/android-* collectors; keep the list in HANDOFF for the RP6.
+- Cliff: an Azropa Z1FC arrives for docked testing; test USB-C DisplayPort mode directly (not only dock->HDMI).
