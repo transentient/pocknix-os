@@ -255,3 +255,10 @@ enabled at hw_params, before the start; the vendor stack has the same order) mad
 starts. Fix = drop 0017 (upstream's order: the hdmi-codec enables the engine in its prepare, after the cpu DAI's) +
 kernel 0731: q6afe waits 150 ms for that one command and reports the port started; the acknowledgement arrives at
 the edge. Measured 6/6 + probe. No priming, no switcher, no pulse, no stop/start. Section 3.6 is closed.
+
+## 9. Status 17:00 - implemented and verified
+Kernel 41, bsp-sm8250 41, bsp-common 36. Every item of section 4 passed on the device except the headphone A/B
+(no UCA202 rig attached today; the headphones run the upstream sequences plus the vendor's HPH_COMP ON and 84/20)
+and the slider-law measurement at 75/25 % (50 % = -27.9, 100 % = -13.8 dBFS measured; cubic in between). Open,
+not blocking: the DSP speaker-protection path (Android's +5 dB), the dock dongle's EDID dropout (alt-mode re-enter
+revives), the 150 ms DP start wait (tunable), the powerd brightness traceback, the USB-2 NIC fallback seen once.

@@ -1,5 +1,12 @@
 # 2026-10-15 01:55: kernel 29 BUILT (0726 DisplayPort prepare with no sink, UNTESTED); the dock-audio gap is the 10-09 finding re-opened by bsp 36/39; router-silence = ARP conflict hypothesis; overnight docked sleep still running
 
+17:00 UPDATE: FULL MATRIX GREEN on kernel 41 + bsp-sm8250 41 + bsp-common 36 + steam 56 (device = repo): fresh undocked
+boot (profiles [HiFi, HDMI no], speakers -27.9 dBFS at the 0.5 default, Steam clicks on the speakers, one device),
+replug (EDID 1080p, NIC 5 G, wifi route kept, HDMI by itself, first dock stream PASS, 0 DSP errors), docked boot,
+switching both ways, docked sleep with HDMI, Steam clicks on the dock. RESPIN RUNNING (holodor-respin unit, make
+build + make sd-image, log scratchpad/respin-20261015.log; it walks every package incl. mesa - long). Then: sha,
+release notes draft (docs/release-notes/), Cliff's word on the notes, publish. Device: docked, idle, no inhibitors;
+Steam's idle timer sleeps it; no rtcwake armed (Cliff is present).
 16:10 UPDATE: AUDIO REBUILD LANDED (kernel 41 building = kernel 39 content made final; bsp-sm8250 41 on the device):
 - kernel: 0100 (ROCKNIX 24-bit BE) out; 0727 S16-only FE; 0728 q6asm stream-leak error path + channels 1-6,8; 0729 v2
   AFE core hw vote (route the error reply + retry; its v1 sat in a switch fall-through and killed every port command on
