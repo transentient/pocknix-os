@@ -11,7 +11,6 @@ the RP5's own Android audio HAL config (build/android-evidence-20261012/vendor-a
 10-12), ROCKNIX (~/projects/rocknix-distribution, shallow clone b895b27), upstream alsa-ucm-conf 1.2.14 (what the
 image ships) and 1.2.16 (fusor), PipeWire 1.4.9 + WirePlumber 0.5.12 (image) incl. PipeWire's ACP source
 (spa/plugins/alsa/acp/alsa-ucm.c, 1.4 branch), the kernel sources in build/kernel/sm8250, the live card on the RP5.
-Armada: survey still running when this was written; section 1.4 is amended when it lands.
 
 ## 1. Ground truth
 
@@ -57,7 +56,25 @@ Upstream sound/soc/qcom/sm8250.c (`sm8250_be_hw_params_fixup`) forces EVERY back
   + 18 dB PA; their own reports of "PipeWire much quieter than raw ALSA players" (our 51-softmixer comment) are this
   bug seen from the outside. Their dock switch is a polled script that restarts WirePlumber.
 
-### 1.4 Armada (pending survey; our HDMI-RP.conf header says Armada 20260927 ships the same HiFi + HDMI split)
+### 1.4 Armada (image 20260927 at build/armada-extract, source ~/rp5-vs-hang/src/armada 5915c28)
+Fedora 44 ostree, kernel 7.2.6, PipeWire 1.6.9, WirePlumber 0.5.17, alsa-ucm-conf 1.2.16.1.
+- UCM: the ROCKNIX files verbatim (RetroidPocket.conf with the same BootSequence WSA digital 120 / PA 12 / HPH 20 /
+  ADC2 10; HiFi-RP.conf with the stock includes; HDMI-RP.conf with the HDMI verb, device hw:0,3, DP0 Jack, no
+  Priority). wsa-macro/init.conf not included, so WSA_COMP is never set. Speaker amps bound as WSA881x (same DT).
+- Kernel: the same ROCKNIX audio patches (0100 revert-force-16bit, 0012, 0062, 0300) plus 0618 = their equivalent
+  of our 0721 (display side of the probe; comment: "pipewire does it for every UCM device while it builds the
+  card ... drop the whole card profile, taking the speakers down with it"). Nothing on the DSP side (our 0726).
+- PipeWire/WirePlumber: stock, plus min-quantum 1024, pulse 512/48000, an S16LE rule for the AYN Thor Lite only
+  (its comment claims the back ends are "hard-fixed to S16_LE by sm8250_be_hw_params_fixup()", which their own
+  0100 undoes), and WirePlumber's media-role-nodes.conf REMOVED ("feedbackd's role-routing sinks can wedge Steam
+  audio during session startup"). default-sink-volume stock 0.064.
+- Scripts: NONE for audio. No dock switch, no volume service, no loudness filter, no heal. The gamescope session
+  exports STEAM_DISABLE_AUDIO_DEVICE_SWITCHING=1 ("now handled by wireplumber") and STEAM_ENABLE_VOLUME_HANDLER=1.
+- So Armada's dock audio = the HDMI verb + stock WirePlumber with HDMI at priority 100 < HiFi 8400: WirePlumber
+  will not pick it by itself; and without a DSP-side probe fix an undocked boot loses the HDMI profile. Their
+  speakers run the same 24-bit path at +36 dB digital.
+- Confirms the design: three UCM files and stock session-manager policy is what the newest distro ships; the two
+  things it lacks (profile Priority, the DSP-side probe fix) are exactly what makes the dock work by itself here.
 
 ### 1.5 Upstream alsa-ucm-conf, PipeWire ACP, WirePlumber (what the standard machinery does by itself)
 - UCM includes for exactly these chips, 1.2.14 (the image): wsa-macro/SpeakerEnableSeq = routing + WSA_COMP1/2 ON;
