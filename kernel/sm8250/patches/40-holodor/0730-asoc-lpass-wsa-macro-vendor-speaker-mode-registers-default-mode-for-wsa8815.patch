@@ -1,0 +1,62 @@
+From: Holodor <holodor@bonesaw.com>
+Subject: [PATCH] ASoC: lpass-wsa-macro: the vendor's speaker-mode register sets, DEFAULT mode for WSA8815
+
+wsa_macro_set_spkr_mode() programs the compander and smart-boost
+registers for two speaker modes but touches only bit 0 of COMPANDER CTL7,
+where the vendor's bolero driver writes the whole low field (0x18 / 0x19),
+and every board gets MODE_1 at probe. The vendor's machine driver picks
+MODE_1 for WSA8810 amplifiers and the DEFAULT mode for WSA8815. The Retroid
+Pocket 5 carries WSA8815 (Android DT wsa881x@21170213/214); measured with
+the upstream settings the compander gives +12 dB of makeup gain and then
+drops 8 dB at 80 % of the slider with 12 dB of pumping at 100 %, where the
+vendor's Android reaches -8.6 dBFS with -0.3 dB of pumping on the same
+hardware (NTG, 2026-10-15). Write the vendor's register sets and use the
+DEFAULT mode on this kernel.
+---
+--- a/sound/soc/codecs/lpass-wsa-macro.c	2026-10-15 14:49:18.466340882 +0900
++++ b/sound/soc/codecs/lpass-wsa-macro.c	2026-10-15 14:49:18.485111531 +0900
+@@ -1132,19 +1132,24 @@
+ 	wsa->spkr_mode = mode;
+ 
+ 	switch (mode) {
++	/*
++	 * HOLODOR: the register sets as the vendor's bolero wsa-macro writes them
++	 * (wsa_macro_spkr_mode1 / wsa_macro_spkr_default): COMPANDER CTL7 takes
++	 * the whole low field (mask 0x1F: 0x18 / 0x19), not only bit 0.
++	 */
+ 	case WSA_MACRO_SPKR_MODE_1:
+ 		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER0_CTL3, 0x80, 0x00);
+ 		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER1_CTL3, 0x80, 0x00);
+-		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER0_CTL7, 0x01, 0x00);
+-		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER1_CTL7, 0x01, 0x00);
++		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER0_CTL7, 0x1F, 0x18);
++		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER1_CTL7, 0x1F, 0x18);
+ 		snd_soc_component_update_bits(component, CDC_WSA_BOOST0_BOOST_CTL, 0x7C, 0x44);
+ 		snd_soc_component_update_bits(component, CDC_WSA_BOOST1_BOOST_CTL, 0x7C, 0x44);
+ 		break;
+ 	default:
+ 		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER0_CTL3, 0x80, 0x80);
+ 		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER1_CTL3, 0x80, 0x80);
+-		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER0_CTL7, 0x01, 0x01);
+-		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER1_CTL7, 0x01, 0x01);
++		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER0_CTL7, 0x1F, 0x19);
++		snd_soc_component_update_bits(component, CDC_WSA_COMPANDER1_CTL7, 0x1F, 0x19);
+ 		snd_soc_component_update_bits(component, CDC_WSA_BOOST0_BOOST_CTL, 0x7C, 0x58);
+ 		snd_soc_component_update_bits(component, CDC_WSA_BOOST1_BOOST_CTL, 0x7C, 0x58);
+ 		break;
+@@ -2574,7 +2579,14 @@
+ 				CDC_WSA_RX_PATH_SPKR_RATE_MASK,
+ 				CDC_WSA_RX_PATH_SPKR_RATE_FS_2P4_3P072);
+ 
+-	wsa_macro_set_spkr_mode(comp, WSA_MACRO_SPKR_MODE_1);
++	/*
++	 * HOLODOR: the vendor's machine driver (kona.c) selects MODE_1 for
++	 * WSA8810 amplifiers and the DEFAULT mode for WSA8815; the Retroid
++	 * Pocket 5 carries WSA8815 (Android DT: wsa881x@21170213/214). Upstream
++	 * hard-codes MODE_1 for every board. Until this is a DT property, this
++	 * kernel (sm8250 handhelds with WSA8815) uses the vendor's DEFAULT mode.
++	 */
++	wsa_macro_set_spkr_mode(comp, WSA_MACRO_SPKR_MODE_DEFAULT);
+ 
+ 	switch (wsa->codec_version) {
+ 	case LPASS_CODEC_VERSION_1_0:
