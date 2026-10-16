@@ -63,7 +63,7 @@ Kernel line (linux-pocknix-sm8250, kernel/sm8250/patches/40-holodor/, all built 
 Also today: bsp-common 37 / bsp-sm8250 43 = respin 3 (wifi post-resume gateway check, Steam UI on the big cores, GPU
 floor 490 MHz) - these were tested and approved by Cliff in the 10-15/16 night; docs/release-readiness-procedure.md
 DRAFT (RP5 lessons -> RP6; baseline table, pre-release gate, bring-up order) for Cliff's rewrite; /tmp cleaned (old
-holodor session scratch -> ~/archive/holodor-tmp-sessions, which Cliff then deleted at ~17:08; dock cycle captures ->
+holodor session scratch -> ~/archive/holodor-tmp-sessions, found emptied at ~17:08 (presumably Cliff); dock cycle captures ->
 ~/dock-runs/rp5-cycles-2026-10-13-to-15); dock-audio-test.sh/owscene.sh no longer write into a session scratch dir.
 
 ## What we learned (not in the code)
@@ -85,7 +85,8 @@ holodor session scratch -> ~/archive/holodor-tmp-sessions, which Cliff then dele
   mode (our RB5-derived DT pins all 29 to HPM) through sleep. Android's live DT: pm8150 s4/s5/s6 unmoded, pm8150a s8
   LPM below 200 mA, votes active+sleep sets. Android DT source on fusor: ~/rp5-vs-hang/src/rp5-vendor-dt/ (boot/vendor_boot/dtbo
   images + decompiled bootdt/ and dtbo/, pulled 10-01). The 10-12 LIVE-DT dump was in a session scratch dir and is GONE
-  (Cliff deleted ~/archive/holodor-tmp-sessions at ~17:08 on 10-16, after I said it was deletable).
+  (~/archive/holodor-tmp-sessions was found EMPTIED at ~17:08 on 10-16 after I said it was deletable; presumably
+  Cliff, NOT confirmed).
 - **genpd stay_on:** gcc + gpucc never get sync_state ("pending due to 3d6a000.gmu": the GMU never binds a driver, fw_devlink
   strict) -> 4 hlos1_vote_mmnoc_mmu_tbu GDSCs + ufs_card_gdsc stay ON forever (system suspend never powers off a domain
   with no device). Real, harmless for AOSS (V2). Upstream fix = "drm/msm: Attach a driver to the GMU" (Akhil P Oommen,
