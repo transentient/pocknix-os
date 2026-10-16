@@ -1328,6 +1328,23 @@
 &swr2 {
 	status = "okay";
 
+	/*
+	 * HOLODOR 2026-10-16: the TX SoundWire master's wake interrupt, from the
+	 * vendor kona device tree (kona-audio-overlay.dtsi, tx_swr_master:
+	 * interrupts-extended = <&intc GIC_SPI 297 ...>, <&pdc 109 ...>,
+	 * "swr_master_irq", "swr_wake_irq", qcom,swr-wakeup-required). Mainline
+	 * sm8250.dtsi declares only the core interrupt, so a headset plug event
+	 * raised by the WCD938x while this bus is in clock stop could not wake
+	 * it, and jack detection needed the codec held awake (a udev rule), which
+	 * kept the audio DSP from ever sleeping. The qcom soundwire driver takes
+	 * interrupt 1 as its wake irq; sm8450/sm8650/sm8750/sc8280xp name theirs
+	 * "core", "wakeup" the same way.
+	 */
+	/delete-property/ interrupts;
+	interrupts-extended = <&intc GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+			      <&pdc 109 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "core", "wakeup";
+
 	wcd_tx: wcd9385-tx@0,3 {
 		compatible = "sdw20217010d00";
 		reg = <0 3>;
