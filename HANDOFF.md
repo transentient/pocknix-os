@@ -1,3 +1,204 @@
+# 2026-10-16 21:45: SLEEP DRAIN CUT ~2.7 -> ~0.78 %/h (kernel 53 = release-candidate kernel, UNPUBLISHED); the SoC still never reaches AOSS sleep; release waits on Cliff's two decisions - READ THIS FIRST
+
+## CURRENT STATE (2026-10-16 21:45 JST) - read this first
+
+- **The RP5 release is NOT published.** Respin 3 (10-16 03:15, sha256 b0308f3d...7cb515: kernel 41 + bsp-sm8250 43 +
+  bsp-common 37 + steam 56) is SUPERSEDED on the kernel side: it carries kernel 41, which drains ~2.5-2.7 %/h asleep
+  (Cliff, 10-16 morning: slept at 31 %, woke 6.4 h later at 15 %; his words: "we are not shipping like this, no").
+- **Release-candidate kernel = linux-pocknix-sm8250 7.1.2-53** (repo HEAD, built, package in
+  build/kernel-pkgs-keep/ and build/localrepo/sm8250/; build/kernel/sm8250 = 53, so an image built now takes 53).
+  53 = exactly kernel 51's content (27 patches in 40-holodor). Measured on 47 and 51: **~0.78 %/h asleep = ~30 mA**
+  (fuel-gauge design capacity 3850 mAh; MSOC 0.39 %/step: 1 h on k47 = 2 steps, 2 h on k51 = 4 steps; real value
+  0.6-1.0 %/h). A full battery = ~5 days asleep (was ~37 h).
+- **The SoC still never enters AOSS deep sleep:** /sys/kernel/debug/qcom_stats aosd/cxsd/ddr Count = 0 across every
+  suspend, even with the APPS sleep set completely clean (XO released, every BCM 0). The ~30 mA floor is that.
+  Everything Linux votes from the APPS side is now clean; the blocker is outside (see NEXT 4).
+- **Device:** RP5 = "Retroid Pocket 5 Visionox" (dtb sm8250-retroidpocket-rp5-visionox), the release card system
+  (respin-3 package set) with kernel 53 installed AS A PACKAGE, bsp-sm8250 43, bsp-common 37, undocked, ASLEEP on
+  Steam's idle timer (no inhibitor, no rtcwake), battery 18 % (Cliff: please charge). Clean: no test hooks, units,
+  markers, modules (rpmh_peek NOT loaded), dtbs = package, the WCD938x nosleep rule in its shipped state (control=on).
+  Wake = Cliff's short press. Root ssh: `sshpass -p pocknix ssh -o PreferredAuthentications=password root@192.168.1.68`.
+- **Rigs on fusor:** RODE NTG mic (ALSA card "NTG", capture gain 24, ~25 cm from the RP5; room 1 kHz floor -68 dBFS),
+  UCA202 line-in (card "CODEC"; the RP5 cable is UNPLUGGED), HDMI capture /dev/video0 (needs sudo), docks unplugged.
+- **Waiting on Cliff (blocked):** (1) is ~0.78 %/h shippable for this release? (2) keep the WCD938x nosleep udev rule
+  (my recommendation: KEEP - dropping it showed no sleep-drain gain and risks clipping the first headphone sound after
+  idle) or drop it (then 3 hands-on checks first, see NEXT 3). Then the respin (NEXT 2).
+- **TRAP before any respin: bsp-common in the repo != the bsp-common 37 package.** Commit ebebb82 (10-16 11:27,
+  Fable 5.1) changed cpuidle-state1-sleep-pre/post (pre saves cpu0 state1 `disable` to /run/pocknix-cpu0-state1-disable,
+  post restores it instead of forcing 1; reason: on the SM8250 the post hook left cpu0 without its power-collapse state
+  while awake after the first sleep, 18 s of cpu0 deep idle in 13 h) WITHOUT a pkgrel bump. A build of bsp-common now
+  produces a DIFFERENT package under the same version 37. Decide before the respin: bump to 38 + test it on the RP5
+  (after one suspend, cpu0 state1 disable must read 0 on the SM8250 and 1 only where 30-pocknix-cpuidle.conf sets it),
+  or revert ebebb82. Do NOT respin with it unresolved.
+
+## What this session did (2026-10-15 21:09 -> 2026-10-16 21:45; Fable 5.1 until 13:10, then Opus 5.5)
+
+Full record with every cycle, number and method: **tools/dock/results-rp5-2026-10-16.md** (read it before touching
+sleep). Tools: **tools/rp5-power/** (all committed).
+
+Kernel line (linux-pocknix-sm8250, kernel/sm8250/patches/40-holodor/, all built today):
+- 42 cluster-sleep-1 (PSCI 0x4100c344) = HARMFUL (firmware rejects it 4.9 M times in 120 s, hot loop) -> staged
+  (patches-staged/0732-...DROPPED...). 43 = 41 again. 43.1/43.2 = bisect builds (10-09 patch state / complete 10-09 tree).
+- 44 0732 sm8250.dtsi CPU interconnect paths QCOM_ICC_TAG_ACTIVE_ONLY (sm8550/8650 pattern; the standing DDR votes).
+- 45 0733 Qualcomm's qce runtime-PM v6 (idle crypto held 393600 kBps forever; carried from our sm8550 tree) + 0734 (ours)
+  camcc cam_cc_gdsc_clk enabled in probe instead of CLK_IS_CRITICAL (pinned bi_tcxo).
+- 46 0736 (ours) DSI PHY: AHB clock in runtime PM + force suspend/resume (pm_clk kept disp_cc_mdss_ahb_clk -> XO).
+- 47 0735 v2 (ours) qcom-geni serial: open non-console ports powered off across system suspend (gamepad 888000 + BT
+  998000 UART SE clocks held gpll0 -> XO). Functional check after suspend: gamepad stream + BT scan work.
+- 48 0737-0744 = UPSTREAM backports (Qualcomm "xo-sd" work, applied for 7.2/7.3): lpass-lpi pinctrl runtime PM + pm_clk,
+  wsa/va/tx/rx macros to the PM clock framework (100 ms autosuspend); RP5 board dtsi &swr2 interrupts-extended
+  <GIC SPI 297>, <&pdc 109>, names "core","wakeup" (vendor kona ground truth) = TX SoundWire wake irq for jack events.
+- 49 0745-0749 Qualcomm's POSTED "PCI: qcom: Add D3cold support" v5 (2026-04-29, no newer version exists) = HARD HANG at
+  the very first suspend (journal ends at "PM: suspend entry (s2idle)"; forced restart). Staged:
+  kernel/sm8250/patches-staged/pcie-d3cold-v5/.
+- 50 = 49 + 0750 (ours) q6afe: devote LPASS core hw blocks with the client handle the DSP returned (mainline never
+  stored it; every devote went out with handle 0, refused 0x1, every vote leaked once the macros cycle them -> ADSP never
+  slept). Proven by kprobes on q6afe_callback / q6afe_[un]vote_lpass_core_hw; no upstream fix exists (worth upstreaming).
+- 51 = 50 minus D3cold (bisect) = TESTED: 6 clean suspends + 2 h sleep, wifi back in 5 s, BT, 0750 verified, speaker
+  identical to k47 (NTG + RP5 mic + macro registers after a real power-down).
+- 52 = DEBUG (51 + 0751 rpmh_read v5, Qualcomm's posted read-back API) for tools/rp5-power/rpmh-peek -> staged
+  (patches-staged/rpmh-read-v5/).
+- 53 = 51 content again (release candidate). Installed on the RP5.
+
+Also today: bsp-common 37 / bsp-sm8250 43 = respin 3 (wifi post-resume gateway check, Steam UI on the big cores, GPU
+floor 490 MHz) - these were tested and approved by Cliff in the 10-15/16 night; docs/release-readiness-procedure.md
+DRAFT (RP5 lessons -> RP6; baseline table, pre-release gate, bring-up order) for Cliff's rewrite; /tmp cleaned (old
+holodor session scratch -> ~/archive/holodor-tmp-sessions, which Cliff then deleted at ~17:08; dock cycle captures ->
+~/dock-runs/rp5-cycles-2026-10-13-to-15); dock-audio-test.sh/owscene.sh no longer write into a session scratch dir.
+
+## What we learned (not in the code)
+
+- **Method that works (tools/rp5-power):** sleep-cycle.sh <label> <secs> [setup] [teardown] = one real s2idle suspend
+  as a transient unit ON the device (ssh dies across suspends), edge snapshots by temporary sleep.d pre/999 + post/000
+  hooks, qcom_stats + fuel-gauge MSOC (pm8150b 0x4009) + voltage, rpmh trace, TCS dump. rsc-tcs-dump.py reads the RSC
+  SLEEP/WAKE TCS via /dev/mem (drv-2 0x18220000, tcs-offset 0xd00). **A resource ABSENT from the sleep TCS keeps its
+  ACTIVE vote through sleep** (rpmh_flush only programs sleep != wake). xo-holders.py / boottrace-* = clk core
+  transitions + clk_prepare kprobes. audio-snapshot.sh = quiet regression snapshot (NTG + RP5 mic + macro registers
+  cache vs hardware via regmap cache_bypass, regsnap-diff.py). wifi-resume-loop.sh = N real suspends with wifi/gateway/BT
+  checks. k48-audio-checks.sh. teardown-normal-check.sh (gamepad UART stream + BT after resume).
+- **APPS side is now clean:** with only the ADSP stopped and the wifi PCIe link down, the sleep TCS has xo.lvl=0 and every
+  BCM 0 (cycles S2, V, V2, X). In the NORMAL config the wifi PCIe RC (aux/refgen clocks) and nothing else keeps XO.
+- **APPS-DRV read-back (debug kernel 52, awake):** every XO buffer (lnbclka1-3, rfclka1/3, rfclkd3/4) OFF; enabled = the
+  17 DT regulators in use (l2a l5a l6a l9a l12a l13a l14a l18a l1c l3c l6c l9c l11c, s5a s6a s8c at mode 7 = HPM, bob
+  AUTO) + TWO resources our DT never names: **vreg.sp and gpioa8** (en=1). Lists: ~/dock-runs/rpmh-votes/.
+- **mainline qcom-rpmh-regulator writes ACTIVE_ONLY votes only** (no sleep set): every enabled rail keeps its awake
+  mode (our RB5-derived DT pins all 29 to HPM) through sleep. Android's live DT: pm8150 s4/s5/s6 unmoded, pm8150a s8
+  LPM below 200 mA, votes active+sleep sets. Android DT source on fusor: ~/rp5-vs-hang/src/rp5-vendor-dt/ (boot/vendor_boot/dtbo
+  images + decompiled bootdt/ and dtbo/, pulled 10-01). The 10-12 LIVE-DT dump was in a session scratch dir and is GONE
+  (Cliff deleted ~/archive/holodor-tmp-sessions at ~17:08 on 10-16, after I said it was deletable).
+- **genpd stay_on:** gcc + gpucc never get sync_state ("pending due to 3d6a000.gmu": the GMU never binds a driver, fw_devlink
+  strict) -> 4 hlos1_vote_mmnoc_mmu_tbu GDSCs + ufs_card_gdsc stay ON forever (system suspend never powers off a domain
+  with no device). Real, harmless for AOSS (V2). Upstream fix = "drm/msm: Attach a driver to the GMU" (Akhil P Oommen,
+  RFT 2026-05-12; patches 1-4 apply to 7.1.2, 5 needs a manual a6xx_gpu.c backport). Forcing it live is safe:
+  `printf 1 > /sys/bus/platform/devices/100000.clock-controller/state_synced` (display/USB/BT fine).
+- **Audio DSP:** with 0750 + the nosleep rule lifted, all four macros + LPI pinctrl release their LPASS votes within
+  ~30 s of idle and the ADSP slept through a whole 2 h suspend (first time ever) - but the drain did NOT change
+  measurably (U on k47 = Y on k51 = ~0.78 %/h).
+- **Jack detection works with the codec asleep** (k48+): with both WCD938x SoundWire buses clock-stopped, Cliff's plug
+  (08:53:57 UTC) and unplug (08:55:12) each fired swr_wake_irq, woke the bus, and flipped the jack within 226 ms.
+  The rule's only stated purpose ("fix jack detection", copied from ROCKNIX) is covered.
+- **Register restore after a real LPASS power-down (k48/k51):** speaker (wsa) + va macro hardware registers identical to
+  k47. rx macro: 6 diffs, all VOLATILE (compander LUT write ports 0x020/024/034/038, COMPANDER0/1_CTL6) = benign.
+  tx macro AMIC0/1_CTL (0x0d0/0x0d4, volatile) 0 -> 6 = the hardware reset value = what the vendor bolero tx-macro runs
+  with (it never writes them); mainline writes 0 once at probe. Headset-mic check still owed if the rule is dropped.
+- Pre-existing, NOT ours, every boot: "cmd = 0x100f4 returned error = 0x16" ~6.8 s (first LPASS vote right after the
+  audio PD; 0729 retries it: "AFE vote (3) accepted after 1 retries"); wsa_macro "using zero-initialized flat cache"
+  warning; "DSI PLL(0) lock failed ... dsi0_phy_pll_out_dsiclk already disabled" WARN (splash handoff).
+- PMIC after the k49 hang + 10 s power hold: PON_REASON HARD_RESET+SMPL on all three PMICs, PM8150B FAULT=UVLO latched.
+
+## WHAT WE WERE WRONG ABOUT (do NOT re-derive these)
+
+- **"THE DRAIN IS A REGRESSION FROM THE DOCK WEEK / WE DID NOT HAVE THIS A WEEK AGO" - WRONG.** Kernel bisect K-A (10-09
+  patches) and K-B (the complete 10-09 tree) both read aosd/cxsd/ddr 0. There was NO undocked standby measurement
+  before 10-16; every earlier overnight was docked/charging.
+- **"THE WCD938x NOSLEEP RULE IS THE SLEEP BLOCKER" - WRONG.** Lifting it suspends the whole codec chain but the
+  counters stay 0 (cycle 1) and the drain does not change (cycle Y = cycle U).
+- **"ADD THE sm8350-STYLE cluster-sleep-1 (PSCI 0x4100c344)" - HARMFUL.** The RP5 firmware rejects it (4.9 M
+  rejections in 120 s, worse drain). Do NOT re-propose without the pm_genpd rejected-counter check.
+- **"THE stay_on GDSCs (gcc/gpucc sync_state pending on the GMU) BLOCK AOSS SLEEP" - WRONG** (cycle V2: forced off,
+  counters 0).
+- **"THE SWITCHERS s5a/s6a/s8c IN HPM/PWM BLOCK XO SHUTDOWN" - WRONG** (cycle X: dtb swap to AUTO, opmode normal
+  verified, counters 0). LDOs in HPM are NOT yet ruled out.
+- **"A BOOTLOADER-LEFT XO BUFFER (lnbclk/rfclk) HOLDS XO" - WRONG** (read-back: all OFF on the APPS DRV).
+- **"KERNEL 48's AUDIO CHANGES CAUSED THE KERNEL 49 HANG" - WRONG** (k51 = 49 minus D3cold suspends clean). The hang
+  is the PCIe D3cold v5 series. Do NOT re-enable it without a console capture across the hang.
+- **"THE ADSP SLEEPING WILL CUT THE DRAIN" - WRONG at this resolution** (it now sleeps; ~0.78 %/h either way).
+- **"THE 08:55 JACK OFF WAS A FALSE REMOVAL" - WRONG**, it was Cliff unplugging the UCA202 cable.
+- **"bt OFF 5/5 IN THE k51 WIFI LOOP" - TOOL BUG** (btmgmt prints nothing from a unit); BT scanned 18 devices. Fixed.
+- **"ROCKNIX HAS BETTER SLEEP"** - untested hunch (Cliff's); the control card test was declined as a first step; the
+  32 GB ROCKNIX card (nightly Sep 30 2026) is in reserve.
+
+## TRAPS
+
+- **rpmh_read wedges the RSC** (debug kernel 52): the BCM MC1 read never answered, then a VRM read after gpioa8 hung
+  -> both AMC TCSes held, load 40-45, ssh sessions stall. Recovery WITHOUT hands (worked twice): `ssh root@rp5
+  '(echo s > /proc/sysrq-trigger &); sleep 5; echo b > /proc/sysrq-trigger'`. Do NOT rerun the read-back casually;
+  never read BCMs (memory reference-rpmh-read-wedges-rsc).
+- **TMPDIR=build/tmp only for `make kernel`** (the 16 GB /tmp tmpfs filled and killed a build). Passed to
+  build-packages.sh it leaks into the chroot and repo-add fails SILENTLY right after "reusing build chroot". Run the
+  package step as a second unit without it. /tmp is disposable (memory feedback-tmp-is-disposable).
+- `state_synced` takes exactly "1" (`printf 1`), `echo 1` = EINVAL.
+- PCIe tests: qcom-pcie refuses unbind; take the link down with `echo 1 > /sys/bus/pci/devices/0000:01:00.0/remove;
+  setpci -s 00:00.0 CAP_EXP+10.w=0010:0010` (Link Disable) and ALWAYS end with a reboot (wifi + ssh are gone).
+  A stopped ADSP (remoteproc sysfs) does not bring the sound card back on `echo start`: reboot. clk_summary is
+  unreadable while the ADSP is stopped.
+- Suspend tests: `rtcwake -m no -s N; systemctl suspend` (rtcwake -m mem bypasses the sleep hooks); hold
+  `systemd-inhibit --what=sleep:idle` as the FIRST command and release it before handing back; run the cycle as a
+  transient unit (systemd-run) so it survives ssh dying.
+- ALSA jack controls are iface=CARD: `amixer -c0 cget iface=CARD,name='Headphone Jack'`.
+- regmap debugfs cache_bypass=Y taints the kernel and skips the cache for writes while set: one `cat` per macro,
+  mid-tone only (tools/rp5-power/regsnap.sh does this).
+- "No loud audio tests" is IN FORCE (Cliff 10-16): quiet tones only (-40 dBFS at a pinned 0.60 slider); line-in tests on
+  the UCA202 are inaudible but check the jack reads "on" first.
+- Kernels go on the device as a PACKAGE (`pacman -U` + reboot), never a bare /flash/KERNEL swap (BTF module rejection).
+  Images take the kernel from the last `make kernel` in build/kernel/sm8250 (now 53, correct).
+- docs/release-notes/rp5-20261015.md has Cliff's UNCOMMITTED edit: his, do not touch or commit it.
+- A live interactive claude on pts/1 (session f1db4bd6, this session's parent before the fork) keeps
+  /tmp/claude-1000/-home-cliff-projects-holodor/f1db4bd6-.../tasks open: leave that dir.
+
+## NEXT (in order)
+
+1. **(no Cliff needed, start here)** Research what `vreg.sp` and `gpioa8` are on sm8250 and who votes them: grep the
+   vendor techpack / kona DT (LineageOS android_kernel_oneplus_sm8250, raw.githubusercontent) and the RP5's Android DT
+   (~/rp5-vs-hang/src/rp5-vendor-dt/bootdt, dtbo) for "vreg.sp", "gpioa8", pm8150 GPIO 8 consumers; check whether Android votes them off in its sleep set.
+   They are the only APPS-DRV votes Linux does not own. Write findings into the results file.
+2. **(Cliff's decisions, then rig)** If ~0.78 %/h ships: resolve the bsp-common ebebb82 trap (bump 38 + test, or revert),
+   then the pre-release gate in docs/release-readiness-procedure.md on a fresh respin with kernel 53: card with full
+   read-back, fresh undocked boot checks, dock matrix (both docks, both orientations), jack reference level on the
+   UCA202 (procedure table: full-scale at 100 %, THD < 0.1 %), docked sleep, undocked sleep with counters, overnight
+   standby on battery from a fresh boot, internal install + Android still boots, then release notes (known issue:
+   standby ~0.8 %/h; Cliff's edit in the notes file stays his) and publish. Nothing of kernel 53 has run the dock
+   matrix or a 6 h wifi-after-sleep yet.
+3. **(only if Cliff drops the codec rule)** remove devices/sm8250/packages/pocknix-bsp-sm8250/99-wcd938x-nosleep.rules
+   (+ its two PKGBUILD lines), bsp-sm8250 44, after three hands-on checks: a short sound right after idle on headphones
+   via the UCA202 (start not clipped), headset mic capture after idle, headphones plugged in while asleep read right
+   after wake. Optional: awake-idle current (`current_now`, static Steam UI, 60 s) rule on vs lifted = its only possible gain.
+4. **AOSS deep-sleep hunt (post-release unless Cliff says otherwise).** Remaining suspects, all outside the APPS DRV:
+   vreg.sp/gpioa8 (step 1), LDOs held in HPM through sleep (port a sleep-set for qcom-rpmh-regulator or vendor-like LPM
+   thresholds; test one LDO at a time with tools/rp5-power/swap-dtbs.sh = back up /boot/dtbs,
+   install edited dtbs, pocknix-build-bootimg, reboot, revert the same way), the GPU GMU RSC and the
+   display RSC (votes invisible to the APPS dump), the never-booted SLPI (try the RP5's OWN slpi firmware from its Android
+   firmware partition; the RB5 image boots but never sleeps), and a control: does Android on the RP5 reach aosd (its
+   qcom_stats/soc_sleep stats) and what does it drain asleep? The ROCKNIX card is the other control.
+5. **PCIe D3cold hang** (staged series): needs a console across the hang first (a ramoops reserved-memory region in the
+   RP5 dtsi + CONFIG_PSTORE_RAM, or CONFIG_DPM_WATCHDOG + panic + pstore). Suspect: mainline skipped L2 when ASPM L1 is
+   on and the series removed that guard; the RC + pwrctrl go down in noirq (the RSC irq is NO_SUSPEND, not that).
+6. Cleanliness, post-release: GMU driver series (sync_state), the DSI PLL boot WARN, va_macro bring-up order, the
+   cpu0 state1 hook (TRAP above), upstreaming 0750.
+
+## Open questions
+
+- What are vreg.sp and gpioa8, and does anything in Android's sleep set turn them off? (NEXT 1)
+- Does Android on this RP5 reach AOSS sleep at all, and at what standby current? (the decisive control)
+- Why did the ADSP not sleep in the first ~80 s after its votes dropped on k51, but slept after a tone + 40 s idle?
+  (some other ADSP-side activity; unexplained)
+- Where exactly does the D3cold v5 suspend hang? (no log survives: needs pstore)
+- Is there an awake-idle power gain from dropping the codec rule? (unmeasured)
+
+-- 2026-10-16, written by Claude Opus 5.5 (the session ran on Fable 5.1 from 10-15 21:09 until Cliff switched it to
+Opus 5.5 at ~13:10 on 10-16: kernels 42-44 + the TCS method were Fable 5.1, kernels 45-53, cycles U-Y, the q6afe fix,
+the jack test, the read-back and the /tmp cleanup were Opus 5.5).
+
 # 2026-10-15 01:55: kernel 29 BUILT (0726 DisplayPort prepare with no sink, UNTESTED); the dock-audio gap is the 10-09 finding re-opened by bsp 36/39; router-silence = ARP conflict hypothesis; overnight docked sleep still running
 
 17:00 UPDATE: FULL MATRIX GREEN on kernel 41 + bsp-sm8250 41 + bsp-common 36 + steam 56 (device = repo): fresh undocked
