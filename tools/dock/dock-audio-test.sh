@@ -4,7 +4,7 @@
 # MacroSilicon capture dongle (ALSA card "Video") and reports level + dominant frequency.
 # PASS = a 1 kHz tone well above the noise floor in the recording. Nothing plays on the RP5 speakers.
 set -u
-H=$1; L=${2:-dockaudio}; OUT=${OUT:-/tmp/claude-1000/-home-cliff-projects-holodor/f1db4bd6-8285-4cf8-b727-659d9bda1897/scratchpad/cycles/$L}; mkdir -p "$OUT"
+H=$1; L=${2:-dockaudio}; OUT=${OUT:-$HOME/dock-runs/audio/$L}; mkdir -p "$OUT"
 SSH="ssh -o ConnectTimeout=5 -o BatchMode=yes deck@$H"
 CARD=$(sed -n 's/^ *\([0-9]\+\) \[Video *\].*/\1/p' /proc/asound/cards | head -1)   # arecord -l shows nothing for a user without a seat; /proc/asound/cards always does
 [ -n "$CARD" ] || { echo "no 'Video' capture card on fusor"; exit 1; }

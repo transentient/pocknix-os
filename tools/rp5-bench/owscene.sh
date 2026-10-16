@@ -1,6 +1,6 @@
 #!/bin/sh
 # owscene.sh <tag> [launch options]: Outer Wilds in-scene benchmark. Waits for focus, resumes, wakes, measures 30 s, quits.
-T=$1; shift; O="$*"; R=deck@192.168.1.68; D=/tmp/claude-1000/-home-cliff-projects-holodor/128efe10-b3e6-43c4-8d50-ad66c36a54c9/scratchpad; P="sh $HOME/rp5-vs-hang/bin/rp5pad.sh"
+T=$1; shift; O="$*"; R=deck@192.168.1.68; D=$(dirname "$0"); P="sh $HOME/rp5-vs-hang/bin/rp5pad.sh"
 ssh $R "python3 /var/tmp/spk/steamjs.py 'SteamClient.Apps.SetAppLaunchOptions(753640, \"$O\")' >/dev/null"
 sh $D/gb.sh launch 753640
 for i in $(seq 1 60); do sleep 5; ssh $R 'DISPLAY=:0 xprop -root' 2>/dev/null | grep -q "GAMESCOPE_FOCUSED_APP(CARDINAL) = 753640" && break; done
