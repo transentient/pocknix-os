@@ -11,8 +11,10 @@ regs = [struct.unpack(">QQ", raw[i:i+16]) for i in range(0, len(raw), 16)]
 drv = int.from_bytes(open(rsc + "/qcom,drv-id", "rb").read(), "big")
 tcs_off = int.from_bytes(open(rsc + "/qcom,tcs-offset", "rb").read(), "big")
 cfg = open(rsc + "/qcom,tcs-config", "rb").read()
-types = [struct.unpack(">II", cfg[i:i+8]) for i in range(0, len(cfg), 8)]   # (type, count): 0 active 1 sleep 2 wake 3 control
-kind = {0: "ACTIVE", 1: "SLEEP", 2: "WAKE", 3: "CONTROL"}
+types = [struct.unpack(">II", cfg[i:i+8]) for i in range(0, len(cfg), 8)]   # (type, count) in DT order = TCS id order
+# include/dt-bindings/soc/qcom,rpmh-rsc.h: SLEEP_TCS 0, WAKE_TCS 1, ACTIVE_TCS 2, CONTROL_TCS 3 (the first version of this
+# tool had these swapped and labelled the WAKE TCS as SLEEP, 2026-10-16)
+kind = {0: "SLEEP", 1: "WAKE", 2: "ACTIVE", 3: "CONTROL"}
 layout = []
 for t, n in types:
     layout += [kind[t]] * n
