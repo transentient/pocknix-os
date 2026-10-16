@@ -37,7 +37,7 @@ for i in $(seq 1 "$N"); do
   kerr=$(journalctl -k --since "$since" --no-pager -o cat | grep -ciE 'ath11k.*(fail|err|timeout|crash|recover)|qcom-pcie.*(fail|err|timeout)|pcieport.*(error|fail)|link (down|failed)')
   susp=$(journalctl -k --since "$since" --no-pager -o cat | grep -cE 'PM: suspend entry')
   lnk="$(cat /sys/bus/pci/devices/$EP/current_link_speed 2>/dev/null | tr -d ' ')/x$(cat /sys/bus/pci/devices/$EP/current_link_width 2>/dev/null)"
-  bt=$(timeout 5 btmgmt info 2>/dev/null | grep -m1 -oE 'current settings: [a-z ]*' | grep -qw powered && echo on || echo OFF)
+  bt=$(bluetoothctl show 2>/dev/null | grep -q 'Powered: yes' && echo on || echo OFF)   # btmgmt prints nothing from a unit (10-16)
   xo=$(python3 "$TOOLS/rsc-tcs-dump.py" 2>/dev/null | grep -E 'SLEEP' | grep -oE 'xo\.lvl[^ ]* *=? *0x[0-9a-f]+' | head -1)
   [ "$c" -gt 0 ] && [ "$p" = ok ] && [ "$bt" = on ] && pass=$((pass + 1))
   log "cycle $i/$N: suspends=$susp resumed after ${w}s, connected after ${c}s ($dev), gw ping $p, bt $bt, link $lnk, kernel errors $kerr, sleep-TCS ${xo:-no xo.lvl}, heal log: ${heal:-none}"
