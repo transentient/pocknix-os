@@ -1,4 +1,65 @@
-# 2026-10-16 21:45: SLEEP DRAIN CUT ~2.7 -> ~0.78 %/h (kernel 53 = release-candidate kernel, UNPUBLISHED); the SoC still never reaches AOSS sleep; release waits on Cliff's two decisions - READ THIS FIRST
+# 2026-10-17 13:45: the 10-16 work reviewed and confirmed on the device; bsp-common 38 closes the ebebb82 trap; RESPIN 4 BUILT (kernel 53 + bsp-common 38 + bsp-sm8250 43 + steam 56), unflashed, unpublished; Cliff dogfoods tonight, then the gate - READ THIS FIRST
+
+## CURRENT STATE (2026-10-17 13:45 JST)
+
+- **Device:** RP5 on kernel 53 (this boot since 10-16 20:34 JST, two minutes after the 53 package was built - the
+  results-10-16 line saying "device runs 51" predates the install), bsp-sm8250 43, **bsp-common 38** (installed 13:17,
+  hooks hand-tested), steam 56 = the respin-4 set, device = repo. One sleep this boot: 11.7 h on the charger
+  (10-16 20:50 -> 10-17 08:34 JST, Cliff's button), resumed with wifi, BT, gamepad, touchscreen, display fine.
+  It sits on the **PD charger, not the dock** (Cliff confirmed), 96 %. **No inhibitors** (my block released 13:18):
+  Steam's idle sleep takes it, Cliff wakes it. The headphone cable is NOT in the jack (jack off, line-in silent while
+  the codec drives the output). qcom_stats aosd/cxsd still 0.
+- **Respin 4:** build/image/sm8250/pocknix-sm8250-sd.img 17518559232 bytes, sha256
+  4f14cb3e3ae10df9e42d7c498f1d29e79e53eda85bf6c51fb8b522d0e81bec0a, kernel check passed (7.1.2-53). Not flashed (the
+  release card is in the RP5), not published. Record: tools/dock/results-rp5-2026-10-17.md.
+- **The 10-16 TRAP is RESOLVED:** ebebb82's cpuidle hooks now ship as bsp-common 38 (commit 9566ac2). The bug was
+  confirmed first: after the 11.7 h sleep on bsp-common 37, cpu0 state1 `disable` read 1 on the RP5. Hand test of
+  pre/post on the device: RP5 case 0 -> 0, SM8550 simulation 1 -> 1, both PASS. Real-suspend confirmation owed:
+  after Cliff's wake tonight `/sys/devices/system/cpu/cpu0/cpuidle/state1/disable` must read 0.
+- **Audit of the 10-16 work** (read-only agent over the repo + my device reads): kernel 53 == kernel 51 content
+  verified (27 patches; only the staged 0751 and the pkgrel differ); the staged series are where the HANDOFF says.
+  The 0.78 %/h headline = 2 fuel-gauge steps in 1 h (k47, shipped config) + 4 steps in 2 h (k51, codec rule
+  LIFTED) -> 0.6-1.0 %/h real, two decimals overstate it; the SHIPPED configuration has exactly one 1 h sample and no
+  sample on kernel 53 itself. Baseline was measured 2.5 %/h (quoted 2.7). "Jack detection on k48+" was tested on k51
+  only. Kernel 53 has: 8 suspends <= 2 h on 51 + this boot's 11.7 h sleep; NOT tested on any kernel >= 48: dock
+  matrix (DP audio, profile switching, docked sleep), headphone output level, headset mic, BT audio after a wake,
+  game performance, undocked overnight in the shipped config. Highest user-visible risk among the new patches: 0735
+  (gamepad + BT UARTs powered off across suspend; tested by IRQ counts + a BT scan only).
+- **Waiting on Cliff (unchanged):** (1) ship at ~0.8 %/h (~5 days asleep, was ~37 h) with the deep-sleep hunt
+  post-release? Recommendation: yes. (2) WCD938x nosleep rule: keep (recommended; no measured gain from dropping it).
+- **Next week:** Cliff brings in Gemini Argon "for a bit" for a fresh perspective (his words 10-17: not a firing).
+  This file + tools/dock/results-*.md + the memory directory are the handover; keep them self-contained.
+
+## Tonight (Cliff's dogfood on the device as it stands) and NEXT
+
+1. Dogfood = gate items by ear and hand: audio (jack + speakers at his volume), gameplay, then **undocked overnight on
+   battery** - note battery % and the time at sleep and at wake (journal has the suspend entry/exit); that is the first
+   standby number for the shipped configuration longer than 1 h. After the wake: cpu0 state1 disable = 0; controller
+   and BT audio after the wake (0735's risk).
+2. Gate on respin 4 (docs/release-readiness-procedure.md): card written from fusor with read-back
+   (build/flash-card-rp5-release.sh + build/write-wifi-txt.sh), fresh UNDOCKED boot, jack reference on the UCA202
+   (cable in the jack first: 10-15 numbers -9.6 dBFS at 100 %, 0.03 % THD, no ducking), dock matrix (both docks, both
+   orientations), docked sleep, undocked sleep with counters, internal install + Android still boots, release notes
+   (known issue: standby ~0.8 %/h, the SoC never reaches deep sleep), publish. Before `make publish`: cmp
+   build/localrepo/sm8250 against build/publish/sm8250 - the respin rebuilt mesa + mesa-next at unchanged versions.
+3. Only if Cliff drops the codec rule: bsp-sm8250 44 + the three hands-on checks (10-16 NEXT 3) + respin 5.
+4. Post-release: the AOSS hunt (10-16 NEXT 1, 4, 5), upstreaming 0750, the GMU/sync_state series.
+
+## Traps found today
+
+- "Docked" was the charger. data_role=device + dwc3 mode=device + empty /sys/bus/usb/devices + DP-1 disconnected is
+  the NORMAL state toward a PD charger (no xhci in device role). Read the tcpm log
+  (`/sys/kernel/debug/usb/tcpm-c440000.spmi:pmic@2:typec@1500/log`: a charger answers Discover Identity with
+  Not_Supported, no alt modes) before calling the USB host dead. A userspace DR_Swap (`echo host > data_role`) is
+  accepted by a PD partner and brings xhci back; untested toward a dock in the real 10-10 broken state.
+- ALSA capture on fusor from a non-seat session (ssh / Claude) needs `sudo`: the UCA202 is seat-ACL'd and plain
+  `arecord -l` says "no soundcards found".
+- The package walk rebuilds mesa and mesa-next every respin (~40 of the ~75 min); azahar/dolphin-emu/es-de always
+  fail (deps not in ALARM, URL 404) and the previous builds are kept - not new.
+
+-- 2026-10-17, Claude Fable 5.1
+
+# 2026-10-16 21:45: SLEEP DRAIN CUT ~2.7 -> ~0.78 %/h (kernel 53 = release-candidate kernel, UNPUBLISHED); the SoC still never reaches AOSS sleep; release waits on Cliff's two decisions
 
 ## CURRENT STATE (2026-10-16 21:45 JST) - read this first
 
