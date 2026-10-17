@@ -1,5 +1,34 @@
 # 2026-10-17 13:45: the 10-16 work reviewed and confirmed on the device; bsp-common 38 closes the ebebb82 trap; RESPIN 4 BUILT (kernel 53 + bsp-common 38 + bsp-sm8250 43 + steam 56), unflashed, unpublished; Cliff dogfoods tonight, then the gate - READ THIS FIRST
 
+## ADDENDUM 2026-10-17 23:10 JST (Fable 5.1): Cliff asked "can we solve deep sleep?" - the AOSS hunt, tonight's answers
+
+- **Device at 23:10:** fresh boot (23:05 JST, the scheduled teardown reboot of a test cycle; an earlier read of an
+  unmapped MMIO region at 22:48 hung the SoC -> watchdog reboot, my fault, no damage), shipped state: kernel 53 +
+  bsp-sm8250 43 + bsp-common 38 + steam 56, nosleep rule in place, on the PD charger 98 %, **no inhibitors**, wifi/
+  audio/BT fine. qcom_stats counters restarted with the boot. Ready for Cliff's dogfood.
+- **Proven tonight (results-rp5-2026-10-17.md 22:30+):** (1) the APSS IS seen asleep by the AOP - ddr_stats shows the
+  DDR at 300 MHz for exactly the 11.7 h sleep while the CPUs' standing vote was 12.4 GB/s; the cluster/RSC handshake
+  is NOT the problem. (2) In the shipped config the ADSP slept once at boot for 17 ms and never again (the WCD938x
+  nosleep rule) = one certain blocker, already understood (k51 showed jack detection works with the rule lifted).
+  (3) The AOP "floors" (qcom_aoss debugfs prevent_* -> QMP aoss_slp/cx_mol/ddr_mol) are acked when cleared and
+  changed nothing in two cycles - BUT both ran on the charger, where dwc3 stays active and holds XO, so neither could
+  reach collapse; **every AOSS cycle must run UNDOCKED on battery** (Opus's did). (4) Remoteprocs do carry qcom,qmp.
+  (5) camcc (ad00000) has no runtime PM and pins mmcx at LOW_SVS whenever the device is awake (released at suspend).
+- **Still unexamined masters:** GPU (GMU RSC), display RSC at 0xaf20000 (a UEFI-splash leftover would block forever;
+  upstream never touches it; needs a kernel module because its AHB clock is off - never /dev/mem, see TRAPS), TZ
+  drv0 / HYP drv1 (no handle). **Decisive next step = the vendor-OS control:** Android's own cmdline carries
+  `lpm_levels.sleep_disabled=1`; if Retroid's init never clears it, Android never deep-sleeps on this hardware either
+  and the right target is the drain floor, not aosd. Tool ready: `tools/rp5-power/android-sleep-stats.sh` (adb, no
+  root). Cliff's part: boot Android, screen off, UNPLUGGED 15+ min (or overnight, noting battery % at off and at
+  pickup), then plug into fusor; I run the script.
+- **Independent of aosd, the mA items:** PCIe RC awake through suspend (D3cold v5 hung k49 - needs a pstore console),
+  17 regulators at HPM through sleep (rpmh-regulator sleep-set port), the ADSP awake all night (drop the codec rule
+  = bsp-sm8250 44 + the three hands-on checks), camcc runtime PM. Battery 5000 mAh: 0.78 %/h = ~39 mA, consistent
+  with "no AOSS at all"; aosd is the 5x lever, the four items above are maybe 2x.
+- **TRAPS added:** /dev/mem outside /proc/iomem hangs the SoC silently (0xb221200); charger-powered cycles cannot
+  show XO shutdown; `kernel.panic` is 0 on the device (a panic hangs until the button) - set 15 before risky tests.
+
+
 ## CURRENT STATE (2026-10-17 13:45 JST)
 
 - **Device:** RP5 on kernel 53 (this boot since 10-16 20:34 JST, two minutes after the 53 package was built - the
