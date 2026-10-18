@@ -1,4 +1,115 @@
-# 2026-10-17 13:45: the 10-16 work reviewed and confirmed on the device; bsp-common 38 closes the ebebb82 trap; RESPIN 4 BUILT (kernel 53 + bsp-common 38 + bsp-sm8250 43 + steam 56), unflashed, unpublished; Cliff dogfoods tonight, then the gate - READ THIS FIRST
+# 2026-10-18 11:35 JST: AOSS hunt CLOSED OUT (every HLOS-side vote proven clean, Android control proves the firmware can; what is left is TZ/HYP or an AOP handshake mainline lacks) - device = shipped state kernel 53 + respin 4 (unflashed, unpublished); ship at 0.78 %/h, pursue the mA items, ask upstream
+
+## CURRENT STATE 2026-10-18 11:35 JST (Fable 5.1) - READ THIS FIRST
+
+**Where we are.** RP5 (sm8250, Visionox) on the release SD card: linux-pocknix-sm8250 7.1.2-**53**, pocknix-bsp-sm8250 43,
+pocknix-bsp-common 38, pocknix-steam 56 = the respin 4 package set (image build/image/sm8250/pocknix-sm8250-sd.img sha
+4f14cb3e..., built 10-17, NOT flashed, NOT published). Device restored at 11:27 JST after the morning's tests: packaged
+dtbs, Steam up, battery 96 % discharging, USB cable UNPLUGGED (Cliff unplugged it for the cycles), no inhibitors, no
+stale sleep.d hooks, tracing off. /var/tmp on the device still holds the test scaffolding (rp5-power/*.sh, dtb-exp/,
+dtb-backup/, KERNEL.orig) - harmless. Android (internal UFS) untouched. kernel **55** (= 53 content, 0752 staged) was
+REBUILDING as unit `kernel55` when this was written (logs build/kernel55.log, build/kernel55-pkg.log; package lands in
+build/localrepo/sm8250/ and should be copied to build/kernel-pkgs-keep/): VERIFY it finished with KERNEL_EXIT=0 /
+EXIT=0 and `grep -c 'pm_suspend_target_state != PM_SUSPEND_ON' build/kernel/sm8250/linux-7.1.2/drivers/soc/qcom/rpmh-rsc.c`
+= 0, because images take the kernel from the build dir and until then the build dir holds kernel 54 (test content).
+Cliff's uncommitted edit in docs/release-notes/rp5-20261015.md: HIS, do not touch or commit.
+
+**Standing decisions / gates (unchanged, Cliff's):** ship respin 4 at ~0.78 %/h sleep drain (39 mA) or not; the codec
+"nosleep" rule (ADSP awake all night) -> bsp-sm8250 44 + three hands-on checks; Holodor dogfood (audio, gameplay,
+undocked overnight with %/times; after wake check cpu0 state1 disable = 0) still owed by Cliff; Gemini Argon joins next
+week. Earlier-session constraints in force: no loud tests, headphone jack only.
+
+**What this session did (2026-10-17 22:30 -> 2026-10-18 11:35 JST), all logged in tools/dock/results-rp5-2026-10-17.md:**
+- 10-17 night: AOSS hunt (APSS proven seen-asleep via ddr_stats, AOP floor knobs acked, /dev/mem read of 0xb221200 HUNG
+  the SoC, charger confound found) -> ADDENDUM below. Android control started 23:56 (97 %, unplugged, screen off).
+- 10-18 08:55: Armada PR 746 assessed = our 0732 already (kernel 44); sm8550 PCIe GDSC OFF_ON idea noted.
+- 09:13: **ANDROID CONTROL RESULT: aosd 648615 / cxsd 6469 / ddr 6484, 12 mA = 0.24 %/h over 9.3 h with wifi ON** vs
+  our 39 mA. Firmware cleared. (`tools/rp5-power/android-sleep-stats.sh`, fixed for the single stats file.)
+- 09:53: display RSC DRV0 @af20000 dumped with the new `tools/rp5-power/disp-rsc-peek` module = VIRGIN.
+- 10:30: cycle NOMSM (runtime unbind of mdss) HUNG the device; Cliff's 15 s power hold recovered it.
+- 10:55 / 11:03 / 11:22: cycles NOMSM2 (msm absent by DT + S2), AOPNOMSM (+ AOP knobs 0), K54NOMSM (kernel 54 =
+  0752 s2idle wakeup hint): aosd/cxsd/ddr **0, 0, 0** with the APPS sleep set fully zero incl. xo.lvl 0.
+- 11:27: device restored (dtb revert, kernel 53 reinstalled, reboot). 0752 -> patches-staged/rpmh-s2idle-wakeup,
+  PKGBUILD pkgrel 55, rebuild started. Commits 168d03b..9ecbdbf (all on holodor-main, not pushed).
+- New tools: tools/rp5-power/{disp-rsc-peek/ (module + run-on-device.sh + fmt-dump.py), setup-NOMSM.sh (DO NOT USE:
+  runtime unbind), setup-NOMSM2.sh, setup-AOPNOMSM.sh}; swap-dtbs.sh now also serves the nomsm dtbs (/var/tmp/dtb-exp).
+
+**What we learned (not in the code):**
+- The AOP on this RP5 CAN reach aosd/cxsd/ddr (Android, same UEFI/TZ/AOP), through cpuidle alone: Android's suspend
+  aborted hourly and it still slept. 12 mA with wifi connected and the SLPI running = our floor to beat; 5-8 mA is a
+  plausible target for s2idle with the radio off, once aosd works.
+- Every HLOS vote in the APPS RSC drv2 is clean at the flush in the S2 config undocked: all BCMs 0, cx/mx/mmcx 0,
+  xo.lvl 0 (first seen 10-18; the charger kept dwc3 awake in every earlier "clean" cycle). The display RSC holds no
+  votes. The GPU/GMU and display never starting changes nothing. The AOP floor knobs change nothing.
+- rpmh_rsc_write_next_wakeup() IS defective in s2idle (stale gd->next_hrtimer; suspend_enter calls s2idle_loop before
+  system_state = SYSTEM_SUSPEND; genpd_sync_power_off skips cpu_power_down_ok) - but fixing it (0752) did not move the
+  counters. Keep the patch for the upstream question; it is not our gate.
+- /sys/power/system_sleep/stats on the RP5's kona Android is ONE FILE (aosd/cxsd/ddr), master_stats ticks are 19.2 MHz.
+- gcc-sm8250's PCIe GDSCs are PWRSTS_RET_ON like sm8550's (gdsc_disable returns early): a RET_ON -> OFF_ON patch is
+  a candidate for the PCIe mA item (Armada did it on sm8550/8650), hands-on only.
+
+**WHAT WE WERE WRONG ABOUT (do NOT re-derive):**
+- "A UEFI splash leftover in the display RSC blocks the AOP" - WRONG. Dumped: both TCSes empty, sequencer/solver all
+  zero, only the PDC reset defaults. Do NOT propose programming or clearing the display RSC as the fix.
+- "The GPU's GMU RSC or the display pipeline is the blocker" - WRONG for votes: with gpu/gmu/mdss disabled in the DT
+  the counters stay 0. (Whether the AOP wants an sde_rsc-style solver handshake is unproven and would be a port, not a
+  read; park it.)
+- "The AOP floor knobs (prevent_aoss_sleep/cx/ddr) default to a floor" - WRONG. Cleared in the clean undocked config:
+  no change. The 10-17 "no effect" was charger-confounded; 10-18 is clean. Done with these.
+- "The stale next-wakeup hint is why the AOP never deep-sleeps" - WRONG as the gate (kernel 54 test). Real defect, no
+  effect here.
+- "Armada PR 746 is the fix we are looking for" - NO: its sm8250 part is our 0732 (kernel 44, 10-16); Armada claims
+  ~25 % sleep power on sm8250 and no aosd.
+- "Unbinding msm at runtime is a cheap way to test without the GPU/display" - WRONG and DANGEROUS: it crashed the
+  kernel and the suspend deadlocked (details in Traps).
+- "Cliff left Opus's inhibitor on" (his question) - NO: transient units die at reboot, the cycle script stops every
+  sleeptest inhibitor before suspending, and a leftover block inhibitor would have produced a REFUSED suspend + a
+  visible reboot, not a dark hung device.
+- 10-17 wrong turns still standing: never read MMIO outside /proc/iomem via /dev/mem (hung the SoC); charger-powered
+  AOSS cycles prove nothing (dwc3 holds the XO).
+
+**Traps (new 10-18; the 10-16/10-17 lists below still apply):**
+- NEVER `echo ... > /sys/bus/platform/drivers/msm-mdss/unbind` (or adreno) on this kernel: WARN cascade (clk disable of
+  an unprepared clock from the DSI PHY devm teardown, regulator put with use_count, msm_gem pin_count), the writing shell
+  dies "with irqs disabled", the next suspend never returns; only a 15 s power hold recovers. Use the DT method:
+  fdtput status=disabled on gpu@3d00000 / gmu@3d6a000 / display-subsystem@ae00000 in copies of /boot/dtbs/*.dtb ->
+  /var/tmp/dtb-exp -> `swap-dtbs.sh apply` -> reboot; `swap-dtbs.sh revert` or a kernel package install restores.
+- A crashed sleep-cycle leaves /usr/lib/pocknix/sleep.d/pre/999-sleepcycle + post/000-sleepcycle installed and
+  tracing_on=1: remove/reset them by hand after any hang.
+- `systemd-run --user -M deck@.host ...` (the inhibitor idiom) creates a deck login session; `loginctl terminate-session`
+  on deck's sessions kills it too. Fine, but do not mistake "session 2" for Steam's.
+- disp_rsc_peek must only be loaded while the display is ACTIVE (it refuses otherwise); it holds no clocks between
+  dumps (an early version did and would have held the XO vote). rmmod it before any sleep cycle.
+- The qcom_aoss debugfs knobs are write-only (cat = EINVAL); "acked" means the write returned 0.
+- The device clock is UTC in the journal/reports (JST = UTC + 9); boot 0's first journal timestamps can predate boot
+  -1's end (RTC skew before timesyncd) - do not read that as overlap.
+- Kernel package install under the running kernel = reboot immediately after (BTF/modules); the alpm hook rebuilds
+  /flash/KERNEL with the PACKAGED dtbs, so re-apply any dtb experiment after an install.
+
+**NEXT (ordered):**
+1. Verify kernel 55 built + packaged (above), copy to build/kernel-pkgs-keep, confirm the build dir has no 0752. If
+   the build failed, rerun: `sudo systemd-run --unit=kernel55b -p WorkingDirectory=$PWD bash -c 'DEVICE=sm8250
+   TMPDIR=$PWD/build/tmp make kernel > build/kernel55.log 2>&1; DEVICE=sm8250 scripts/build-packages.sh
+   linux-pocknix-sm8250 > build/kernel55-pkg.log 2>&1'`. Nothing to install on the device (53 = same content).
+2. Draft the upstream question (linux-arm-msm, cc Maulik Shah / Bjorn Andersson / Konrad Dybcio): sm8250 OSI s2idle,
+   APPS sleep set proven all-zero incl. xo.lvl, display RSC virgin, GPU/display disabled, ADSP off, CDSP asleep, AOP
+   knobs cleared, next-wakeup hint fixed (attach 0752 as an RFC: it is a real bug), still aosd/cxsd/ddr = 0; the
+   vendor kernel on the same firmware reaches all three. Ask what else the AOP needs from HLOS/TZ. Cliff sends it
+   (memory: vendor emails terse; but this is a kernel list - plain, complete evidence, one question).
+3. The mA items (independent of aosd; each needs an undocked long sleep with battery %/time): (a) codec nosleep rule
+   -> bsp-sm8250 44 + the three hands-on checks (Cliff's decision); (b) rpmh-regulator sleep-set votes for the 17
+   HPM regulators; (c) PCIe RC through suspend: gcc-sm8250 PCIe GDSCs RET_ON -> OFF_ON + the RC off path (D3cold v5
+   hung k49; staged); (d) camcc runtime PM (mmcx pinned awake). Measure each against 0.78 %/h.
+4. Cliff's dogfood of respin 4 + the gate; then publish (never overwrite a published filename).
+5. Later/optional: Armada PR 746's sm8550 PCIe GDSC change for the Odin 3 / next sm8550 port.
+
+**Open questions:** why the AOP never enters cxsd with a clean APPS DRV (TZ/HYP votes? an expected handshake?);
+whether a display-RSC solver sequence (sde_rsc port) is required; what the GPU PDC (pdc_in_aop on a650) votes while
+the GPU never started. None of these is answerable with more sleep cycles from our side.
+
+Signed: Fable 5.1 (claude-fable-5-1), 2026-10-18 11:35 JST. Previous title line of this file (10-17 13:45) is kept as
+the first line of the "CURRENT STATE (2026-10-17 13:45 JST)" section below.
+
 
 ## ADDENDUM 2026-10-17 23:10 JST (Fable 5.1): Cliff asked "can we solve deep sleep?" - the AOSS hunt, tonight's answers
 
@@ -49,6 +160,8 @@
 
 
 ## CURRENT STATE (2026-10-17 13:45 JST)
+
+**Title line of this file as of 10-17 13:45:** 2026-10-17 13:45: the 10-16 work reviewed and confirmed on the device; bsp-common 38 closes the ebebb82 trap; RESPIN 4 BUILT (kernel 53 + bsp-common 38 + bsp-sm8250 43 + steam 56), unflashed, unpublished; Cliff dogfoods tonight, then the gate - READ THIS FIRST
 
 - **Device:** RP5 on kernel 53 (this boot since 10-16 20:34 JST, two minutes after the 53 package was built - the
   results-10-16 line saying "device runs 51" predates the install), bsp-sm8250 43, **bsp-common 38** (installed 13:17,
