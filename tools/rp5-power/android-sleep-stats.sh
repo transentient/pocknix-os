@@ -13,8 +13,10 @@ echo "== lpm sleep_disabled: $(adb shell cat /sys/module/lpm_levels/parameters/s
 echo "== battery: $(adb shell cat /sys/class/power_supply/battery/capacity 2>&1) % $(adb shell cat /sys/class/power_supply/battery/status 2>&1)"
 echo "== /sys/power/rpmh_stats/master_stats (APSS = the AOP's view of the CPU subsystem's sleeps):"
 adb shell cat /sys/power/rpmh_stats/master_stats 2>&1 | head -60
-echo "== /sys/power/system_sleep/stats (aosd/cxsd/ddr, if this kernel has it):"
-adb shell 'for d in /sys/power/system_sleep/stats/*; do echo "$d: count=$(cat $d/count 2>/dev/null) last_entered=$(cat $d/last_entered_at 2>/dev/null) accumulated=$(cat $d/accumulated_duration 2>/dev/null)"; done' 2>&1 | head -20
+echo "== /sys/power/system_sleep/stats (aosd/cxsd/ddr; on the RP5's kona kernel this is ONE FILE, read 2026-10-18):"
+adb shell 'if [ -d /sys/power/system_sleep/stats ]; then for d in /sys/power/system_sleep/stats/*; do echo "$d: count=$(cat $d/count 2>/dev/null) last_entered=$(cat $d/last_entered_at 2>/dev/null) accumulated=$(cat $d/accumulated_duration 2>/dev/null)"; done; else cat /sys/power/system_sleep/stats; fi' 2>&1 | head -24
+echo "== batterystats (discharge since unplug; 5047 mAh pack):"
+adb shell dumpsys batterystats 2>/dev/null | grep -E "^\s*(Time on battery|Time on battery screen off|Discharge:|Screen off discharge|Screen on:)" | head -6
 echo "== other candidates:"
 for p in /sys/power/system_sleep /sys/power/rpmh_stats /sys/kernel/debug/qcom_stats /d/rpmh_stats /d/system_sleep_stats; do echo "$p: $(adb shell ls $p 2>&1 | tr '\n' ' ' | cut -c1-200)"; done
 echo "== suspend stats: $(adb shell cat /sys/kernel/debug/suspend_stats 2>&1 | head -5 | tr '\n' ' ')"

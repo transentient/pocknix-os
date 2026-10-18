@@ -16,11 +16,14 @@
   (5) camcc (ad00000) has no runtime PM and pins mmcx at LOW_SVS whenever the device is awake (released at suspend).
 - **Still unexamined masters:** GPU (GMU RSC), display RSC at 0xaf20000 (a UEFI-splash leftover would block forever;
   upstream never touches it; needs a kernel module because its AHB clock is off - never /dev/mem, see TRAPS), TZ
-  drv0 / HYP drv1 (no handle). **Decisive next step = the vendor-OS control:** Android's own cmdline carries
-  `lpm_levels.sleep_disabled=1`; if Retroid's init never clears it, Android never deep-sleeps on this hardware either
-  and the right target is the drain floor, not aosd. Tool ready: `tools/rp5-power/android-sleep-stats.sh` (adb, no
-  root). Cliff's part: boot Android, screen off, UNPLUGGED 15+ min (or overnight, noting battery % at off and at
-  pickup), then plug into fusor; I run the script.
+  drv0 / HYP drv1 (no handle). **ANDROID CONTROL DONE 2026-10-18 09:13 JST (results-rp5-2026-10-17.md, last
+  section): the RP5's own Android, wifi on, screen off, unplugged 9.3 h: aosd 648615 / cxsd 6469 / ddr 6484, every
+  master asleep >98.8 % of uptime, 112 mAh = 12 mA = 0.24 %/h (97 -> 96 %) vs our 39 mA = 0.78 %/h (3.3x).** Same
+  UEFI/AOP/TZ, so the firmware is cleared; the blocker is a vote our Linux leaves standing outside the APPS sleep set
+  (proven all-zero 10-16). Android's system suspend aborted hourly on the wifi PCIe device and it STILL slept: the
+  AOSS sleep comes from cpuidle cluster collapse. Next, hands-on only: a module that dumps the display RSC TCSes
+  (enable disp_cc_mdss_rscc_ahb_clk + MDSS GDSC first), then a cycle without the msm module to split GPU/display from
+  the rest. Tool: `tools/rp5-power/android-sleep-stats.sh` (stats file layout fixed 10-18).
 - **Independent of aosd, the mA items:** PCIe RC awake through suspend (D3cold v5 hung k49 - needs a pstore console),
   17 regulators at HPM through sleep (rpmh-regulator sleep-set port), the ADSP awake all night (drop the codec rule
   = bsp-sm8250 44 + the three hands-on checks), camcc runtime PM. Battery 5000 mAh: 0.78 %/h = ~39 mA, consistent
