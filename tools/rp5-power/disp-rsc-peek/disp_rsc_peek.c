@@ -9,7 +9,8 @@
  * Register map: rpmh-rsc.c ver-2.7 offsets (the same RSC IP as the APPS RSC at 0x18200000) + the vendor sde_rsc_hw.h
  * (solver / sequencer / wrapper offsets). Safety: the block is behind disp_cc_mdss_rscc_ahb_clk inside the MDSS GDSC on
  * the mmcx rail; this module takes the RSCC AHB + vsync clocks from the dispcc provider and REFUSES to read unless
- * disp_cc_mdss_ahb_clk is already on (= the display is active, GDSC on, mmcx up). Never read this block via /dev/mem
+ * disp_cc_mdss_ahb_clk is already on (= the display is active, GDSC on, mmcx up). Clocks are taken only for the
+ * duration of a dump (a prepared branch would hold the XO vote through suspend). Never read this block via /dev/mem
  * (2026-10-17: an unclocked MMIO read hung the SoC).
  *
  *   insmod disp_rsc_peek.ko            -> DRV0 dump in dmesg + /sys/kernel/debug/disp_rsc_peek/dump
@@ -87,7 +88,7 @@ static int dump(struct seq_file *s)
 
 	id = R(0x0);
 	cfg = R(0xc);
-	ntcs = (cfg >> 6) & 0x3f;
+	ntcs = cfg & 0x3f;	/* rpmh-rsc.c: DRV_NUM_TCS_SHIFT * drv_id, and this is drv 0 */
 	ncpt = (cfg >> 27) & 0x1f;
 	OUT(s, "disp_rsc DRV0 @%#x: RSC_ID %#010x (v%u.%u) solver_cfg %#010x (hw-solver %u) prnt_chld %#010x -> %u TCS x %u cmds",
 	    DRV_BASE, id, (id >> 16) & 0xff, (id >> 8) & 0xff, R(0x4), (R(0x4) >> 24) & 1, cfg, ntcs, ncpt);
@@ -138,7 +139,6 @@ static struct clk *get_clk(struct device_node *np, u32 idx)
 static int __init disp_rsc_peek_init(void)
 {
 	struct device_node *np = of_find_compatible_node(NULL, NULL, "qcom,sm8250-dispcc");
-	int ret;
 
 	if (!np) return -ENODEV;
 	mdss_ahb = get_clk(np, DISP_CC_MDSS_AHB_CLK);
@@ -152,10 +152,7 @@ static int __init disp_rsc_peek_init(void)
 	drv = ioremap(DRV_BASE, DRV_SIZE);
 	wrap = ioremap(WRAP_BASE, WRAP_SIZE);
 	if (!drv) return -ENOMEM;
-	ret = clk_prepare(rscc_ahb);
-	if (ret) return ret;
-	ret = clk_prepare(rscc_vsync);
-	if (ret) return ret;
+	/* no clk_prepare here: a prepared dispcc branch keeps its parents (and the XO vote) prepared through suspend */
 	dir = debugfs_create_dir("disp_rsc_peek", NULL);
 	debugfs_create_file("dump", 0400, dir, NULL, &dump_fops);
 	dump(NULL);
@@ -165,8 +162,6 @@ static int __init disp_rsc_peek_init(void)
 static void __exit disp_rsc_peek_exit(void)
 {
 	debugfs_remove_recursive(dir);
-	clk_unprepare(rscc_vsync);
-	clk_unprepare(rscc_ahb);
 	clk_put(rscc_vsync); clk_put(rscc_ahb); clk_put(mdss_ahb);
 	if (wrap) iounmap(wrap);
 	iounmap(drv);

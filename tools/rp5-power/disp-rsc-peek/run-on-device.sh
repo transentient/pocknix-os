@@ -14,7 +14,8 @@ echo "== $(date +%T) insmod wrapper=$W"
 rmmod disp_rsc_peek 2>/dev/null
 if insmod /var/tmp/rp5-power/disp_rsc_peek.ko wrapper=$W; then
   sleep 0.5
-  echo "== dmesg:"; dmesg | grep -a 'disp_rsc\|TCS\|cmd[0-9]\|SEQ_MEM\|WRAPPER\|SOLVER\|RSC_DRV\|PDC_\|ERROR_IRQ\|TIMERS_\|SOFT_\|MAX_IDLE\|STATIC_\|PWR_CTRL\|DEBUG_\|MODE_\|BW_IND\|VSYNC_' | tail -80
+  echo "== dump (debugfs re-read; the insmod dump is in dmesg too):"; cat /sys/kernel/debug/disp_rsc_peek/dump
+  echo "== dmesg tail:"; dmesg | tail -3
   echo "== cmd-db (for address -> name):"; cat /sys/kernel/debug/cmd-db > /var/tmp/rp5-power/cmd-db.txt && echo "   saved /var/tmp/rp5-power/cmd-db.txt ($(wc -l < /var/tmp/rp5-power/cmd-db.txt) lines)"
 else
   echo "insmod FAILED: $?"; dmesg | tail -5
