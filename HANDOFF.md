@@ -24,6 +24,22 @@
   AOSS sleep comes from cpuidle cluster collapse. Next, hands-on only: a module that dumps the display RSC TCSes
   (enable disp_cc_mdss_rscc_ahb_clk + MDSS GDSC first), then a cycle without the msm module to split GPU/display from
   the rest. Tool: `tools/rp5-power/android-sleep-stats.sh` (stats file layout fixed 10-18).
+- **10-18 MORNING HUNT (Fable 5.1), five undocked 120 s cycles, aosd/cxsd/ddr = 0 in every one** (results-rp5-2026-10-17.md,
+  last sections): (1) display RSC DRV0 @af20000 dumped by `tools/rp5-power/disp-rsc-peek` (module, clocks taken only
+  during the read) = VIRGIN: no splash leftover. (2) msm absent by DT (gpu/gmu/display-subsystem status=disabled via
+  `swap-dtbs.sh apply` with /var/tmp/dtb-exp dtbs; setup-NOMSM2.sh) + S2 = 0, with the APPS sleep set fully zero
+  INCLUDING xo.lvl 0. (3) AOP floor knobs cleared in that config = 0 (they are write-only files). (4) kernel 54 = 0752
+  rpmh-rsc "no timer wakeup to the CONTROL TCS in s2idle" (a real defect: s2idle never sets SYSTEM_SUSPEND and
+  genpd_sync_power_off skips the governor that refreshes gd->next_hrtimer, so the AOP gets a stale hint) = 0 -> staged
+  (patches-staged/rpmh-s2idle-wakeup), kernel 55 = 53 content rebuilt. **Every HLOS-controlled vote in the APPS RSC is
+  now proven clean and the firmware proven capable; what remains is TZ drv0 / HYP drv1 or a handshake mainline does not
+  perform. Stop cycling; ask linux-arm-msm / Qualcomm (Maulik Shah, qcom_stats + rpmh-rsc author) with this evidence.**
+  Device restored 11:27: kernel 53, packaged dtbs, Steam up, 96 %, no inhibitors.
+- **TRAPS added 10-18:** NEVER unbind msm-mdss or adreno at runtime (CONFIG_DRM_MSM=y): WARN cascade in the teardown,
+  the writing shell dies with irqs disabled, the next suspend deadlocks, only a 15 s power hold recovers. Use the DT
+  method above. The sleep-cycle hooks (sleep.d pre/999-sleepcycle, post/000-sleepcycle) survive a crash: remove them.
+  A `systemd-run --user -M deck@.host` inhibitor creates a deck login session: `loginctl terminate-session` on deck's
+  sessions kills it (fine) - list sessions before assuming "session 2" is Steam's.
 - **Independent of aosd, the mA items:** PCIe RC awake through suspend (D3cold v5 hung k49 - needs a pstore console),
   17 regulators at HPM through sleep (rpmh-regulator sleep-set port), the ADSP awake all night (drop the codec rule
   = bsp-sm8250 44 + the three hands-on checks), camcc runtime PM. Battery 5000 mAh: 0.78 %/h = ~39 mA, consistent
