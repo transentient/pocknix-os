@@ -177,3 +177,19 @@ def reset_stick_centers():
     proc = run_cmd(["/usr/local/bin/pocknix-input-calibration", "reset"], timeout=10)
     if proc is None or proc.returncode != 0:
         raise RuntimeError("pocknix-input-calibration reset failed")
+
+
+def can_boot_android():
+    proc = run_cmd(["/usr/local/bin/pocknix-boot-target", "status"], timeout=5)
+    if proc is None or proc.returncode != 0:
+        return False
+    try:
+        return bool(_json.loads((proc.stdout or "").strip().splitlines()[-1]).get("supported"))
+    except (ValueError, IndexError):
+        return False
+
+
+def reboot_to_android():
+    proc = run_cmd(["/usr/local/bin/pocknix-boot-target", "reboot-android"], timeout=10)
+    if proc is None or proc.returncode != 0:
+        raise RuntimeError("Failed to switch boot mode to Android")

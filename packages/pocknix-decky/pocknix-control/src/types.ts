@@ -53,6 +53,7 @@ export interface Config {
   ledColor: string;
   ledMode: string;
   stickCenters: string;
+  canBootAndroid?: boolean;
   lavdMode: string;
   downloadInhibitMode: string;
   tweaks: Tweaks;

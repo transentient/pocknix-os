@@ -1,7 +1,7 @@
 import { ButtonItem, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
 import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { getFanStatus, setDownloadInhibitMode, setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode, zeroStickCenters, resetStickCenters } from "../backend";
+import { getFanStatus, rebootToAndroid, setDownloadInhibitMode, setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode, zeroStickCenters, resetStickCenters } from "../backend";
 import { FanCurveGraph } from "../components/FanCurveGraph";
 import { FanCurveModal } from "../components/FanCurveModal";
 import { ColorPalette, SelectEdit } from "../components/widgets";
@@ -56,6 +56,8 @@ export function Power({ config, setConfig, reload }: {
   reload: () => void;
 }) {
   const [stickMsg, setStickMsg] = useState<string>("");
+  const [confirmAndroid, setConfirmAndroid] = useState<boolean>(false);
+  const [androidMsg, setAndroidMsg] = useState<string>("");
   const zeroSticks = async () => {
     setStickMsg("Sampling, hands off...");
     try {
@@ -68,6 +70,19 @@ export function Power({ config, setConfig, reload }: {
   };
   const resetSticks = async () => {
     try { setConfig(await resetStickCenters()); setStickMsg("Centres reset"); } catch (e: any) { setStickMsg("Failed: " + (e?.message ?? String(e))); }
+  };
+  const handleBootAndroid = async () => {
+    if (!confirmAndroid) {
+      setConfirmAndroid(true);
+      return;
+    }
+    setAndroidMsg("Switching boot mode and rebooting to Android...");
+    try {
+      await rebootToAndroid();
+    } catch (e: any) {
+      setConfirmAndroid(false);
+      setAndroidMsg("Failed: " + (e?.message ?? String(e)));
+    }
   };
   const applyLedMode = async (mode: string) => {
     try {
@@ -178,6 +193,27 @@ export function Power({ config, setConfig, reload }: {
           <ColorPalette colors={ledColorPresets} value={config.ledColor} onChange={(hex) => applyLed(hex)} />
         )}
       </PanelSection>
+      {config.canBootAndroid && (
+        <PanelSection title="DUAL BOOT">
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              description="Sets ROCKNIX ABL boot mode to Android and restarts the device."
+              onClick={handleBootAndroid}
+            >
+              {confirmAndroid ? "Tap again to confirm Reboot to Android" : "Reboot to Android"}
+            </ButtonItem>
+          </PanelSectionRow>
+          {confirmAndroid && (
+            <PanelSectionRow>
+              <ButtonItem layout="below" onClick={() => setConfirmAndroid(false)}>
+                Cancel
+              </ButtonItem>
+            </PanelSectionRow>
+          )}
+          {androidMsg && <PanelSectionRow><div style={{ fontSize: "12px", opacity: 0.8 }}>{androidMsg}</div></PanelSectionRow>}
+        </PanelSection>
+      )}
     </>
   );
 }

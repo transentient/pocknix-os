@@ -43,6 +43,7 @@ const formatSdcard = (label) => call("format_sdcard", label);
 const checkUpdates = () => call("check_updates");
 const startUpdate = () => call("start_update");
 const updateStatus = () => call("update_status");
+const rebootToAndroid = () => call("reboot_to_android");
 
 function useDebouncedSave(options) {
     const { config, field, snapshot, save, setConfig, onError, delay = 900 } = options;
@@ -805,6 +806,8 @@ const lavdOptions = [
 ];
 function Power({ config, setConfig, reload }) {
     const [stickMsg, setStickMsg] = SP_REACT.useState("");
+    const [confirmAndroid, setConfirmAndroid] = SP_REACT.useState(false);
+    const [androidMsg, setAndroidMsg] = SP_REACT.useState("");
     const zeroSticks = async () => {
         setStickMsg("Sampling, hands off...");
         try {
@@ -823,6 +826,20 @@ function Power({ config, setConfig, reload }) {
         }
         catch (e) {
             setStickMsg("Failed: " + (e?.message ?? String(e)));
+        }
+    };
+    const handleBootAndroid = async () => {
+        if (!confirmAndroid) {
+            setConfirmAndroid(true);
+            return;
+        }
+        setAndroidMsg("Switching boot mode and rebooting to Android...");
+        try {
+            await rebootToAndroid();
+        }
+        catch (e) {
+            setConfirmAndroid(false);
+            setAndroidMsg("Failed: " + (e?.message ?? String(e)));
         }
     };
     const applyLedMode = async (mode) => {
@@ -890,7 +907,7 @@ function Power({ config, setConfig, reload }) {
             return;
         DFL.showModal(SP_JSX.jsx(FanCurveModal, { name: config.fanMode, curve: activeCurve, existing: config.fanCurves, onSaved: (next) => setConfig((current) => (current ? { ...current, fanMode: next.fanMode, fanCurves: next.fanCurves } : current)) }));
     };
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit (experimental)", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "DOWNLOADS", children: [SP_JSX.jsx(SelectEdit, { label: "Stay awake for downloads", value: config.downloadInhibitMode || "always", options: downloadInhibitOptions, onChange: (mode) => applyMode(setDownloadInhibitMode, mode) }), SP_JSX.jsx("div", { className: "pocknix-note", children: "A download that is interrupted by sleep does not resume on its own. While one is running and this is on, the device stays awake and the power button will not put it to sleep. Below 5% on battery it powers off regardless." })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "FAN", children: [SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions(config), onChange: (mode) => applyMode(setFanMode, mode) }), activeCurve ? SP_JSX.jsx(FanCurveGraph, { points: parseCurve(activeCurve.curve), currentTemp: fan?.temp ?? null }) : null, SP_JSX.jsx("div", { className: "pocknix-note", children: fan && fan.temp !== null && fan.percent !== null ? `Now: ${fan.temp}°C, fan at ${fan.percent}%` : "Fan readout unavailable" }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: openEditor, disabled: !activeCurve, children: activeCurve?.factory ? "Customize this curve..." : "Edit this curve..." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICKS", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", description: "Sets the resting position of both sticks as centre. Let go of the sticks first." + (config.stickCenters ? " Saved: " + config.stickCenters : ""), onClick: zeroSticks, children: "Zero stick centres" }) }), config.stickCenters && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: resetSticks, children: "Reset stick centres" }) })), stickMsg && SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: "12px", opacity: 0.8 }, children: stickMsg }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICK LEDS", children: [SP_JSX.jsx(SelectEdit, { label: "Effect", value: config.ledMode, options: ledEffectOptions, onChange: (mode) => applyLedMode(mode) }), ledColorRelevant && (SP_JSX.jsx(ColorPalette, { colors: ledColorPresets, value: config.ledColor, onChange: (hex) => applyLed(hex) }))] })] }));
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "PERFORMANCE", children: [SP_JSX.jsx(SelectEdit, { label: "Power Profile", value: config.powerMode, options: powerOptions, onChange: (mode) => applyMode(setPowerMode, mode) }), SP_JSX.jsx(SelectEdit, { label: "Charge Limit (experimental)", value: config.chargeLimit, options: chargeOptions, onChange: (pct) => applyCharge(pct) }), SP_JSX.jsx(SelectEdit, { label: "CPU Scheduler", value: config.lavdMode, options: lavdOptions, onChange: (mode) => applyMode(setLavdMode, mode) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "DOWNLOADS", children: [SP_JSX.jsx(SelectEdit, { label: "Stay awake for downloads", value: config.downloadInhibitMode || "always", options: downloadInhibitOptions, onChange: (mode) => applyMode(setDownloadInhibitMode, mode) }), SP_JSX.jsx("div", { className: "pocknix-note", children: "A download that is interrupted by sleep does not resume on its own. While one is running and this is on, the device stays awake and the power button will not put it to sleep. Below 5% on battery it powers off regardless." })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "FAN", children: [SP_JSX.jsx(SelectEdit, { label: "Fan Curve", value: config.fanMode, options: fanOptions(config), onChange: (mode) => applyMode(setFanMode, mode) }), activeCurve ? SP_JSX.jsx(FanCurveGraph, { points: parseCurve(activeCurve.curve), currentTemp: fan?.temp ?? null }) : null, SP_JSX.jsx("div", { className: "pocknix-note", children: fan && fan.temp !== null && fan.percent !== null ? `Now: ${fan.temp}°C, fan at ${fan.percent}%` : "Fan readout unavailable" }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: openEditor, disabled: !activeCurve, children: activeCurve?.factory ? "Customize this curve..." : "Edit this curve..." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICKS", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", description: "Sets the resting position of both sticks as centre. Let go of the sticks first." + (config.stickCenters ? " Saved: " + config.stickCenters : ""), onClick: zeroSticks, children: "Zero stick centres" }) }), config.stickCenters && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: resetSticks, children: "Reset stick centres" }) })), stickMsg && SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: "12px", opacity: 0.8 }, children: stickMsg }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "STICK LEDS", children: [SP_JSX.jsx(SelectEdit, { label: "Effect", value: config.ledMode, options: ledEffectOptions, onChange: (mode) => applyLedMode(mode) }), ledColorRelevant && (SP_JSX.jsx(ColorPalette, { colors: ledColorPresets, value: config.ledColor, onChange: (hex) => applyLed(hex) }))] }), config.canBootAndroid && (SP_JSX.jsxs(DFL.PanelSection, { title: "DUAL BOOT", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", description: "Sets ROCKNIX ABL boot mode to Android and restarts the device.", onClick: handleBootAndroid, children: confirmAndroid ? "Tap again to confirm Reboot to Android" : "Reboot to Android" }) }), confirmAndroid && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: () => setConfirmAndroid(false), children: "Cancel" }) })), androidMsg && SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: "12px", opacity: 0.8 }, children: androidMsg }) })] }))] }));
 }
 
 function cardSummary(card) {

@@ -20,3 +20,4 @@ export const formatSdcard = (label: string) => call<[string], SdcardInfo>("forma
 export const checkUpdates = () => call<[], UpdateInfo[]>("check_updates");
 export const startUpdate = () => call<[], UpdateStatus>("start_update");
 export const updateStatus = () => call<[], UpdateStatus>("update_status");
+export const rebootToAndroid = () => call<[], void>("reboot_to_android");
