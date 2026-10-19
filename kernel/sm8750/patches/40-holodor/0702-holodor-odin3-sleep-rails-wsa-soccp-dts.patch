@@ -1,5 +1,5 @@
 From: Holodor <noreply@holodor.local>
-Subject: [PATCH] arm64: dts: qcom: odin3: configure sleep rails, active-only XO clock, disable unused WSA macros, and set SoCCP firmware
+Subject: [PATCH] arm64: dts: qcom: odin3: configure sleep rails, active-only XO clock, aoss_qmp pdc_init_table, disable unused WSA macros, and set SoCCP firmware
 
 1. Parent `bi_tcxo_div2` to `RPMH_CXO_CLK_A` (`bi_tcxo_ao`) instead of
    `RPMH_CXO_CLK` (`bi_tcxo`): GCC, DISPCC, GPUCC, and VIDEOCC live in the
@@ -14,20 +14,24 @@ Subject: [PATCH] arm64: dts: qcom: odin3: configure sleep rails, active-only XO 
    them at resume when PCIe powers off across s2idle can hang the SoC) and
    place them into `RPMH_REGULATOR_MODE_LPM` via `regulator-state-mem` so
    they drop out of HPM/PWM mode in `SLEEP_TCS`.
-3. Disable the unused LPASS WSA macros (`lpass_wsamacro`, `lpass_wsa2macro`)
+3. Configure `&aoss_qmp` `qcom,pdc_init_table` for the Sun V8 Power Grid
+   (`s5f` RF/AON rail for WCN7860).
+4. Disable the unused LPASS WSA macros (`lpass_wsamacro`, `lpass_wsa2macro`)
    and `&ice`.
-4. Fix `pcieport0` `wake-gpios` polarity (`GPIO_ACTIVE_LOW`).
-5. Idle the codec, UFS, and always-on parent rails (`vreg_bob1`, `vreg_bob2`,
-   `vreg_l15b_1p8`, `vreg_l1d_1p2`, `vreg_l2i_1p2`, `vreg_s1d_0p97`,
-   `vreg_s3g_1p8`, `vreg_s7i_1p2`) in LPM during s2idle (`regulator-state-mem`).
-6. Point `remoteproc_soccp` at `qcom/sm8750/ayn/odin3/soccp.mbn` so the
+5. Fix `pcieport0` `wake-gpios` polarity (`GPIO_ACTIVE_LOW`).
+6. Idle the codec, UFS/USB PHY, and always-on parent rails (`vreg_bob1`,
+   `vreg_bob2`, `vreg_l15b_1p8`, `vreg_l1d_1p2`, `vreg_l1j_0p91`,
+   `vreg_l2d_0p88`, `vreg_l2i_1p2`, `vreg_l3g_1p2`, `vreg_l5b_3p1`,
+   `vreg_s1d_0p97`, `vreg_s3g_1p8`, `vreg_s7i_1p2`) in LPM during s2idle.
+7. Point `remoteproc_soccp` at `qcom/sm8750/ayn/odin3/soccp.mbn` so the
    driver reloads the SoCCP firmware and parks it in D3, allowing the SoC to
    reach CX shutdown (`cxsd`), DDR low-power states, and AOSS sleep (`aosd`)
    in `s2idle`.
 ---
- arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi | 37 +++++++++++++++++--
- arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts   | 62 ++++++++++++++++++++++++++++++++
- 2 files changed, 96 insertions(+), 3 deletions(-)
+ arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi | 45 ++++++++++++++++++--
+ arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts   | 90 ++++++++++++++++++++++++++++++++++++++++
+ drivers/soc/qcom/qcom_aoss.c                     | 14 +++++++
+ 3 files changed, 146 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi b/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi
 --- a/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi
@@ -108,10 +112,18 @@ diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi b/arch/arm64/boot/
 +			};
  		};
  
-@@ -927,14 +951,27 @@
+@@ -927,14 +951,35 @@
  	};
  };
  
++&aoss_qmp {
++	qcom,pdc_init_table =
++		"{class: wlan_pdc, ss: rf, res: s5f.m, enable: 1}",
++		"{class: wlan_pdc, ss: rf, res: s5f.v, enable: 1}",
++		"{class: wlan_pdc, ss: rf, res: s5f.v, upval: 876}",
++		"{class: wlan_pdc, ss: rf, res: s5f.v, dwnval: 876}";
++};
++
 +&ice {
 +	status = "disabled";
 +};
@@ -136,7 +148,7 @@ diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi b/arch/arm64/boot/
  &mdss {
  	status = "okay";
  };
-@@ -985,7 +1022,7 @@
+@@ -985,7 +1030,7 @@
  };
  
  &pcieport0 {
@@ -148,7 +160,7 @@ diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi b/arch/arm64/boot/
 diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts b/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts
 --- a/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts
 +++ b/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts
-@@ -350,3 +350,65 @@
+@@ -350,3 +350,93 @@
  		};
  	};
  };
@@ -182,7 +194,35 @@ diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts b/arch/arm64/boot/dt
 +	};
 +};
 +
++&vreg_l1j_0p91 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
++&vreg_l2d_0p88 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
 +&vreg_l2i_1p2 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
++&vreg_l3g_1p2 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
++&vreg_l5b_3p1 {
 +	regulator-state-mem {
 +		regulator-on-in-suspend;
 +		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
@@ -214,3 +254,27 @@ diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts b/arch/arm64/boot/dt
 +&remoteproc_soccp {
 +	firmware-name = "qcom/sm8750/ayn/odin3/soccp.mbn";
 +};
+diff --git a/drivers/soc/qcom/qcom_aoss.c b/drivers/soc/qcom/qcom_aoss.c
+--- a/drivers/soc/qcom/qcom_aoss.c
++++ b/drivers/soc/qcom/qcom_aoss.c
+@@ -611,6 +611,20 @@ static int qmp_probe(struct platform_device *pdev)
+ 	if (ret < 0)
+ 		goto err_free_mbox;
+ 
++	{
++		const char *msg;
++		struct property *prop;
++
++		of_property_for_each_string(pdev->dev.of_node,
++					    "qcom,pdc_init_table", prop, msg) {
++			ret = qmp_send(qmp, msg);
++			if (ret < 0)
++				dev_warn(&pdev->dev,
++					 "failed to send pdc_init_table '%s': %d\n",
++					 msg, ret);
++		}
++	}
++
+ 	ret = qmp_qdss_clk_add(qmp);
+ 	if (ret)
+ 		goto err_close_qmp;
