@@ -51,7 +51,7 @@ if git -C "$DST" diff --cached --quiet; then
   exit 0
 fi
 git -C "$DST" commit -q -m "$MSG"
-git -C "$DST" log -1 --stat --format='%h %s' | tail -n +1 | head -40
+git -C "$DST" log -1 --stat --format='%h %s' | head -40 || true
 if [ "$PUSH" = 1 ]; then
   git -C "$DST" push origin main
 fi
