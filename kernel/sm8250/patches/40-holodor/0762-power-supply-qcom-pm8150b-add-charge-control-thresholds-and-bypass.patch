@@ -1,0 +1,216 @@
+From: Holodor <holodor@bonesaw.com>
+Date: Mon, 19 Oct 2026 19:15:00 +0900
+Subject: [PATCH] power: supply: qcom_pm8150b_charger: add charge control thresholds and bypass
+
+Support POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD,
+POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD, and
+POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT on the PM8150B charger so that
+userland tools (pocknix-charge-full, Decky Pocknix Control, steamos-manager)
+can enforce battery charge limits (e.g. 80%) and bypass charging (0 uA charge
+current = disable battery charging via CHARGING_ENABLE_CMD while keeping USBIN
+power path active for system load).
+---
+--- a/drivers/power/supply/qcom_pm8150b_charger.c
++++ b/drivers/power/supply/qcom_pm8150b_charger.c
+@@ -332,7 +332,11 @@ struct smb5_chip {
+ 	struct iio_channel *usb_in_i_chan;
+ 	struct iio_channel *usb_in_v_chan;
+ 
+ 	struct power_supply *chg_psy;
++	unsigned int chg_start_soc;
++	unsigned int chg_end_soc;
++	unsigned int fcc_ua;
++	bool chg_bypass;
+ };
+ 
+ static enum power_supply_property smb5_properties[] = {
+@@ -345,6 +349,9 @@ static enum power_supply_property smb5_properties[] = {
+ 	POWER_SUPPLY_PROP_HEALTH,
+ 	POWER_SUPPLY_PROP_ONLINE,
+ 	POWER_SUPPLY_PROP_USB_TYPE,
++	POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD,
++	POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD,
++	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
+ };
+ 
+ static int smb5_get_prop_usb_online(struct smb5_chip *chip, int *val)
+@@ -635,6 +642,93 @@ static void smb5_typec_psy_budget(struct smb5_typec_budget *budget)
+ 	power_supply_for_each_psy(budget, smb5_typec_budget_cb);
+ }
+ 
++static int smb5_get_battery_soc_cb(struct power_supply *psy, void *data)
++{
++	int *soc = data;
++	union power_supply_propval val;
++
++	if (psy->desc->type != POWER_SUPPLY_TYPE_BATTERY)
++		return 0;
++	if (power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &val) < 0)
++		return 0;
++	*soc = val.intval;
++	return 1;
++}
++
++static int smb5_update_charging_enable(struct smb5_chip *chip)
++{
++	bool enable = !chip->chg_bypass;
++	int soc = -1;
++	unsigned int stat;
++	bool cur_en;
++	int rc;
++
++	if (enable && chip->chg_end_soc < 100) {
++		power_supply_for_each_psy(&soc, smb5_get_battery_soc_cb);
++		if (soc >= 0) {
++			rc = regmap_read(chip->regmap,
++					 chip->base + CHARGING_ENABLE_CMD,
++					 &stat);
++			cur_en = (rc == 0) && (stat & CHARGING_ENABLE_CMD_BIT);
++			if (soc >= (int)chip->chg_end_soc)
++				enable = false;
++			else if (soc > (int)chip->chg_start_soc && !cur_en)
++				enable = false;
++		}
++	}
++
++	return regmap_update_bits(chip->regmap,
++				  chip->base + CHARGING_ENABLE_CMD,
++				  CHARGING_ENABLE_CMD_BIT,
++				  enable ? CHARGING_ENABLE_CMD_BIT : 0);
++}
++
++static int smb5_set_charge_current(struct smb5_chip *chip, int val_ua)
++{
++	unsigned int raw;
++	int rc;
++
++	if (val_ua <= 0) {
++		chip->chg_bypass = true;
++		rc = smb5_update_charging_enable(chip);
++		if (rc == 0)
++			power_supply_changed(chip->chg_psy);
++		return rc;
++	}
++
++	chip->chg_bypass = false;
++	chip->fcc_ua = clamp_t(unsigned int, val_ua, CURRENT_SCALE_FACTOR,
++			       CDP_CURRENT_UA);
++	raw = chip->fcc_ua / CURRENT_SCALE_FACTOR;
++	rc = regmap_update_bits(chip->regmap,
++				chip->base + FAST_CHARGE_CURRENT_CFG,
++				FAST_CHARGE_CURRENT_SETTING_MASK, raw);
++	if (rc < 0)
++		return rc;
++
++	rc = smb5_update_charging_enable(chip);
++	if (rc == 0)
++		power_supply_changed(chip->chg_psy);
++	return rc;
++}
++
++static int smb5_get_charge_current(struct smb5_chip *chip, int *val_ua)
++{
++	unsigned int stat;
++	int rc;
++
++	if (chip->chg_bypass) {
++		*val_ua = 0;
++		return 0;
++	}
++	rc = regmap_read(chip->regmap, chip->base + BATTERY_CHARGER_STATUS_4,
++			 &stat);
++	if (rc < 0)
++		return rc;
++	*val_ua = (stat & CHARGE_CURRENT_REFERENCE_MASK) * CURRENT_SCALE_FACTOR;
++	return 0;
++}
++
+ static int smb5_psy_notifier(struct notifier_block *nb, unsigned long event,
+ 			     void *data)
+ {
+@@ -643,6 +737,11 @@ static int smb5_psy_notifier(struct notifier_block *nb, unsigned long event,
+ 
+ 	if (event != PSY_EVENT_PROP_CHANGED || psy == chip->chg_psy)
+ 		return NOTIFY_OK;
++	if (psy->desc->type == POWER_SUPPLY_TYPE_BATTERY) {
++		mod_delayed_work(system_wq, &chip->status_change_work,
++				 msecs_to_jiffies(200));
++		return NOTIFY_OK;
++	}
+ 	if (strncmp(psy->desc->name, "tcpm-source-psy-", 16))
+ 		return NOTIFY_OK;
+ 
+@@ -673,6 +772,7 @@ static void smb5_status_change_work(struct work_struct *work)
+ 
+ 	chip = container_of(work, struct smb5_chip, status_change_work.work);
+ 
++	smb5_update_charging_enable(chip);
+ 	smb5_get_prop_usb_online(chip, &usb_online);
+ 	if (!usb_online) {
+ 		/* back to the hardware's 500 mA default for whatever comes next */
+@@ -867,6 +967,14 @@ static int smb5_get_property(struct power_supply *psy,
+ 		return smb5_get_prop_health(chip, &val->intval);
+ 	case POWER_SUPPLY_PROP_USB_TYPE:
+ 		return smb5_apsd_get_charger_type(chip, &val->intval);
++	case POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD:
++		val->intval = chip->chg_start_soc;
++		return 0;
++	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
++		val->intval = chip->chg_end_soc;
++		return 0;
++	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
++		return smb5_get_charge_current(chip, &val->intval);
+ 	default:
+ 		dev_err(chip->dev, "invalid property: %d\n", psp);
+ 		return -EINVAL;
+@@ -883,6 +991,30 @@ static int smb5_set_property(struct power_supply *psy,
+ 	case POWER_SUPPLY_PROP_CURRENT_MAX:
+ 		return smb5_set_current_limit(chip, val->intval, false,
+ 					      "userspace");
++	case POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD:
++		if (val->intval < 0 || val->intval > 100)
++			return -EINVAL;
++		chip->chg_start_soc = val->intval;
++		regmap_update_bits(chip->regmap,
++				   chip->base + CHARGE_RCHG_SOC_THRESHOLD_CFG_REG,
++				   CHARGE_RCHG_SOC_THRESHOLD_CFG_MASK,
++				   chip->chg_start_soc);
++		return smb5_update_charging_enable(chip);
++	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
++		if (val->intval < 1 || val->intval > 100)
++			return -EINVAL;
++		chip->chg_end_soc = val->intval;
++		if (chip->chg_start_soc >= chip->chg_end_soc) {
++			chip->chg_start_soc = chip->chg_end_soc > 5 ?
++					      chip->chg_end_soc - 5 : 0;
++			regmap_update_bits(chip->regmap,
++					   chip->base + CHARGE_RCHG_SOC_THRESHOLD_CFG_REG,
++					   CHARGE_RCHG_SOC_THRESHOLD_CFG_MASK,
++					   chip->chg_start_soc);
++		}
++		return smb5_update_charging_enable(chip);
++	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
++		return smb5_set_charge_current(chip, val->intval);
+ 	default:
+ 		dev_err(chip->dev, "No setter for property: %d\n", psp);
+ 		return -EINVAL;
+@@ -895,6 +1027,9 @@ static int smb5_property_is_writable(struct power_supply *psy,
+ {
+ 	switch (psp) {
+ 	case POWER_SUPPLY_PROP_CURRENT_MAX:
++	case POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD:
++	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
++	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+ 		return 1;
+ 	default:
+ 		return 0;
+@@ -1107,5 +1242,9 @@ static int smb5_probe(struct platform_device *pdev)
+ 	chip->dev = &pdev->dev;
+ 	chip->name = pdev->name;
++	chip->chg_start_soc = 98;
++	chip->chg_end_soc = 100;
++	chip->fcc_ua = CDP_CURRENT_UA;
++	chip->chg_bypass = false;
+ 
+ 	chip->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+ 	if (!chip->regmap)

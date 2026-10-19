@@ -1,0 +1,150 @@
+From: Holodor <noreply@holodor.local>
+Subject: [PATCH] arm64: dts: qcom: odin3: configure sleep rails, disable unused WSA macros, and set SoCCP firmware
+
+1. Keep the four WCN7860 PMU supply rails (`vreg_s4d_0p85`, `vreg_s5f_0p85`,
+   `vreg_l2f_1p2`, `vreg_l3f_1p8`) always-on across suspend: re-enabling
+   them at resume when PCIe powers off across s2idle can hang the SoC.
+2. Disable the unused LPASS WSA macros (`lpass_wsamacro`, `lpass_wsa2macro`):
+   the Odin 3 speakers are I2S amplifiers (`aw88166`), and bound WSA macros
+   hold q6prm TX MCLK votes that keep the ADSP waking ~once per second in
+   s2idle.
+3. Fix `pcieport0` `wake-gpios` polarity (`GPIO_ACTIVE_LOW`).
+4. Idle the codec rails (`vreg_bob1`, `vreg_l15b_1p8`, `vreg_l2i_1p2`,
+   `vreg_s3g_1p8`, `vreg_s7i_1p2`) in LPM during s2idle (`regulator-state-mem`).
+5. Point `remoteproc_soccp` at `qcom/sm8750/ayn/odin3/soccp.mbn` so the
+   driver reloads the SoCCP firmware and parks it in D3, allowing the SoC to
+   reach CX shutdown (`cxsd`) and DDR low-power states in `s2idle`.
+---
+ arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi | 15 ++++++-
+ arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts   | 41 ++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi b/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi
+--- a/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/cq8725s-ayn-common.dtsi
+@@ -297,7 +297,7 @@
+ 		vddrfa1p2-supply = <&vreg_s7i_1p2>;
+ 		vddrfa1p8-supply = <&vreg_s3g_1p8>;
+ 
+-		clocks = <&rpmhcc RPMH_RF_CLK1>;
++		clocks = <&rpmhcc RPMH_RF_CLK1_A>;
+ 
+ 		regulators {
+ 			vreg_pmu_rfa_cmn: ldo0 {
+@@ -568,6 +568,7 @@
+ 			regulator-name = "vreg_s4d_0p85";
+ 			regulator-min-microvolt = <852000>;
+ 			regulator-max-microvolt = <1036000>;
++			regulator-always-on;
+ 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+ 		};
+ 
+@@ -616,6 +617,7 @@
+ 			regulator-name = "vreg_s5f_0p85";
+ 			regulator-min-microvolt = <852000>;
+ 			regulator-max-microvolt = <1000000>;
++			regulator-always-on;
+ 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+ 		};
+ 
+@@ -633,6 +635,7 @@
+ 			regulator-name = "vreg_l2f_1p2";
+ 			regulator-min-microvolt = <1200000>;
+ 			regulator-max-microvolt = <1200000>;
++			regulator-always-on;
+ 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+ 			regulator-allow-set-load;
+ 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+@@ -643,6 +646,7 @@
+ 			regulator-name = "vreg_l3f_1p8";
+ 			regulator-min-microvolt = <1800000>;
+ 			regulator-max-microvolt = <1800000>;
++			regulator-always-on;
+ 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+ 			regulator-allow-set-load;
+ 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+@@ -927,14 +931,27 @@
+ 	};
+ };
+ 
++&ice {
++	status = "disabled";
++};
++
+ &iris {
+ 	status = "okay";
+ };
+ 
+ &lpass_vamacro {
+ 	qcom,dmic-sample-rate = <4800000>;
+ };
+ 
++/* Unused (I2S speakers); bound WSA macros keep the ADSP waking in s2idle */
++&lpass_wsa2macro {
++	status = "disabled";
++};
++
++&lpass_wsamacro {
++	status = "disabled";
++};
++
+ &mdss {
+ 	status = "okay";
+ };
+@@ -985,7 +1002,7 @@
+ };
+ 
+ &pcieport0 {
+-	wake-gpios = <&tlmm 104 GPIO_ACTIVE_HIGH>;
++	wake-gpios = <&tlmm 104 GPIO_ACTIVE_LOW>;
+ 	reset-gpios = <&tlmm 102 GPIO_ACTIVE_LOW>;
+ 
+ 	wifi@0 {
+diff --git a/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts b/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts
+--- a/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts
++++ b/arch/arm64/boot/dts/qcom/cq8725s-ayn-odin3.dts
+@@ -350,3 +350,44 @@
+ 		};
+ 	};
+ };
++
++/* The codec keeps these rails enabled through s2idle; idle them in LPM */
++&vreg_bob1 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
++&vreg_l15b_1p8 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
++&vreg_l2i_1p2 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
++&vreg_s3g_1p8 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
++&vreg_s7i_1p2 {
++	regulator-state-mem {
++		regulator-on-in-suspend;
++		regulator-mode = <RPMH_REGULATOR_MODE_LPM>;
++	};
++};
++
++/* Replaces the bootloader's early SoCCP image, which blocks SoC deep sleep */
++&remoteproc_soccp {
++	firmware-name = "qcom/sm8750/ayn/odin3/soccp.mbn";
++};
