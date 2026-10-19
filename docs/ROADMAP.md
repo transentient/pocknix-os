@@ -245,6 +245,11 @@ Right after the RP5 audio + docks are clean (Cliff 2026-10-14):
       the A/B switch. ROCKNIX and Armada ship the same table.
 
 After the RP5 release:
+- [ ] **True deep sleep better than Android (all platforms: SM8250, SM8550, SM8750).**
+      - *Peripheral + clock hygiene (`kernel 56` on RP5):* Power off `vreg_mcu_3v3` (MCU, 4 Hall-effect stick/trigger sensors, and 2 HTR3212 RGB controllers on GPIO 3/5/6/109/111) across `s2idle` just like Android's `mcu_power_control` (`fb_notifier_callback`), stop the `pwm-fan` tach timer and disable the 5V fan boost converter (`vreg_fan_pwr`, GPIO 7) across suspend even when the fan was already at 0% PWM, fix the `ufs-qcom` lane-clock double-enable leak that held `bi_tcxo` (`ref_clk`) on across runtime suspend, hold UFS clock-gating across system PM, and let `WCD938x` + LPASS macros runtime-suspend cleanly with `MBHC` jack wake intact.
+      - *Beat Android's standby floor:* Stock Android on the RP5 suffers periodic wake ticks (`qcom_rx_wakelock` / `msm_hs_wakeup` / `alarmtimer` every hour). With Wi-Fi/BT cleanly stopped or moved to silent WOWLAN and zero periodic Android userland alarms, Linux can eliminate the hourly wake spikes entirely.
+      - *SoC-level `aosd` / `cxsd` / `ddr` sleep across all three SoCs:* Drive `bi_tcxo` (`gcc_XO`) votes to zero in `s2idle`, verify RPMh `SLEEP` TCS firing on SM8250/SM8550/SM8750, and isolate the PCIe RC / `ath11k` D3cold vs. link-retention path so AOSS enters true XO shutdown (`aosd > 0`, `cxsd > 0`).
+- [ ] **Track Kettle Linux (`github.com/kettlelinux/kettlelinux`) as a peer upstream alongside ROCKNIX, pocknix-os, and ArmadaOS.** Kettle Linux's `sm8250` (`6.19`) and `sm8550` (`6.18`) patch stacks carry clean, surgical mainline fixes (`ufs-qcom` lane-clock guard, UFS clock-gating across PM, `pwm-fan` suspend timer quiesce, `retroid.c` split-frame reassembly, `drm/msm` `perf_now` debugfs load export, LPASS macro PM force-suspend). Sweep Kettle Linux regularly alongside ROCKNIX and pocknix-os.
 - [ ] **Charge limit on the RP5 + bypass charging ("charge separation") on both.** Pocknix Control's
       80/85/90/100 limit writes charge_control_end_threshold, which only the Odin 3 battmgr
       exposes; the RP5 pm8150b driver needs the thresholds (our 0722 charger patch is the place).
@@ -262,7 +267,7 @@ After the RP5 release:
       Odin 2 line, untouched since 07-16); mainline sm8550 support is mature; the MaSieS image
       carries an RP6 dts adapted from LineageOS. Day one = Android ground truth before any Linux
       fix (live device tree, mixer paths, charger and Type-C facts, speaker/jack measured on the
-      mic, dock video both orientations), then diff against ROCKNIX on the same board, one fix per
+      mic, dock video both orientations), then diff against ROCKNIX and Kettle Linux on the same board, one fix per
       cause, verified at the register / HID / mic.
 - [ ] Backlog: per-game power mode (the four modes are global today; game tweaks exist for FEX,
       audio and frame insertion, not power).

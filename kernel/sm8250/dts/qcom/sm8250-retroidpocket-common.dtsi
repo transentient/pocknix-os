@@ -230,7 +230,6 @@
 		regulator-max-microvolt = <3300000>;
 
 		gpio = <&tlmm 3 GPIO_ACTIVE_HIGH>;
-		regulator-always-on;
 		regulator-boot-on;
 		enable-active-high;
 
@@ -1502,6 +1501,7 @@
 		boot-gpios = <&tlmm 110 GPIO_ACTIVE_HIGH>;
 		enable-gpios = <&tlmm 111 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&tlmm 109 GPIO_ACTIVE_HIGH>;
+		vdd-supply = <&vreg_mcu_3v3>;
 		pinctrl-0 = <&mcu_boot_default &mcu_en_default &mcu_rst_default>;
 		pinctrl-names = "default";
 	};
