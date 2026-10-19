@@ -328,6 +328,22 @@ def sync_mount(mount_point: str, roms_dst: str) -> tuple[int, int]:
             except OSError:
                 pass
 
+    # Stage BootHolodor.apk and boot_holodor.sh onto the SD card root if available
+    # so the user can easily install the 1-tap "Boot to Holodor" app when in Android.
+    for tool_name in ("BootHolodor.apk", "boot_holodor.sh"):
+        dst_tool = os.path.join(mount_point, tool_name)
+        if os.path.exists(dst_tool):
+            continue
+        for src_dir in ("/usr/share/bootloader/rocknix_abl", "/boot/rocknix_abl"):
+            src_tool = os.path.join(src_dir, tool_name)
+            if os.path.isfile(src_tool):
+                try:
+                    with open(src_tool, "rb") as sf, open(dst_tool, "wb") as df:
+                        df.write(sf.read())
+                except OSError:
+                    pass
+                break
+
     return roms_linked, bios_linked
 
 

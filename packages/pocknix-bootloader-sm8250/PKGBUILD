@@ -25,8 +25,8 @@
 # via Retroid's "run script as root". Keep the stock ABL backup (abl_a/abl_b.img).
 pkgname=pocknix-bootloader-sm8250
 pkgver=1.1.9              # ROCKNIX ABL release
-pkgrel=3   # 3 (2026-10-19): add boot_holodor.sh (one-tap Android -> Holodor reboot via Run script as Root). 2 (2026-10-07): flash_abl.sh refuses to run on a different chip (Android ro.board.platform or DT compatible)
-pkgdesc="SM8250 ROCKNIX ABL kit (v${pkgver} ELF + Android-side flash/boot scripts) for the qcom-abl boot contract"
+pkgrel=4   # 4 (2026-10-19): add BootHolodor.apk (1-tap Android launcher app to reboot into Holodor via PServerBinder/su) + boot_holodor.sh. 2 (2026-10-07): flash_abl.sh refuses to run on a different chip
+pkgdesc="SM8250 ROCKNIX ABL kit (v${pkgver} ELF + Android-side flash/boot scripts and BootHolodor.apk) for the qcom-abl boot contract"
 arch=('any')
 url="https://github.com/ROCKNIX/abl"
 license=('GPL-2.0-only')
@@ -36,8 +36,9 @@ source=('abl_signed-SM8250.elf'
         'flash_abl.sh'
         'restore_backup_abl.sh'
         'boot_holodor.sh'
+        'BootHolodor.apk'
         'README.rocknix_abl')
-sha256sums=('e8ada32f217c8232d8c68388138773180544075763b479f30cc7e744643046e2' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('e8ada32f217c8232d8c68388138773180544075763b479f30cc7e744643046e2' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 prepare() {
   # the vendored ELF must be the release binary named above
@@ -52,5 +53,6 @@ package() {
   install -Dm755 "${srcdir}/flash_abl.sh"                 "${bl}/flash_abl.sh"
   install -Dm755 "${srcdir}/restore_backup_abl.sh"        "${bl}/restore_backup_abl.sh"
   install -Dm755 "${srcdir}/boot_holodor.sh"              "${bl}/boot_holodor.sh"
+  install -Dm644 "${srcdir}/BootHolodor.apk"              "${bl}/BootHolodor.apk"
   install -Dm644 "${srcdir}/README.rocknix_abl"           "${bl}/README"
 }

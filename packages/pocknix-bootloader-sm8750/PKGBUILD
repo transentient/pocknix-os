@@ -32,8 +32,8 @@
 # ELF here to refuse a backup that was taken AFTER the flash.
 pkgname=pocknix-bootloader-sm8750
 pkgver=1.1.8            # the ROCKNIX ABL release vendored here (1.1.7 shipped through image 20260925)
-pkgrel=3   # 3 (2026-10-19): add boot_holodor.sh (one-tap Android -> Holodor reboot via Run script as Root). 2 (2026-10-07): flash_abl.sh refuses to run on a different chip (Android ro.board.platform or DT compatible)
-pkgdesc="SM8750 (AYN Odin 3) ROCKNIX ABL v1.1.8 payload + the Android-side backup/flash/restore/boot scripts"
+pkgrel=4   # 4 (2026-10-19): add BootHolodor.apk (1-tap Android launcher app to reboot into Holodor via PServerBinder/su) + boot_holodor.sh. 2 (2026-10-07): flash_abl.sh refuses to run on a different chip
+pkgdesc="SM8750 (AYN Odin 3) ROCKNIX ABL v1.1.8 payload + Android-side backup/flash/restore scripts and BootHolodor.apk"
 arch=('any')
 url="https://github.com/ROCKNIX/abl"
 license=('GPL-2.0-only')   # scripts: ROCKNIX distribution (GPL-2.0); ABL: ROCKNIX abl repo
@@ -44,11 +44,12 @@ source=('abl_signed-SM8750.elf'
         'flash_abl.sh'
         'restore_backup_abl.sh'
         'boot_holodor.sh'
+        'BootHolodor.apk'
         'disable_android_updates.sh'
         'enable_android_updates.sh'
         'README.txt')
 sha256sums=('bedff34b99bd06202301e78ee5ee025b81d5144c9773de179b5f48ba3b38455a'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   local dst="${pkgdir}/usr/share/bootloader/rocknix_abl"
@@ -56,7 +57,7 @@ package() {
   # Plain 644 for everything: the Android runner does not need +x, and the SD FAT has no modes.
   local f
   for f in abl_signed-SM8750.elf abl_signed-SM8750.elf.sha256 backup_abl.sh flash_abl.sh \
-           restore_backup_abl.sh boot_holodor.sh disable_android_updates.sh enable_android_updates.sh README.txt; do
+           restore_backup_abl.sh boot_holodor.sh BootHolodor.apk disable_android_updates.sh enable_android_updates.sh README.txt; do
     install -Dm644 "${srcdir}/${f}" "${dst}/${f}"
   done
 }
