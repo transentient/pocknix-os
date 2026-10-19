@@ -17,7 +17,7 @@
 #                                matches devices/sm8750/profile.conf
 pkgname=pocknix-bsp-sm8750
 pkgver=0.2.0
-pkgrel=28   # 28 (2026-10-08): odin3.conf refresh policy PREFER_LOWEST + DEFAULT_LOWEST (60 Hz for games unless a game asks for 120; needs gamescope 8). 27 (2026-10-02): as 26 + depends on linux-pocknix-sm8750>=7.1.3-33: the PCM headphone path needs kernel patch 0075 (on an older kernel it plays mono), so a partial update must pull the kernel too. 26 was never published   # 26 (2026-10-02): as 25 but BOTH compander stages off (HPHL/HPHR_COMP too) = stock Android mixer state; 25 muted above ~-30 dBFS on some boots (never published)   # 25 (2026-10-01): Headphones on the codec HPH PCM ("HiFi") path like stock Android - ordered UCM (HPH switches off, PCM on, back on) + RX-macro compander off; L==R at all volumes, survives boot/replug/s2idle, Cliff: "sounds pretty good"   # 24 (2026-10-01): HiFi.conf Headphones inlines the base wcd939x + rx-macro HeadphoneEnableSeq with the PDM compander OFF (RX_COMP1/2, HPHL/HPHR_COMP): measured on a UCA202 rig the COMP gain words are misframed (mainline never programs the WCD939x DP3 OffsetCtrl2) -> left cut up to ~30 dB at listening levels; off = L==R at every volume, as stock Android runs it   # 23 (2026-09-29): 50-no-sink-suspend.conf matches the Speaker sink only — the all-sinks rule kept the Headphones PCM open from boot with its DSP route off = every headphone stream hung (jack silent since day 1)   # 22 (2026-09-27): pocknix-input-calibration (zero/apply/reset/show; per-unit stick centres persisted in /etc/pocknix/input-calibration.conf, re-applied Before=inputplumber). Cliff's unit: left stick 22 % off-centre at rest on every kernel; centre params fix it live. 21: also shadow 50-retroid_pocket6.yaml (the collision guard caught it; our family file covers the RP6). 20 (2026-09-27, RC 20260927 findings): 01-rsinput-controller.yaml lists gpio-keys-paddles
+pkgrel=29   # 29 (2026-10-19): ship AYN Odin 3 SOCCP firmware (/usr/lib/firmware/qcom/sm8750/ayn/odin3/soccp.mbn, required by remoteproc_soccp for AOSS CXSD & DDR low-power sleep entry in linux-pocknix-sm8750>=7.1.3-35); drop redundant 91-pocknix-cmdline.hook (merged into 90-linux-pocknix.hook so pacman coalesces /flash/KERNEL rebuilds to once per transaction). 28 (2026-10-08): odin3.conf refresh policy PREFER_LOWEST + DEFAULT_LOWEST (60 Hz for games unless a game asks for 120; needs gamescope 8). 27 (2026-10-02): as 26 + depends on linux-pocknix-sm8750>=7.1.3-33: the PCM headphone path needs kernel patch 0075 (on an older kernel it plays mono), so a partial update must pull the kernel too. 26 was never published   # 26 (2026-10-02): as 25 but BOTH compander stages off (HPHL/HPHR_COMP too) = stock Android mixer state; 25 muted above ~-30 dBFS on some boots (never published)   # 25 (2026-10-01): Headphones on the codec HPH PCM ("HiFi") path like stock Android - ordered UCM (HPH switches off, PCM on, back on) + RX-macro compander off; L==R at all volumes, survives boot/replug/s2idle, Cliff: "sounds pretty good"   # 24 (2026-10-01): HiFi.conf Headphones inlines the base wcd939x + rx-macro HeadphoneEnableSeq with the PDM compander OFF (RX_COMP1/2, HPHL/HPHR_COMP): measured on a UCA202 rig the COMP gain words are misframed (mainline never programs the WCD939x DP3 OffsetCtrl2) -> left cut up to ~30 dB at listening levels; off = L==R at every volume, as stock Android runs it   # 23 (2026-09-29): 50-no-sink-suspend.conf matches the Speaker sink only — the all-sinks rule kept the Headphones PCM open from boot with its DSP route off = every headphone stream hung (jack silent since day 1)   # 22 (2026-09-27): pocknix-input-calibration (zero/apply/reset/show; per-unit stick centres persisted in /etc/pocknix/input-calibration.conf, re-applied Before=inputplumber). Cliff's unit: left stick 22 % off-centre at rest on every kernel; centre params fix it live. 21: also shadow 50-retroid_pocket6.yaml (the collision guard caught it; our family file covers the RP6). 20 (2026-09-27, RC 20260927 findings): 01-rsinput-controller.yaml lists gpio-keys-paddles
             #     (paddles + gamepad had gone to InputPlumber 0.81's own 50-ayn_odin3.yaml: A/B swapped);
             #     stubs shadow upstream's 50-ayn_odin{3,2,2_mini}.yaml in /etc/inputplumber/devices.d;
             #     .install enables pocknix-stick-leds.service (LED modes never animated: no one enabled it).
@@ -32,8 +32,9 @@ pkgdesc="pocknix board support: SM8750 family (AYN Odin 3) — runtime board dis
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"
 license=('GPL2')
-depends=('pocknix-bsp-common' 'linux-pocknix-sm8750>=7.1.3-33')
+depends=('pocknix-bsp-common' 'linux-pocknix-sm8750>=7.1.3-35')
 install=pocknix-bsp-sm8750.install
+options=('!strip' '!debug')
 # Exactly one device BSP may be installed (wrong-device guard for a shared repo).
 # 'replaces' migrates installs of the retired per-device BSPs (and the ancient
 # unified 'pocknix-bsp', carried over from the rp6 lineage).
@@ -49,7 +50,7 @@ source=('device.conf'
         'AYN-Odin3.conf' 'HiFi.conf'
         '10-pocknix-deeponly.conf' '30-pocknix-cpuidle.conf'
         '50-no-sink-suspend.conf' '52-pocknix-default-volume.conf'
-        'kernel-cmdline' '91-pocknix-cmdline.hook'
+        'kernel-cmdline' 'soccp.mbn'
         'pocknix-stick-leds' 'pocknix-stick-ledsd' 'pocknix-stick-leds.service'
         '50-holodor-ip-stub.yaml'
         'pocknix-input-calibration' 'pocknix-input-calibration.service')
@@ -123,11 +124,10 @@ package() {
   done
 
   # Kernel command line for the on-device /flash/KERNEL rebuild (pocknix-build-bootimg,
-  # shipped by linux-pocknix-sm8750). One family cmdline (the retired per-device ones
-  # were byte-identical); build-packages.sh asserts it matches the family profile.
+  # shipped by linux-pocknix-sm8750; 90-linux-pocknix.hook watches this path).
   install -Dm644 "${srcdir}/kernel-cmdline" "${pkgdir}/usr/lib/pocknix/kernel-cmdline"
-  # ...and the hook that keeps /flash/KERNEL in sync when ONLY the cmdline changes
-  # (the kernel package's 90-hook watches Image/dtbs/modules, not this file).
-  install -Dm644 "${srcdir}/91-pocknix-cmdline.hook" \
-    "${pkgdir}/usr/share/libalpm/hooks/91-pocknix-cmdline.hook"
+
+  # SOCCP firmware for remoteproc_soccp (required for AOSS CXSD & DDR low-power sleep entry).
+  install -Dm644 "${srcdir}/soccp.mbn" \
+    "${pkgdir}/usr/lib/firmware/qcom/sm8750/ayn/odin3/soccp.mbn"
 }

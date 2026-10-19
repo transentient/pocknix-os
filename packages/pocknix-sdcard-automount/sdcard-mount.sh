@@ -45,7 +45,7 @@ if [[ -n "${ROOT_DISK}" && "${DEVBASE}" == "${ROOT_DISK}"* ]]; then
 fi
 
 # The Steam session user (pocknix: deck = 1001; NOT Valve's 1000 = alarm here).
-STEAM_UID=1001
+STEAM_UID="$(id -u deck 2>/dev/null || echo 1001)"
 # SteamOS's deck uid/gid — what a foreign card's files are owned by on disk. Adjacent to ours.
 STEAMOS_UID=1000
 STEAM_HOME=/home/deck
@@ -53,10 +53,10 @@ STEAM_HOME=/home/deck
 STEAM_CLIENT_DIR="${STEAM_HOME}/.local/share/Steam/steamrtarm64"
 STEAM_LDLP="${STEAM_CLIENT_DIR}:${STEAM_HOME}/.local/share/Steam/lib/aarch64-linux-gnu"
 
-MOUNT_LOCK="/var/run/sdcard-mount.lock"
-if [[ -e $MOUNT_LOCK && $(pgrep -F "$MOUNT_LOCK") ]]; then
+MOUNT_LOCK="/run/sdcard-mount.lock"
+exec 9>"${MOUNT_LOCK}"
+if ! flock -w 10 9; then
     echo "$MOUNT_LOCK is active: ignoring action $ACTION"
-    # Do not return success: it could leave the transient unit 'started' without doing the mount.
     exit 1
 fi
 
@@ -77,8 +77,8 @@ notify_steam()
     local url_action=$1   # addlibraryfolder | removelibraryfolder
     local url=$2
     if pgrep -x "steam" > /dev/null; then
-        systemd-run -M ${STEAM_UID}@ --user --collect --wait \
-            /bin/sh -c "cd '${STEAM_CLIENT_DIR}' && LD_LIBRARY_PATH='${STEAM_LDLP}' ./steam steam://${url_action}/${url}" \
+        timeout 10 systemd-run -M ${STEAM_UID}@ --user --collect --wait \
+            /bin/sh -c "cd '${STEAM_CLIENT_DIR}' && LD_LIBRARY_PATH='${STEAM_LDLP}' timeout 8 ./steam steam://${url_action}/${url}" \
             || echo "notify_steam: steam://${url_action} send failed (non-fatal)"
     fi
 }
@@ -110,7 +110,7 @@ do_mount()
     LABEL=$(echo "${ID_FS_LABEL}" | tr -cs 'A-Za-z0-9._-' '_' | sed 's/^_//;s/_$//')
     if [[ -z "${LABEL}" ]]; then
         LABEL=${DEVBASE}
-    elif /bin/grep -qF " /run/media/deck/${LABEL} " /etc/mtab; then
+    elif findmnt -rn -M "/run/media/deck/${LABEL}" >/dev/null 2>&1; then
         # Already in use, make a unique one
         LABEL+="-${DEVBASE}"
     fi
@@ -185,7 +185,7 @@ do_unmount()
     for f in /run/media/deck/* ; do
         [[ -e $f ]] || continue
         if [[ -n $(/usr/bin/find "$f" -maxdepth 0 -type d -empty) ]]; then
-            if ! /bin/grep -qF " $f " /etc/mtab; then
+            if ! findmnt -rn -M "$f" >/dev/null 2>&1; then
                 echo "**** Removing mount point $f"
                 /bin/rmdir "$f"
             fi

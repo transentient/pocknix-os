@@ -8,6 +8,7 @@ export const deleteFanCurve = (name: string) => call<[string], Config>("delete_f
 export const getFanStatus = () => call<[], FanStatus>("fan_status");
 export const setPowerMode = (mode: string) => call<[string], Config>("set_power_mode", mode);
 export const setChargeLimit = (pct: number) => call<[number], Config>("set_charge_limit", pct);
+export const setBypassCharging = (enabled: boolean) => call<[boolean], Config>("set_bypass_charging", enabled);
 export const setLedColor = (hex: string) => call<[string], Config>("set_led_color", hex);
 export const setLedMode = (mode: string) => call<[string], Config>("set_led_mode", mode);
 export const zeroStickCenters = () => call<[], Config>("zero_stick_centers");

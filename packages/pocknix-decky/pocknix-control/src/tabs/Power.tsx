@@ -1,7 +1,7 @@
-import { ButtonItem, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
+import { ButtonItem, PanelSection, PanelSectionRow, ToggleField, showModal } from "@decky/ui";
 import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { getFanStatus, rebootToAndroid, setDownloadInhibitMode, setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode, zeroStickCenters, resetStickCenters } from "../backend";
+import { getFanStatus, rebootToAndroid, setBypassCharging, setDownloadInhibitMode, setFanMode, setLavdMode, setPowerMode, setChargeLimit, setLedColor, setLedMode, zeroStickCenters, resetStickCenters } from "../backend";
 import { FanCurveGraph } from "../components/FanCurveGraph";
 import { FanCurveModal } from "../components/FanCurveModal";
 import { ColorPalette, SelectEdit } from "../components/widgets";
@@ -108,6 +108,14 @@ export function Power({ config, setConfig, reload }: {
       reload();
     }
   };
+  const applyBypass = async (on: boolean) => {
+    try {
+      const next = await setBypassCharging(on);
+      setConfig((current) => (current ? { ...current, bypassCharging: next.bypassCharging } : current));
+    } catch (error) {
+      reload();
+    }
+  };
   const applyMode = async (setter: (mode: string) => Promise<Config>, mode: string) => {
     try {
       const next = await setter(mode);
@@ -153,7 +161,15 @@ export function Power({ config, setConfig, reload }: {
     <>
       <PanelSection title="PERFORMANCE">
         <SelectEdit label="Power Profile" value={config.powerMode} options={powerOptions} onChange={(mode) => applyMode(setPowerMode, mode)} />
-        <SelectEdit label="Charge Limit (experimental)" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
+        <SelectEdit label="Charge Limit" value={config.chargeLimit} options={chargeOptions} onChange={(pct) => applyCharge(pct as number)} />
+        {config.canBypassCharging && (
+          <ToggleField
+            label="Bypass Charging (Charge Separation)"
+            description="Power the system directly from USB-C while pausing battery charging to reduce heat and battery wear."
+            checked={config.bypassCharging === true}
+            onChange={applyBypass}
+          />
+        )}
         <SelectEdit label="CPU Scheduler" value={config.lavdMode} options={lavdOptions} onChange={(mode) => applyMode(setLavdMode, mode)} />
       </PanelSection>
       <PanelSection title="DOWNLOADS">

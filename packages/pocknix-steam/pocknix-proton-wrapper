@@ -227,6 +227,24 @@ def wants_120hz(settings):
     return settings.get("refresh120") is True
 
 
+def wants_power_profile(settings, args):
+    if len(args) < 2 or args[1] not in ("waitforexitandrun", "run"):
+        return None
+    prof = str(settings.get("powerProfile", "") or "").strip()
+    return prof if prof in ("eco", "balanced", "performance", "max") else None
+
+
+def power_mode_ctl(*words):
+    import subprocess
+    try:
+        subprocess.run(
+            ["systemd-run", "--quiet", "--collect", "--wait", "/usr/local/bin/pocknix-power-mode", *words],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 def run_with_first_launch_guard(real_proton, args):
     # Until a game has been seen running once (marker file in its compatdata), Proton is run
     # under a watchdog: it builds the prefix and (with protonfixes) may run installers before the
@@ -241,7 +259,7 @@ def run_with_first_launch_guard(real_proton, args):
     # by then and the hang (protonfixes' winetricks) happens with it in place.
     marker = pathlib.Path(compat) / "pocknix-first-run-ok" if compat else None
     first_launch = bool(pfx and exe and marker and not marker.exists())
-    if not first_launch and not RESTORE_REFRESH:
+    if not first_launch and not RESTORE_REFRESH and not RESTORE_POWER:
         os.execv(real_proton, args)
     import signal
     import shutil
@@ -290,14 +308,21 @@ def run_with_first_launch_guard(real_proton, args):
                 print(f"pocknix-proton: prefix moved to {broken}", file=sys.stderr)
             except OSError as exc:
                 print(f"pocknix-proton: could not move the prefix: {exc}", file=sys.stderr)
+            if RESTORE_REFRESH:
+                gamescopectl("dynamic_refresh_default_lowest", "1")
+            if RESTORE_POWER:
+                power_mode_ctl("restore")
             sys.exit(1)
         time.sleep(2)
     if RESTORE_REFRESH:
         gamescopectl("dynamic_refresh_default_lowest", "1")
+    if RESTORE_POWER:
+        power_mode_ctl("restore")
     sys.exit(child.returncode)
 
 
 RESTORE_REFRESH = False
+RESTORE_POWER = False
 
 
 def apply_lsfg(settings):
@@ -424,6 +449,11 @@ def main():
         global RESTORE_REFRESH
         RESTORE_REFRESH = True
         gamescopectl("dynamic_refresh_default_lowest", "0")
+    power_prof = wants_power_profile(settings, args)
+    if power_prof:
+        global RESTORE_POWER
+        RESTORE_POWER = True
+        power_mode_ctl("--transient", power_prof)
     try:
         apply_lsfg(settings)
     except Exception as exc:

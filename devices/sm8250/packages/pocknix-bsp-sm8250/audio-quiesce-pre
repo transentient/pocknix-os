@@ -43,22 +43,24 @@ for d in /sys/bus/soundwire/devices/*/power/autosuspend_delay_ms \
 done
 
 mod_id=""
-if [ -S /run/user/1001/pulse/native ]; then
-  mod_id=$(runuser -u deck -- env XDG_RUNTIME_DIR=/run/user/1001 \
+uid=$(id -u deck 2>/dev/null || echo 1001)
+rdir="/run/user/${uid}"
+if [ -S "${rdir}/pulse/native" ]; then
+  mod_id=$(runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
     timeout 2 pactl load-module module-null-sink sink_name=pocknix_sleep_null 2>/dev/null || true)
-  for si in $(runuser -u deck -- env XDG_RUNTIME_DIR=/run/user/1001 \
+  for si in $(runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
     timeout 2 pactl list sink-inputs short 2>/dev/null | awk '{print $1}'); do
-    runuser -u deck -- env XDG_RUNTIME_DIR=/run/user/1001 \
+    runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
       timeout 2 pactl move-sink-input "${si}" pocknix_sleep_null 2>/dev/null || true
   done
-  for s in $(runuser -u deck -- env XDG_RUNTIME_DIR=/run/user/1001 \
+  for s in $(runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
     timeout 2 pactl list sinks short 2>/dev/null | awk '/alsa_output\.platform-sound/{print $2}'); do
-    runuser -u deck -- env XDG_RUNTIME_DIR=/run/user/1001 \
+    runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
       timeout 2 pactl suspend-sink "${s}" 1 2>/dev/null || true
   done
 fi
 
-echo "${mod_id}" > "${state}"
+printf '%s\n' "${mod_id}" > "${state}.tmp" && mv -f "${state}.tmp" "${state}"
 
 i=0
 after="${before}"
