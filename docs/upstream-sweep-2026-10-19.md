@@ -100,13 +100,23 @@ Follow-up to [`docs/upstream-sweep-2026-10-02.md`](upstream-sweep-2026-10-02.md)
 
 ---
 
-## 4. Action Plan for Holodor (This Cycle)
+## 4. Completed in This Cycle (2026-10-19 / 2026-10-20)
 
-1. **Odin 3 (`SM8750`) Kernel (`linux-pocknix-sm8750 7.1.3-35`):**
-   - Enable `60-upstream-2026-10-02` by default (remove `OPTIONAL`), fix Adreno 830 (`a830`) ACD half-speed (`3066 GFLOPS` at `1100 MHz`), add `mx.lvl` fallback clamping in `a6xx_gmu_rpmh_dep_votes_init`, add `0540` (`rt_sigreturn` `SSBS` fix on Oryon), add `0620..0622` (GMU HFI IRQ ack race fix) + `8128ae7a`/`e2f57c57` (OPP UAF fix) + `efbda69d` (A8xx GMEM slice size), and port the Armada PR #723/#746 Odin 3 deep-sleep series (`0556`/`0556a` `soccp` remoteproc + `soccp.mbn`, drop `0044` PCIe GDSC hack + keep Odin 3 Wi-Fi rails on in sleep, `0531` board I2S clock release, disable unused WSA macros in Odin 3 DT, LPASS PM-clock + force-runtime-suspend, `ufs-qcom` lane-clock guard).
-2. **RP5 (`SM8250`) Kernel (`linux-pocknix-sm8250 7.1.3-25`):**
-   - Add Kettle `0110` (`sm8250.dtsi` GPU->DDR interconnect votes), `0116` (`qcom_fg` `charge_now`/`charge_full`), `128a0edd`/`eab0aff8` (GMU ARC votes), and `0620..0622` (GMU HFI IRQ ack race fix).
-3. **ABL URL Migration (`rocknix-abl-releases.tsv`):**
-   - Add `OpenHandheldCollective/OpenABL` `v1.0` and update fallback URLs from `ROCKNIX/abl` to `OpenHandheldCollective/OpenABL`.
-4. **UMA VRAM & Turnip Heap Defaults (`pocknix-bsp-common`):**
-   - Ship `DXVK_CONFIG="dxgi.maxDeviceMemory = 4096; dxgi.maxSharedMemory = 4096"` so 12–16 GB UMA handhelds never OOM from unbounded VRAM reporting.
+1. **Adreno 830 (`a830`) ACD Full-Speed Unlock (`linux-pocknix-sm8750 7.1.3-40`):**
+   - Root-caused the Adreno 830 (`a830`) half-speed shader clock cap on Odin 3: the SM8750 GMU firmware (`gmu_gen80200.bin`) unconditionally sets `BIT(13)` (`ACD_ENABLE`) in its internal GPU `KMD_MBOX` command unless `HFI_H2F_MSG_ACD` is populated prior to the first `GX_BW_PERF_VOTE`, causing the GFX DPLL to fail calibration and fall back to a 2x divider.
+   - Populating the `qcom,opp-acd-level` values in `sm8750.dtsi` and fixing `a6xx_hfi_send_acd_table()` unlocked **3117.76 GFLOPS at 1100 MHz** (+98.6% over the 1570 GFLOPS baseline) on Odin 3 hardware.
+2. **Qualcomm RPMh / GMU / SoundWire Deep-Sleep (`s2idle`) Fixes (`SM8750` & `SM8250`):**
+   - **Inverted `GMU_STATUS_FW_START` check in `a6xx_rpmh_stop()`:** Fixed across `sm8750`, `sm8250`, and `sm8550` (`!(status & BIT(5))` -> `status & BIT(5)`) so the Adreno GMU RSC enters slumber cleanly instead of timing out after 100 ms on every runtime/system suspend.
+   - **`0523-regulator-qcom-rpmh-add-suspend-state-support.patch` `ACTIVE_TCS` + `SLEEP_TCS` Bug (`linux-pocknix-sm8750 7.1.3-40`, `linux-pocknix-sm8250 7.1.2-59`):** `rpmh_regulator_vrm_set_mode_bypass()` previously wrote `RPMH_SET_SLEEP` when `rdev->constraints->state_mem.enabled` was set, failing to program `ACTIVE_TCS` at probe AND leaving `SLEEP_TCS` stuck in `HPM` during `s2idle`. Fixed to write `RPMH_SET_ACTIVE` normally and program `RPMH_SET_SLEEP` with `RM_LPM` when `from_suspend` is true.
+   - **WCD9395 / SoundWire / LPASS Audio Quiesce (`pocknix-bsp-sm8750 0.2.0-30`, `pocknix-bsp-sm8250 0.1.0-47`):** Added `/usr/lib/systemd/system-sleep/002-audio-quiesce` to suspend PipeWire sinks/sources (`pw-cli s <id> Props '{ params = [ " Spa:Pod:Object:Param:Props:suspend" true ] }'`) and switch SoundWire codec slaves (`sdw:2:0:0217:010e:00:4`, `sdw:3:0:0217:010e:00:3`) to `power/control = auto` before `s2idle` (restoring `on` on wake). On Odin 3 hardware, this raised `adsp` sleep residency from **0% to 99.97%**, `cdsp` to **100%**, and `cxsd`/`ddr` to **100%**.
+   - **Why `aosd:0` (`AOSS` / `XO` crystal shutdown) differs between `SM8750` and `SM8250`:** On `SM8750`, `qcom_Notify_aop` (`drivers/soc/qcom/qcom_aoss.c`) is never bound because `sm8750.dtsi` has no `qcom,qmp-ipcc-client` node (`qcom,sm8750-qmp-aop`), and `sm8750-rpmh-regulators` has 12 boot-on/unclaimed LDO/BOB rails without consumers. On `SM8250` (RP5), `aoss_qmp: qmp@c300000` **is** bound in `sm8250.dtsi`, so carrying over the VRM `SLEEP_TCS` fix, GMU RSC fix, and `002-audio-quiesce` directly removes the remaining blockers for `aosd` / `XO` crystal shutdown on RP5.
+3. **Valve Holo Core (`steamos-manager 26.4.1-5`) Audit:**
+   - Inspected `steamos-manager-26.4.1-5-aarch64.pkg.tar.zst` from `archlinux-deckard-hotfixes` and upstream `gitlab.steamos.cloud/holo/steamos-manager` (`main` + MR `!82`):
+     - Upstream MR `!82` added ARM `devfreq` GPU clock support (`74008614`), `CustomPlatformProfile` (`7788af59`), and a `steam-frame` (`device = "frame"`, `variant = "deckard"`) config (`39c9b1dc`), but `steamos-manager` still hardcodes x86/Steam Deck assumptions (`jupiter-biosupdate`, `steamos-update` / `rauc`, `als_integration`, NetworkManager Wi-Fi backend).
+     - Kept `pocknix-steamos-shim` (`0.1.0-5`) + `pocknix-decky` (`0.1.0-23`) + `pocknix-powerd` (`pocknix-bsp-common 0.1.0-41`) as our native implementation of `com.steampowered.SteamOSManager1` while maintaining full D-Bus compatibility with Steam Client.
+4. **Holodor ABL (`OpenABL v1.1`) & `OablSettings` Devinfo Protocol:**
+   - Built signed `Holodor ABL` binaries (`abl_signed-SM8250.elf`, `abl_signed-SM8550.elf`, `abl_signed-SM8750.elf`) from `OpenHandheldCollective/OpenABL` `v1.1` with native host compilation and Holodor branding/boot defaults (`scripts/holodor-openabl-v1.1.patch`).
+   - Updated `pocknix-boot-target` (`pocknix-bsp-common 0.1.0-41`), `boot_holodor.sh`, and `BootHolodor.apk` (`pocknix-bootloader-sm8750 1.1.8-5`, `pocknix-bootloader-sm8250 1.1.9-5`) to read and write both OpenABL v1.1 `OablSettings` (`devinfo+0x998`, `val[2]` bits `0..1`: `1` = Linux, `2` = Android) and legacy ROCKNIX ABL `BootMode` (`val[0]`: `0` = Linux, `1` = Android).
+5. **UMA VRAM Cap (`pocknix-steam 0.1.0-58`):**
+   - Added default `DXVK_CONFIG="dxgi.maxDeviceMemory = 4096; dxgi.maxSharedMemory = 4096"` in `gamescope-session` so Windows games under Proton/FEX on 12–16 GB UMA handhelds do not exhaust system RAM.
+

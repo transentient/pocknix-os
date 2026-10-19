@@ -163,6 +163,14 @@ def apply_protonfixes(settings):
         os.environ["PROTONFIXES_DISABLE"] = "1"
 
 
+def apply_dxvk_config():
+    # Cap DXVK's reported dedicated + shared memory to 4 GiB by default on UMA SoCs
+    # (prevents 32-bit / older D3D9/D3D10/D3D11 titles from overflowing 32-bit VRAM
+    # counters or over-allocating host RAM on 8-16 GiB handhelds; matches Armada commit
+    # 7951896). User or game-fixes.json DXVK_CONFIG still wins via setdefault.
+    os.environ.setdefault("DXVK_CONFIG", "dxgi.maxDeviceMemory = 4096; dxgi.maxSharedMemory = 4096")
+
+
 FIRST_LAUNCH_GRACE = int(os.environ.get("POCKNIX_FIRST_LAUNCH_GRACE", "300"))
 
 
@@ -445,6 +453,7 @@ def main():
     apply_audio_driver()
     apply_protonfixes(settings)
     args = apply_game_fixes(game_id, args)
+    apply_dxvk_config()
     if wants_120hz(settings):
         global RESTORE_REFRESH
         RESTORE_REFRESH = True

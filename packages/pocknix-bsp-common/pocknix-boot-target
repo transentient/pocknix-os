@@ -121,27 +121,55 @@ def get_status(path: str) -> dict:
         return {"ok": True, "supported": False, "reason": "devinfo magic mismatch"}
 
     slots = read_slots(data)
-    if "RocknixAblVer" not in slots:
+    ver_key = next(
+        (k for k in ("HolodorAblVer", "OpenAblVer", "RocknixAblVer") if k in slots),
+        None,
+    )
+    has_oabl = "OablSettings" in slots and len(slots["OablSettings"][1]) >= 14 and slots["OablSettings"][1][0] >= 1
+    if not ver_key and not has_oabl:
         return {
             "ok": True,
             "supported": False,
-            "reason": "ROCKNIX ABL not detected in devinfo (booting via stock ABL / SD EFI)",
+            "reason": "Holodor/OpenABL/ROCKNIX ABL not detected in devinfo (booting via stock ABL / SD EFI)",
         }
     if not has_android_partitions():
         return {"ok": True, "supported": False, "reason": "Android partitions not present"}
 
-    abl_ver = slots["RocknixAblVer"][1].rstrip(b"\x00").decode("ascii", "replace")
-    model = (
-        slots["ModelSelection"][1].rstrip(b"\x00").decode("ascii", "replace")
-        if "ModelSelection" in slots
-        else ""
-    )
-    boot_mode_byte = slots["BootMode"][1][0] if ("BootMode" in slots and slots["BootMode"][1]) else 0
-    boot_src_byte = (
-        slots["BootSourceMode"][1][0]
-        if ("BootSourceMode" in slots and slots["BootSourceMode"][1])
-        else 0
-    )
+    if ver_key:
+        abl_ver = slots[ver_key][1].rstrip(b"\x00").decode("ascii", "replace")
+    else:
+        abl_ver = f"OpenABL (schema {slots['OablSettings'][1][1]})"
+
+    if has_oabl:
+        oabl_val = slots["OablSettings"][1]
+        bits = struct.unpack_from("<Q", oabl_val, 2)[0]
+        bm_code = bits & 0x3
+        # Code 0 = unset (Linux), 1 = 0+1 (Linux), 2 = 1+1 (Android)
+        boot_mode_byte = 1 if bm_code == 2 else 0
+        # If legacy BootMode slot is also present and was set by an external tool, honor it
+        if "BootMode" in slots and slots["BootMode"][1]:
+            boot_mode_byte = slots["BootMode"][1][0]
+        src_code = (bits >> 16) & 0x7
+        boot_src_byte = (src_code - 1) if src_code > 0 else 0
+        model_parts = []
+        for mk in ("OablModel0", "OablModel1", "OablModel2"):
+            if mk in slots:
+                model_parts.append(slots[mk][1])
+        model = b"".join(model_parts).rstrip(b"\x00").decode("utf-8", "replace")
+        if not model and "ModelSelection" in slots:
+            model = slots["ModelSelection"][1].rstrip(b"\x00").decode("ascii", "replace")
+    else:
+        model = (
+            slots["ModelSelection"][1].rstrip(b"\x00").decode("ascii", "replace")
+            if "ModelSelection" in slots
+            else ""
+        )
+        boot_mode_byte = slots["BootMode"][1][0] if ("BootMode" in slots and slots["BootMode"][1]) else 0
+        boot_src_byte = (
+            slots["BootSourceMode"][1][0]
+            if ("BootSourceMode" in slots and slots["BootSourceMode"][1])
+            else 0
+        )
     return {
         "ok": True,
         "supported": True,
@@ -157,12 +185,22 @@ def set_boot_mode(path: str, android: bool) -> dict:
     if not st.get("supported"):
         return {
             "ok": False,
-            "error": st.get("reason", "ROCKNIX ABL boot switching not supported on this device"),
+            "error": st.get("reason", "ABL boot switching not supported on this device"),
         }
     try:
         with open(path, "r+b") as f:
             buf = bytearray(f.read(4096))
-            write_slot(buf, "BootMode", b"\x01" if android else b"\x00")
+            slots = read_slots(buf)
+            if "OablSettings" in slots and len(slots["OablSettings"][1]) >= 14 and slots["OablSettings"][1][0] >= 1:
+                oabl_val = bytearray(slots["OablSettings"][1].ljust(32, b"\x00"))
+                bits = struct.unpack_from("<Q", oabl_val, 2)[0]
+                bits = (bits & ~0x3) | (2 if android else 1)
+                struct.pack_into("<Q", oabl_val, 2, bits)
+                write_slot(buf, "OablSettings", bytes(oabl_val))
+                if "BootMode" in slots:
+                    write_slot(buf, "BootMode", b"\x01" if android else b"\x00")
+            else:
+                write_slot(buf, "BootMode", b"\x01" if android else b"\x00")
             f.seek(0)
             f.write(buf)
             f.flush()

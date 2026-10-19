@@ -7,7 +7,17 @@ rail that is enabled when the system suspends stays at full power through
 the platform sleep state.  Downstream (qcom,set=<3>) mirrors votes into
 the SLEEP set and additionally forces specific rails off in sleep.
 
-Implement regulator-state-mem support:
+Implement regulator-state-mem support and fix active-set mode voting on
+unenabled/disabled rails:
+
+ * Defer sending VRM mode votes in rpmh_regulator_vrm_set_mode() until the
+   regulator is enabled, and drop the hardware VRM mode vote to LPM
+   (REGULATOR_MODE_IDLE) when disabling a VRM rail.  Mainline board DTs set
+   regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM> on nearly every rail;
+   sending HPM (mode=7) at probe or leaving it voted after disable causes
+   DRV 2 (APPS) to force shared rails kept on in LPM by AOP/TZ/LPASS into
+   HPM across sleep, keeping the 38.4 MHz XO clock awake and blocking AOSS
+   sleep (aosd).
 
  * set_suspend_enable/disable place an enable vote in the SLEEP set and
    the current active-set contribution in the WAKE set, so the AOP wake
@@ -29,17 +39,10 @@ Implement regulator-state-mem support:
  * ops->resume re-aligns the SLEEP set with the active set so the
    system-suspend configuration does not persist into post-resume
    runtime idle (e.g. a codec rail left in LPM under WLAN load).
-
-Only regulators whose DT node carries regulator-state-mem with
-regulator-on/off-in-suspend are affected (the regulator core calls the
-suspend ops, and ops->resume, only for those).  The companion regulator
-core patch maps s2idle (PM_SUSPEND_TO_IDLE) to the same state-mem
-constraints, so the ops fire for both suspend modes on this platform.
-Active-set votes are never modified.
 ---
 --- a/drivers/regulator/qcom-rpmh-regulator.c
 +++ b/drivers/regulator/qcom-rpmh-regulator.c
-@@ -206,8 +206,21 @@
+@@ -204,8 +204,21 @@
  	else
  		ret = rpmh_write_async(vreg->dev, RPMH_ACTIVE_ONLY_STATE, cmd,
  					1);
@@ -62,7 +65,65 @@ Active-set votes are never modified.
  }
  
  static int _rpmh_regulator_vrm_set_voltage_sel(struct regulator_dev *rdev,
-@@ -344,6 +357,141 @@
+@@ -260,6 +273,9 @@
+ 	return vreg->enabled;
+ }
+ 
++static int rpmh_regulator_vrm_set_mode_bypass(struct rpmh_vreg *vreg,
++					unsigned int mode, bool bypassed);
++
+ static int rpmh_regulator_set_enable_state(struct regulator_dev *rdev,
+ 					bool enable)
+ {
+@@ -278,10 +294,24 @@
+ 			return ret;
+ 	}
+ 
++	if (enable && vreg->hw_data->regulator_type == VRM &&
++	    vreg->mode != REGULATOR_MODE_INVALID) {
++		ret = rpmh_regulator_vrm_set_mode_bypass(vreg, vreg->mode,
++							 vreg->bypassed);
++		if (ret < 0)
++			return ret;
++	}
++
+ 	ret = rpmh_regulator_send_request(vreg, &cmd, enable);
+ 	if (!ret)
+ 		vreg->enabled = enable;
+ 
++	if (!ret && !enable && vreg->hw_data->regulator_type == VRM &&
++	    !vreg->bypassed && vreg->mode != REGULATOR_MODE_INVALID &&
++	    vreg->hw_data->pmic_mode_map[REGULATOR_MODE_IDLE] >= 0)
++		rpmh_regulator_vrm_set_mode_bypass(vreg, REGULATOR_MODE_IDLE,
++						   false);
++
+ 	return ret;
+ }
+ 
+@@ -327,6 +357,22 @@
+ 	if (mode == vreg->mode)
+ 		return 0;
+ 
++	if (mode > REGULATOR_MODE_STANDBY)
++		return -EINVAL;
++
++	if (vreg->hw_data->pmic_mode_map[mode] < 0)
++		return vreg->hw_data->pmic_mode_map[mode];
++
++	/*
++	 * Defer sending the VRM mode vote until the regulator is enabled so
++	 * unused rails with regulator-initial-mode = HPM do not hold a stale
++	 * HPM vote in DRV 2 (APPS) and block XO/AOSS sleep on shared rails.
++	 */
++	if (vreg->enabled != 1) {
++		vreg->mode = mode;
++		return 0;
++	}
++
+ 	ret = rpmh_regulator_vrm_set_mode_bypass(vreg, mode, vreg->bypassed);
+ 	if (!ret)
+ 		vreg->mode = mode;
+@@ -342,6 +388,160 @@
  }
  
  /**
@@ -104,8 +165,15 @@ Active-set votes are never modified.
 +{
 +	struct rpmh_vreg *vreg = rdev_get_drvdata(rdev);
 +
++	/*
++	 * Only keep the regulator enabled in SLEEP_TCS if it is currently
++	 * enabled in the active set.  If a consumer disabled the rail during
++	 * dpm_suspend (e.g. UFS or PHY power-off), sending sleep_val=1 would
++	 * turn the disabled rail back on throughout system sleep.
++	 */
 +	return rpmh_regulator_send_sleep_wake_request(vreg,
-+			RPMH_REGULATOR_REG_ENABLE, 1, vreg->enabled == 1);
++			RPMH_REGULATOR_REG_ENABLE,
++			vreg->enabled == 1, vreg->enabled == 1);
 +}
 +
 +static int rpmh_regulator_set_suspend_disable(struct regulator_dev *rdev)
@@ -129,6 +197,14 @@ Active-set votes are never modified.
 + */
 +static int rpmh_regulator_vrm_active_pmic_mode(struct rpmh_vreg *vreg)
 +{
++	if (vreg->enabled != 1) {
++		if (vreg->enabled == 0 && !vreg->bypassed &&
++		    vreg->mode != REGULATOR_MODE_INVALID &&
++		    vreg->hw_data->pmic_mode_map[REGULATOR_MODE_IDLE] >= 0)
++			return vreg->hw_data->pmic_mode_map[REGULATOR_MODE_IDLE];
++		return -EINVAL;
++	}
++
 +	if (vreg->bypassed)
 +		return PMIC4_BOB_MODE_PASS;
 +
@@ -161,8 +237,12 @@ Active-set votes are never modified.
 +	if (wake_mode < 0)
 +		wake_mode = sleep_mode;
 +
-+	/* Never override bypass (pass-through) mode in the sleep set. */
-+	if (vreg->bypassed)
++	/*
++	 * Never override bypass (pass-through) mode in the sleep set, and do
++	 * not program a mode transition for a rail that is disabled in the
++	 * active set.
++	 */
++	if (vreg->bypassed || vreg->enabled != 1)
 +		sleep_mode = wake_mode;
 +
 +	return rpmh_regulator_send_sleep_wake_request(vreg,
@@ -204,7 +284,7 @@ Active-set votes are never modified.
   * rpmh_regulator_vrm_get_optimum_mode() - get the mode based on the  load
   * @rdev:		Regulator device pointer for the rpmh-regulator
   * @input_uV:		Input voltage
-@@ -401,6 +549,10 @@
+@@ -399,6 +599,10 @@
  	.list_voltage		= regulator_list_voltage_linear_range,
  	.set_mode		= rpmh_regulator_vrm_set_mode,
  	.get_mode		= rpmh_regulator_vrm_get_mode,
@@ -215,7 +295,7 @@ Active-set votes are never modified.
  };
  
  static const struct regulator_ops rpmh_regulator_vrm_drms_ops = {
-@@ -413,6 +565,10 @@
+@@ -411,6 +615,10 @@
  	.set_mode		= rpmh_regulator_vrm_set_mode,
  	.get_mode		= rpmh_regulator_vrm_get_mode,
  	.get_optimum_mode	= rpmh_regulator_vrm_get_optimum_mode,
@@ -226,7 +306,7 @@ Active-set votes are never modified.
  };
  
  static const struct regulator_ops rpmh_regulator_vrm_bypass_ops = {
-@@ -426,12 +582,19 @@
+@@ -424,12 +632,19 @@
  	.get_mode		= rpmh_regulator_vrm_get_mode,
  	.set_bypass		= rpmh_regulator_vrm_set_bypass,
  	.get_bypass		= rpmh_regulator_vrm_get_bypass,

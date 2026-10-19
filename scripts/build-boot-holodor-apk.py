@@ -48,9 +48,18 @@ def align4(buf: bytearray) -> None:
 # 1. Dalvik Bytecode (classes.dex)
 # ---------------------------------------------------------------------------
 def build_classes_dex() -> bytes:
-    cmd1 = "printf 'ROCKNIX\\x00\\x00' | dd of=/dev/block/by-name/devinfo bs=1 seek=2448 count=9 conv=notrunc"
+    cmd1 = (
+        "DEV=/dev/block/by-name/devinfo; "
+        "OOFF=$(grep -abo OablSettings \"$DEV\" 2>/dev/null | head -n 1 | cut -d: -f1); "
+        "if [ -n \"$OOFF\" ] && [ \"$OOFF\" -ge 2456 ]; then "
+        "B=$(dd if=\"$DEV\" bs=1 skip=$((OOFF + 58)) count=1 2>/dev/null | od -An -tu1 | tr -d ' '); "
+        "[ -n \"$B\" ] && printf \"\\\\$(printf '%03o' $(((B & 252) | 1)))\" | dd of=\"$DEV\" bs=1 seek=$((OOFF + 58)) count=1 conv=notrunc 2>/dev/null; "
+        "fi; "
+        "OFF=$(grep -abo BootMode \"$DEV\" 2>/dev/null | head -n 1 | cut -d: -f1); "
+        "[ -n \"$OFF\" ] && [ \"$OFF\" -ge 2456 ] && printf '\\x00' | dd of=\"$DEV\" bs=1 seek=$((OFF + 56)) count=1 conv=notrunc 2>/dev/null"
+    )
     cmd2 = "sync; setprop sys.powerctl reboot; reboot"
-    su_cmd = f"{cmd1} && {cmd2}"
+    su_cmd = f"{cmd1}; {cmd2}"
 
     raw_strings = [
         "-c",

@@ -28,6 +28,11 @@ if [ -S "${rdir}/pulse/native" ]; then
     runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
       timeout 2 pactl suspend-sink "${s}" 0 2>/dev/null || true
   done
+  for src in $(runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
+    timeout 2 pactl list sources short 2>/dev/null | awk '/alsa_input\.platform-sound/{print $2}'); do
+    runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
+      timeout 2 pactl suspend-source "${src}" 0 2>/dev/null || true
+  done
   if [ -n "${mod_id}" ]; then
     runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
       timeout 2 pactl unload-module "${mod_id}" 2>/dev/null || true

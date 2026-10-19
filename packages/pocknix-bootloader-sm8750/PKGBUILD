@@ -32,7 +32,7 @@
 # ELF here to refuse a backup that was taken AFTER the flash.
 pkgname=pocknix-bootloader-sm8750
 pkgver=1.1.8            # the ROCKNIX ABL release vendored here (1.1.7 shipped through image 20260925)
-pkgrel=4   # 4 (2026-10-19): add BootHolodor.apk (1-tap Android launcher app to reboot into Holodor via PServerBinder/su) + boot_holodor.sh. 2 (2026-10-07): flash_abl.sh refuses to run on a different chip
+pkgrel=5   # 5 (2026-10-19): BootHolodor.apk and boot_holodor.sh support OpenABL v1.1 (SettingsStorePack 'ROCKNIX\0\0' at devinfo+0x990) in addition to ROCKNIX ABL (BootMode at offset+56). 4 (2026-10-19): add BootHolodor.apk (1-tap Android launcher app to reboot into Holodor via PServerBinder/su) + boot_holodor.sh. 2 (2026-10-07): flash_abl.sh refuses to run on a different chip
 pkgdesc="SM8750 (AYN Odin 3) ROCKNIX ABL v1.1.8 payload + Android-side backup/flash/restore scripts and BootHolodor.apk"
 arch=('any')
 url="https://github.com/ROCKNIX/abl"

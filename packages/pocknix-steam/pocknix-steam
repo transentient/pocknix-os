@@ -210,10 +210,11 @@ done
 _pulse_wait=$(( $(date +%s) - _pulse_t0 ))
 [ "${_pulse_wait}" -gt 0 ] && echo "pocknix-steam: waited ${_pulse_wait} s for pipewire-pulse + a real default sink" >&2
 env -u WAYLAND_DISPLAY \
+  DXVK_CONFIG="${DXVK_CONFIG:-dxgi.maxDeviceMemory = 4096; dxgi.maxSharedMemory = 4096}" \
   GAMESCOPE_FAKE_OUTPUT_MM="${PANEL_MM}" \
   ${POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST:+GAMESCOPE_DYNAMIC_REFRESH_PREFER_LOWEST=${POCKNIX_GAMESCOPE_REFRESH_PREFER_LOWEST}} \
   ${POCKNIX_GAMESCOPE_REFRESH_DEFAULT_LOWEST:+GAMESCOPE_DYNAMIC_REFRESH_DEFAULT_LOWEST=${POCKNIX_GAMESCOPE_REFRESH_DEFAULT_LOWEST}} \
   gamescope -W "${W}" -H "${H}" ${POCKNIX_GAMESCOPE_REFRESH:+-r ${POCKNIX_GAMESCOPE_REFRESH}} --xwayland-count 2 --mangoapp --backend drm \
     --force-orientation "${ORIENT}" ${GS_ROTATE_ARGS} -e -- \
-    env LD_LIBRARY_PATH="${LDLP}" "${CLIENT}" -gamepadui -steamos3 -steampal -steamdeck -noverifyfiles -noshaders \
+    env LD_LIBRARY_PATH="${LDLP}" DXVK_CONFIG="${DXVK_CONFIG:-dxgi.maxDeviceMemory = 4096; dxgi.maxSharedMemory = 4096}" "${CLIENT}" -gamepadui -steamos3 -steampal -steamdeck -noverifyfiles -noshaders \
   >"${GS_LOG}" 2>&1
