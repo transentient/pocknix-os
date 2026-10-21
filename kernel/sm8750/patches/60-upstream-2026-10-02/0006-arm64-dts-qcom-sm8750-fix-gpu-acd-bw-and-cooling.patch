@@ -145,19 +145,7 @@ index 1a713ef2e006..b84c04972f1c 100644
  				      "memnoc",
  				      "hub";
  
-@@ -3634,11 +3636,6 @@ opp-650000000 {
- 					opp-hz = /bits/ 64 <650000000>;
- 					opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
- 				};
--
--				opp-687500000 {
--					opp-hz = /bits/ 64 <687500000>;
--					opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
--				};
- 			};
- 		};
- 
-@@ -6638,147 +6635,259 @@ aoss2-critical {
+@@ -6638,147 +6640,259 @@ aoss2-critical {
  		};
  
  		gpuss0-thermal {

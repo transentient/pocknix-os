@@ -1,0 +1,423 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Holodor Project <holodor@local>
+Date: Wed, 21 Oct 2026 02:40:00 +0900
+Subject: [PATCH] soc: qcom: sm8750: enter CESTA Mode 2 deep sleep for Display
+ and PCIe0
+
+On SM8750 (Pakala), AOSS sleep (aosd / XO shutdown) checks the RBSC
+hardware client status register (0x005d2310). Two CESTA instances have
+hardware power-collapse sequences programmed in their RSCC sequencers
+by XBL/ABL:
+  - DRV[10] DISPLAY (disp_cesta: disp_rsc 0x0af20000, disp_crm 0x0af21000,
+    disp_scc 0x0af30000)
+  - DRV[22] PCI0 CESTA (pcie_cesta: pcie_rsc 0x01d00000, pcie_crm 0x01d01000,
+    pcie_sm 0x01d07000)
+
+Without mainline CESTA drivers:
+1. disp_rsc remains in Mode 0 (0x0af202d0 = 0x0) when mdss_gdsc is powered
+   off by Linux, keeping DRV[10] DISPLAY = 1 in RBSC_STATUS.
+2. pcie_rsc remains in Mode 0 (0x01d002d0 = 0x0) during s2idle when the
+   PCIe link is in L1ss/L2, keeping DRV[22] PCI0 CESTA = 1 in RBSC_STATUS.
+
+Fix both in their respective SM8750 drivers:
+- In dispcc-sm8750, hook mdss_gdsc.pd.power_off and power_on to transition
+  disp_cesta into Mode 2 (0x0af202d0 = 0x20001001) after mdss_gdsc disable
+  and wake disp_cesta back to Mode 0 (0x0af202d0 = 0x0) before mdss_gdsc
+  enable, holding an ACTIVE_ONLY interconnect vote on mdss cpu-cfg so
+  0x0af20000..0x0af37000 is always clocked during active GDSC transitions
+  while still releasing SLAVE_DISPLAY_CFG in SLEEP_TCS during s2idle.
+- In pcie-qcom (for qcom,pcie-sm8750), transition pcie_cesta into Mode 2
+  (0x01d002d0 = 0x00000021) in qcom_pcie_suspend_noirq() before disabling
+  the CPU-PCIe interconnect/OPP, and wake pcie_cesta back to Mode 0
+  (0x01d002d0 = 0x00000000, pt = 0x3, col0 = 0x1) in qcom_pcie_resume_noirq()
+  immediately after re-enabling the CPU-PCIe interconnect/OPP, keeping
+  SW_DRV 0 active at runtime so pcie_cesta never drops into Mode 2 while
+  awake.
+
+Signed-off-by: Holodor Project <holodor@local>
+---
+--- a/drivers/clk/qcom/dispcc-sm8750.c
++++ b/drivers/clk/qcom/dispcc-sm8750.c
+@@ -5,15 +5,22 @@
+  */
+ 
+ #include <linux/clk-provider.h>
++#include <linux/delay.h>
+ #include <linux/err.h>
++#include <linux/interconnect.h>
++#include <linux/io.h>
+ #include <linux/kernel.h>
+ #include <linux/mod_devicetable.h>
+ #include <linux/module.h>
++#include <linux/of.h>
++#include <linux/of_platform.h>
+ #include <linux/platform_device.h>
+ #include <linux/regmap.h>
++#include <linux/pm_domain.h>
+ #include <linux/pm_runtime.h>
+ 
+ #include <dt-bindings/clock/qcom,sm8750-dispcc.h>
++#include <dt-bindings/interconnect/qcom,icc.h>
+ 
+ #include "common.h"
+ #include "clk-alpha-pll.h"
+@@ -1901,6 +1908,173 @@
+ };
+ MODULE_DEVICE_TABLE(of, disp_cc_sm8750_match_table);
+ 
++static void __iomem *disp_cesta_rsc;
++static void __iomem *disp_cesta_crm;
++static void __iomem *disp_cesta_scc;
++static void __iomem *disp_cesta_cc;
++static struct icc_path *disp_cesta_cfg_icc;
++static int (*orig_mdss_gdsc_power_off)(struct generic_pm_domain *domain);
++static int (*orig_mdss_gdsc_power_on)(struct generic_pm_domain *domain);
++
++static void disp_cc_sm8750_ensure_cfg_icc(void)
++{
++	struct device_node *np;
++	struct platform_device *mdss_pdev;
++
++	if (disp_cesta_cfg_icc)
++		return;
++
++	np = of_find_compatible_node(NULL, NULL, "qcom,sm8750-mdss");
++	if (!np)
++		return;
++
++	mdss_pdev = of_find_device_by_node(np);
++	of_node_put(np);
++	if (!mdss_pdev)
++		return;
++
++	disp_cesta_cfg_icc = of_icc_get(&mdss_pdev->dev, "cpu-cfg");
++	put_device(&mdss_pdev->dev);
++	if (IS_ERR_OR_NULL(disp_cesta_cfg_icc)) {
++		disp_cesta_cfg_icc = NULL;
++		return;
++	}
++
++	/*
++	 * Tag with ACTIVE_ONLY so SLAVE_DISPLAY_CFG stays clocked in
++	 * ACTIVE/WAKE TCS whenever mdss_gdsc powers off or on, while
++	 * dropping to 0 in SLEEP_TCS during s2idle.
++	 */
++	icc_set_tag(disp_cesta_cfg_icc, QCOM_ICC_TAG_ACTIVE_ONLY);
++	icc_set_bw(disp_cesta_cfg_icc, 0, 1000);
++}
++
++static void disp_cc_sm8750_sleep_cesta(void)
++{
++	int drv, ch, k, pwr, poll;
++	u32 sbase = 0xe0;
++	u32 val;
++
++	if (!disp_cesta_rsc || !disp_cesta_crm || !disp_cesta_scc || !disp_cesta_cc)
++		return;
++
++	/*
++	 * Set HW_CONTROL (BIT(1)) and SW_COLLAPSE (BIT(0)) on DISP_CC_MDSS_CORE_GDSCR
++	 * so the disp_rsc Mode 2 hardware sequence can observe GDSC collapse.
++	 */
++	val = readl_relaxed(disp_cesta_cc + 0x9000);
++	writel_relaxed(val | BIT(0) | BIT(1), disp_cesta_cc + 0x9000);
++	wmb();
++
++	for (drv = 0; drv < 6; drv++) {
++		u32 base = drv * 0x1000;
++		u32 scc_base = 0x1000 + drv * 0x1000;
++
++		writel_relaxed(0x1, disp_cesta_scc + scc_base + 0x08);
++		writel_relaxed(0x1, disp_cesta_scc + 0x40 + drv * 4);
++		writel_relaxed(0xf0, disp_cesta_scc + scc_base + 0x00);
++		writel_relaxed(0x1, disp_cesta_scc + scc_base + 0x04);
++		writel_relaxed(0x2, disp_cesta_crm + base + 0xa8);
++
++		for (ch = 0; ch < 2; ch++) {
++			for (k = 0; k < 2; k++) {
++				for (pwr = 0; pwr < 2; pwr++)
++					writel_relaxed(0, disp_cesta_crm + base + 0x00 +
++						       k * 0x14 + ch * 0x08 + pwr * 4);
++			}
++			for (k = 0; k < 5; k++) {
++				for (pwr = 0; pwr < 2; pwr++)
++					writel_relaxed(0, disp_cesta_crm + base + 0x3c +
++						       k * 0x14 + ch * 0x08 + pwr * 4);
++			}
++			writel_relaxed(BIT(ch), disp_cesta_crm + base + 0xa4);
++		}
++	}
++	wmb();
++
++	/* Pulse SW_DRV 0 active -> sleep (1 -> 0) to trigger disp_rsc Mode 2 entry */
++	writel_relaxed(1, disp_cesta_crm + sbase + 0x00);
++	writel_relaxed(1, disp_cesta_crm + sbase + 0x10);
++	for (k = 0; k < 5; k++)
++		writel_relaxed(0x60000001, disp_cesta_crm + sbase + 0x30 + k * 4);
++	writel_relaxed(1, disp_cesta_crm + sbase + 0x84);
++	writel_relaxed(1, disp_cesta_crm + 0x6410);
++	wmb();
++	udelay(100);
++
++	writel_relaxed(0, disp_cesta_crm + sbase + 0x00);
++	writel_relaxed(0, disp_cesta_crm + sbase + 0x10);
++	for (k = 0; k < 5; k++)
++		writel_relaxed(0, disp_cesta_crm + sbase + 0x30 + k * 4);
++	writel_relaxed(1, disp_cesta_crm + sbase + 0x84);
++	writel_relaxed(1, disp_cesta_crm + 0x6410);
++	wmb();
++
++	for (poll = 0; poll < 200; poll++) {
++		if ((readl_relaxed(disp_cesta_rsc + 0x2d0) & 0x3f) == 0x01)
++			break;
++		udelay(5);
++	}
++}
++
++static void disp_cc_sm8750_wake_cesta(void)
++{
++	int k, poll;
++	u32 sbase = 0xe0;
++	u32 val;
++
++	if (!disp_cesta_rsc || !disp_cesta_crm || !disp_cesta_scc || !disp_cesta_cc)
++		return;
++
++	/* Vote SW_DRV 0 active to wake disp_rsc from Mode 2 (0x20001001 -> 0x0) */
++	writel_relaxed(1, disp_cesta_crm + sbase + 0x00);
++	writel_relaxed(1, disp_cesta_crm + sbase + 0x10);
++	for (k = 0; k < 5; k++)
++		writel_relaxed(0x60000001, disp_cesta_crm + sbase + 0x30 + k * 4);
++	writel_relaxed(1, disp_cesta_crm + sbase + 0x84);
++	writel_relaxed(1, disp_cesta_crm + 0x6410);
++	wmb();
++
++	for (poll = 0; poll < 200; poll++) {
++		if (readl_relaxed(disp_cesta_rsc + 0x2d0) == 0 &&
++		    (readl_relaxed(disp_cesta_cc + 0x9000) & BIT(31)))
++			break;
++		udelay(5);
++	}
++
++	/*
++	 * Clear HW_CONTROL (BIT(1)) and SW_COLLAPSE (BIT(0)) so Linux gdsc_enable()
++	 * controls DISP_CC_MDSS_CORE_GDSCR directly while SW_DRV 0 keeps disp_rsc
++	 * in Mode 0 for the duration of active display operation.
++	 */
++	val = readl_relaxed(disp_cesta_cc + 0x9000);
++	writel_relaxed(val & ~(BIT(0) | BIT(1)), disp_cesta_cc + 0x9000);
++	wmb();
++
++	for (poll = 0; poll < 200; poll++) {
++		if (readl_relaxed(disp_cesta_cc + 0x9000) & BIT(31))
++			break;
++		udelay(5);
++	}
++}
++
++static int disp_cc_sm8750_mdss_gdsc_power_off(struct generic_pm_domain *domain)
++{
++	int ret;
++
++	disp_cc_sm8750_ensure_cfg_icc();
++	ret = orig_mdss_gdsc_power_off(domain);
++	disp_cc_sm8750_sleep_cesta();
++	return ret;
++}
++
++static int disp_cc_sm8750_mdss_gdsc_power_on(struct generic_pm_domain *domain)
++{
++	disp_cc_sm8750_ensure_cfg_icc();
++	disp_cc_sm8750_wake_cesta();
++	return orig_mdss_gdsc_power_on(domain);
++}
++
+ static int disp_cc_sm8750_probe(struct platform_device *pdev)
+ {
+ 	struct regmap *regmap;
+@@ -1937,6 +2111,18 @@
+ 	if (ret)
+ 		goto err_put_rpm;
+ 
++	disp_cesta_rsc = devm_ioremap(&pdev->dev, 0x0af20000, 0x1000);
++	disp_cesta_crm = devm_ioremap(&pdev->dev, 0x0af21000, 0x7000);
++	disp_cesta_scc = devm_ioremap(&pdev->dev, 0x0af30000, 0x7000);
++	disp_cesta_cc  = devm_ioremap(&pdev->dev, 0x0af00000, 0x10000);
++	if (disp_cesta_rsc && disp_cesta_crm && disp_cesta_scc && disp_cesta_cc &&
++	    mdss_gdsc.pd.power_off && mdss_gdsc.pd.power_on) {
++		orig_mdss_gdsc_power_off = mdss_gdsc.pd.power_off;
++		orig_mdss_gdsc_power_on  = mdss_gdsc.pd.power_on;
++		mdss_gdsc.pd.power_off   = disp_cc_sm8750_mdss_gdsc_power_off;
++		mdss_gdsc.pd.power_on    = disp_cc_sm8750_mdss_gdsc_power_on;
++	}
++
+ 	pm_runtime_put(&pdev->dev);
+ 
+ 	return 0;
+--- a/drivers/pci/controller/dwc/pcie-qcom.c
++++ b/drivers/pci/controller/dwc/pcie-qcom.c
+@@ -286,6 +286,10 @@
+ 	struct dentry *debugfs;
+ 	struct list_head ports;
+ 	bool use_pm_opp;
++	void __iomem *cesta_rsc;
++	void __iomem *cesta_crm;
++	void __iomem *cesta_sm;
++	bool cesta_asleep;
+ };
+ 
+ #define to_qcom_pcie(x)		dev_get_drvdata((x)->dev)
+@@ -1690,6 +1694,106 @@
+ 	return ret;
+ }
+ 
++static void qcom_pcie_sm8750_cesta_sleep(struct qcom_pcie *pcie)
++{
++	void __iomem *rsc = pcie->cesta_rsc;
++	void __iomem *crm = pcie->cesta_crm;
++	void __iomem *sm  = pcie->cesta_sm;
++	u32 sbase = 0x3b0;
++	int drv, ch, k, pwr, poll;
++
++	if (!rsc || !crm || !sm || pcie->cesta_asleep)
++		return;
++
++	/* Zero HW_DRV 0 and HW_DRV 1 power state votes (pwr 0..4) */
++	for (drv = 0; drv < 2; drv++) {
++		u32 base = drv * 0x1000;
++
++		for (ch = 0; ch < 2; ch++) {
++			for (k = 0; k < 2; k++) {
++				for (pwr = 0; pwr < 5; pwr++)
++					writel_relaxed(0, crm + base + 0x00 +
++						       k * 0x2c + ch * 0x14 + pwr * 4);
++			}
++			for (k = 0; k < 6; k++) {
++				for (pwr = 0; pwr < 5; pwr++)
++					writel_relaxed(0, crm + base + 0xb0 +
++						       k * 0x2c + ch * 0x14 + pwr * 4);
++			}
++			writel_relaxed(BIT(ch), crm + base + 0x374);
++		}
++	}
++
++	/*
++	 * Pulse SW_DRV 0 active -> sleep (1 -> 0) and set PCIe SM override
++	 * (0x10) so pcie_crm transitions 1 -> 0 and pcie_rsc enters Mode 2
++	 * (0x01d002d0 = 0x00000021), clearing DRV[22] PCI0 CESTA in AOSS RBSC.
++	 */
++	writel_relaxed(1, crm + sbase + 0x00);
++	writel_relaxed(1, crm + sbase + 0x20);
++	for (k = 0; k < 6; k++)
++		writel_relaxed(0x60000001, crm + sbase + 0x80 + k * 0x20);
++	writel_relaxed(1, crm + sbase + 0x284);
++	wmb();
++	udelay(50);
++
++	for (ch = 0; ch < 2; ch++) {
++		for (k = 0; k < 2; k++)
++			writel_relaxed(0, crm + sbase + 0x00 + k * 0x20 + ch * 0x04);
++		for (k = 0; k < 6; k++)
++			writel_relaxed(0, crm + sbase + 0x80 + k * 0x20 + ch * 0x04);
++		writel_relaxed(BIT(ch), crm + sbase + 0x284);
++	}
++
++	writel_relaxed(0x10, sm + 0x1040);
++	writel_relaxed(0x10, sm + 0x1048);
++	wmb();
++
++	for (poll = 0; poll < 200; poll++) {
++		if ((readl_relaxed(rsc + 0x2d0) & 0x3f) == 0x21)
++			break;
++		udelay(5);
++	}
++
++	pcie->cesta_asleep = true;
++}
++
++static void qcom_pcie_sm8750_cesta_wake(struct qcom_pcie *pcie)
++{
++	void __iomem *rsc = pcie->cesta_rsc;
++	void __iomem *crm = pcie->cesta_crm;
++	void __iomem *sm  = pcie->cesta_sm;
++	u32 sbase = 0x3b0;
++	int k, poll;
++
++	if (!rsc || !crm || !sm || !pcie->cesta_asleep)
++		return;
++
++	/*
++	 * Release PCIe SM override and vote SW_DRV 0 active (PERF_OL = 1,
++	 * BW_PT_VOTE = 0x60000001). Keep SW_DRV 0 active at runtime so
++	 * pcie_rsc remains in Mode 0 (0x01d002d0 = 0x0, pt = 0x3, col0 = 0x1)
++	 * across runtime ASPM L1ss transitions until the next s2idle suspend.
++	 */
++	writel_relaxed(0x0, sm + 0x1040);
++	writel_relaxed(0x0, sm + 0x1048);
++
++	writel_relaxed(1, crm + sbase + 0x00);
++	writel_relaxed(1, crm + sbase + 0x20);
++	for (k = 0; k < 6; k++)
++		writel_relaxed(0x60000001, crm + sbase + 0x80 + k * 0x20);
++	writel_relaxed(1, crm + sbase + 0x284);
++	wmb();
++
++	for (poll = 0; poll < 200; poll++) {
++		if (readl_relaxed(rsc + 0x2d0) == 0)
++			break;
++		udelay(5);
++	}
++
++	pcie->cesta_asleep = false;
++}
++
+ static int qcom_pcie_link_transition_count(struct seq_file *s, void *data)
+ {
+ 	struct qcom_pcie *pcie = (struct qcom_pcie *)dev_get_drvdata(s->private);
+@@ -2064,6 +2168,18 @@
+ 	if (of_device_is_compatible(dev->of_node, "qcom,pcie-sm8550"))
+ 		pp->skip_l23_ready = true;
+ 
++	if (of_device_is_compatible(dev->of_node, "qcom,pcie-sm8750")) {
++		pcie->cesta_rsc = devm_ioremap(dev, 0x01d00000, 0x1000);
++		pcie->cesta_crm = devm_ioremap(dev, 0x01d01000, 0x5000);
++		pcie->cesta_sm  = devm_ioremap(dev, 0x01d07000, 0x2000);
++		if (!pcie->cesta_rsc || !pcie->cesta_crm || !pcie->cesta_sm) {
++			dev_warn(dev, "Failed to map SM8750 PCIe CESTA regions\n");
++			pcie->cesta_rsc = NULL;
++			pcie->cesta_crm = NULL;
++			pcie->cesta_sm  = NULL;
++		}
++	}
++
+ 	ret = qcom_pcie_parse_ports(pcie);
+ 	if (ret) {
+ 		if (ret != -ENODEV) {
+@@ -2124,6 +2240,9 @@
+ 	if (ret)
+ 		return ret;
+ 
++	if (pcie->pci->suspended || pm_suspend_target_state != PM_SUSPEND_MEM)
++		qcom_pcie_sm8750_cesta_sleep(pcie);
++
+ 	if (pcie->pci->suspended) {
+ 		ret = icc_disable(pcie->icc_mem);
+ 		if (ret)
+@@ -2200,6 +2319,8 @@
+ 			return ret;
+ 		}
+ 
++		qcom_pcie_sm8750_cesta_wake(pcie);
++
+ 		ret = icc_enable(pcie->icc_mem);
+ 		if (ret) {
+ 			dev_err(dev, "Failed to enable PCIe-MEM interconnect path: %d\n", ret);
+@@ -2229,6 +2350,8 @@
+ 					ret);
+ 				return ret;
+ 			}
++
++			qcom_pcie_sm8750_cesta_wake(pcie);
+ 		}
+ 	}
+ 

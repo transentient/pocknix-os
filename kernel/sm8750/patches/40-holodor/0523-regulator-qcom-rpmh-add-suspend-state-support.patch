@@ -12,11 +12,10 @@ unenabled/disabled rails:
 
  * Defer sending VRM mode votes in rpmh_regulator_vrm_set_mode() until the
    regulator is enabled, and drop the hardware VRM mode vote to LPM
-   (REGULATOR_MODE_IDLE) on unenabled and disabled VRM rails.  Mainline
-   board DTs set regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM> on
-   nearly every rail, and XBL/ABL leaves DRV 2 (APPS) VRM mode votes at
-   HPM (7) on boot rails; sending HPM at probe or leaving it voted in DRV 2
-   causes APPS to force shared rails kept on in LPM by AOP/TZ/LPASS into
+   (REGULATOR_MODE_IDLE) when disabling a VRM rail.  Mainline board DTs set
+   regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM> on nearly every rail;
+   sending HPM (mode=7) at probe or leaving it voted after disable causes
+   DRV 2 (APPS) to force shared rails kept on in LPM by AOP/TZ/LPASS into
    HPM across sleep, keeping the 38.4 MHz XO clock awake and blocking AOSS
    sleep (aosd).
 
@@ -106,7 +105,7 @@ unenabled/disabled rails:
  	return ret;
  }
  
-@@ -327,6 +357,28 @@
+@@ -327,6 +357,22 @@
  	if (mode == vreg->mode)
  		return 0;
  
@@ -120,22 +119,16 @@ unenabled/disabled rails:
 +	 * Defer sending the VRM mode vote until the regulator is enabled so
 +	 * unused rails with regulator-initial-mode = HPM do not hold a stale
 +	 * HPM vote in DRV 2 (APPS) and block XO/AOSS sleep on shared rails.
-+	 * Drop any stale bootloader (XBL/ABL) DRV 2 HPM mode vote to LPM.
 +	 */
 +	if (vreg->enabled != 1) {
 +		vreg->mode = mode;
-+		if (!vreg->bypassed &&
-+		    vreg->hw_data->pmic_mode_map[REGULATOR_MODE_IDLE] >= 0)
-+			rpmh_regulator_vrm_set_mode_bypass(vreg,
-+							   REGULATOR_MODE_IDLE,
-+							   false);
 +		return 0;
 +	}
 +
  	ret = rpmh_regulator_vrm_set_mode_bypass(vreg, mode, vreg->bypassed);
  	if (!ret)
  		vreg->mode = mode;
-@@ -342,6 +394,160 @@
+@@ -342,6 +388,160 @@
  }
  
  /**
@@ -210,7 +203,7 @@ unenabled/disabled rails:
 +static int rpmh_regulator_vrm_active_pmic_mode(struct rpmh_vreg *vreg)
 +{
 +	if (vreg->enabled != 1) {
-+		if (!vreg->bypassed &&
++		if (vreg->enabled == 0 && !vreg->bypassed &&
 +		    vreg->mode != REGULATOR_MODE_INVALID &&
 +		    vreg->hw_data->pmic_mode_map[REGULATOR_MODE_IDLE] >= 0)
 +			return vreg->hw_data->pmic_mode_map[REGULATOR_MODE_IDLE];
@@ -296,7 +289,7 @@ unenabled/disabled rails:
   * rpmh_regulator_vrm_get_optimum_mode() - get the mode based on the  load
   * @rdev:		Regulator device pointer for the rpmh-regulator
   * @input_uV:		Input voltage
-@@ -399,6 +605,10 @@
+@@ -399,6 +599,10 @@
  	.list_voltage		= regulator_list_voltage_linear_range,
  	.set_mode		= rpmh_regulator_vrm_set_mode,
  	.get_mode		= rpmh_regulator_vrm_get_mode,
@@ -307,7 +300,7 @@ unenabled/disabled rails:
  };
  
  static const struct regulator_ops rpmh_regulator_vrm_drms_ops = {
-@@ -411,6 +621,10 @@
+@@ -411,6 +615,10 @@
  	.set_mode		= rpmh_regulator_vrm_set_mode,
  	.get_mode		= rpmh_regulator_vrm_get_mode,
  	.get_optimum_mode	= rpmh_regulator_vrm_get_optimum_mode,
@@ -318,7 +311,7 @@ unenabled/disabled rails:
  };
  
  static const struct regulator_ops rpmh_regulator_vrm_bypass_ops = {
-@@ -424,12 +638,19 @@
+@@ -424,12 +632,19 @@
  	.get_mode		= rpmh_regulator_vrm_get_mode,
  	.set_bypass		= rpmh_regulator_vrm_set_bypass,
  	.get_bypass		= rpmh_regulator_vrm_get_bypass,
@@ -338,7 +331,7 @@ unenabled/disabled rails:
  };
  
  /**
-@@ -512,6 +733,18 @@
+@@ -512,6 +727,18 @@
  	if (!init_data)
  		return -ENOMEM;
  
