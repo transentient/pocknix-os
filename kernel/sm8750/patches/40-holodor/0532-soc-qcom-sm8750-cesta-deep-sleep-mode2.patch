@@ -2,7 +2,7 @@ From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Holodor Project <holodor@local>
 Date: Wed, 21 Oct 2026 02:40:00 +0900
 Subject: [PATCH] soc: qcom: sm8750: enter CESTA Mode 2 deep sleep for Display
- and PCIe0
+ and PCIe0 across s2idle
 
 On SM8750 (Pakala), AOSS sleep (aosd / XO shutdown) checks the RBSC
 hardware client status register (0x005d2310). Two CESTA instances have
@@ -17,22 +17,20 @@ Without mainline CESTA drivers:
 1. disp_rsc remains in Mode 0 (0x0af202d0 = 0x0) when mdss_gdsc is powered
    off by Linux, keeping DRV[10] DISPLAY = 1 in RBSC_STATUS.
 2. pcie_rsc remains in Mode 0 (0x01d002d0 = 0x0) during s2idle when the
-   PCIe link is in L1ss/L2, keeping DRV[22] PCI0 CESTA = 1 in RBSC_STATUS.
+   PCIe link is in L1ss, keeping DRV[22] PCI0 CESTA = 1 in RBSC_STATUS.
 
-Fix both in their respective SM8750 drivers:
-- In dispcc-sm8750, hook mdss_gdsc.pd.power_off and power_on to transition
-  disp_cesta into Mode 2 (0x0af202d0 = 0x20001001) after mdss_gdsc disable
-  and wake disp_cesta back to Mode 0 (0x0af202d0 = 0x0) before mdss_gdsc
-  enable, holding an ACTIVE_ONLY interconnect vote on mdss cpu-cfg so
-  0x0af20000..0x0af37000 is always clocked during active GDSC transitions
-  while still releasing SLAVE_DISPLAY_CFG in SLEEP_TCS during s2idle.
+Fix both in their respective SM8750 drivers exclusively during system sleep:
+- In dispcc-sm8750, add LATE_SYSTEM_SLEEP_PM_OPS (suspend_late / resume_early)
+  that transitions disp_cesta into Mode 2 (0x0af202d0 = 0x20001001) during
+  system suspend after mdss_pm_suspend has collapsed mdss_gdsc (explicitly
+  holding disp_cc runtime PM, DISP_CC_MDSS_AHB_CLK, DISP_CC_MDSS_RSCC_AHB_CLK,
+  and an ACTIVE_ONLY interconnect vote on mdss cpu-cfg), and wakes disp_cesta
+  back to Mode 0 in resume_early before mdss_pm_resume powers on mdss_gdsc.
+  Never touch disp_cesta during boot, probe deferral, runtime PM, or reboot.
 - In pcie-qcom (for qcom,pcie-sm8750), transition pcie_cesta into Mode 2
-  (0x01d002d0 = 0x00000021) in qcom_pcie_suspend_noirq() before disabling
-  the CPU-PCIe interconnect/OPP, and wake pcie_cesta back to Mode 0
-  (0x01d002d0 = 0x00000000, pt = 0x3, col0 = 0x1) in qcom_pcie_resume_noirq()
-  immediately after re-enabling the CPU-PCIe interconnect/OPP, keeping
-  SW_DRV 0 active at runtime so pcie_cesta never drops into Mode 2 while
-  awake.
+  (0x01d002d0 = 0x00000021) in qcom_pcie_suspend_noirq() when the link stays
+  in L1ss across s2idle, and wake pcie_cesta back to Mode 0 in
+  qcom_pcie_resume_noirq().
 
 Signed-off-by: Holodor Project <holodor@local>
 ---
@@ -53,7 +51,7 @@ Signed-off-by: Holodor Project <holodor@local>
 +#include <linux/of_platform.h>
  #include <linux/platform_device.h>
  #include <linux/regmap.h>
-+#include <linux/pm_domain.h>
++#include <linux/pm.h>
  #include <linux/pm_runtime.h>
  
  #include <dt-bindings/clock/qcom,sm8750-dispcc.h>
@@ -61,7 +59,7 @@ Signed-off-by: Holodor Project <holodor@local>
  
  #include "common.h"
  #include "clk-alpha-pll.h"
-@@ -1901,6 +1908,173 @@
+@@ -1901,6 +1908,226 @@
  };
  MODULE_DEVICE_TABLE(of, disp_cc_sm8750_match_table);
  
@@ -70,8 +68,7 @@ Signed-off-by: Holodor Project <holodor@local>
 +static void __iomem *disp_cesta_scc;
 +static void __iomem *disp_cesta_cc;
 +static struct icc_path *disp_cesta_cfg_icc;
-+static int (*orig_mdss_gdsc_power_off)(struct generic_pm_domain *domain);
-+static int (*orig_mdss_gdsc_power_on)(struct generic_pm_domain *domain);
++static bool disp_cesta_asleep;
 +
 +static void disp_cc_sm8750_ensure_cfg_icc(void)
 +{
@@ -99,7 +96,7 @@ Signed-off-by: Holodor Project <holodor@local>
 +
 +	/*
 +	 * Tag with ACTIVE_ONLY so SLAVE_DISPLAY_CFG stays clocked in
-+	 * ACTIVE/WAKE TCS whenever mdss_gdsc powers off or on, while
++	 * ACTIVE/WAKE TCS whenever disp_cesta is accessed, while
 +	 * dropping to 0 in SLEEP_TCS during s2idle.
 +	 */
 +	icc_set_tag(disp_cesta_cfg_icc, QCOM_ICC_TAG_ACTIVE_ONLY);
@@ -215,27 +212,81 @@ Signed-off-by: Holodor Project <holodor@local>
 +	}
 +}
 +
-+static int disp_cc_sm8750_mdss_gdsc_power_off(struct generic_pm_domain *domain)
++static int disp_cc_sm8750_suspend_late(struct device *dev)
 +{
 +	int ret;
++	u32 ahb;
 +
 +	disp_cc_sm8750_ensure_cfg_icc();
-+	ret = orig_mdss_gdsc_power_off(domain);
-+	disp_cc_sm8750_sleep_cesta();
-+	return ret;
++	if (!disp_cesta_cfg_icc || !disp_cesta_rsc || !disp_cesta_crm ||
++	    !disp_cesta_scc || !disp_cesta_cc)
++		return 0;
++
++	ret = pm_runtime_resume_and_get(dev);
++	if (ret < 0)
++		return 0;
++
++	/* Only enter CESTA Mode 2 if mdss_gdsc is collapsed (PWR_ON bit 31 == 0) */
++	if (!(readl_relaxed(disp_cesta_cc + 0x9000) & BIT(31))) {
++		ahb = readl_relaxed(disp_cesta_cc + 0x80dc);
++		writel_relaxed(ahb | BIT(0), disp_cesta_cc + 0x80dc);
++		writel_relaxed(readl_relaxed(disp_cesta_cc + 0xc00c) | BIT(0),
++			       disp_cesta_cc + 0xc00c);
++		wmb();
++		udelay(10);
++
++		disp_cc_sm8750_sleep_cesta();
++		disp_cesta_asleep = true;
++
++		if (!(ahb & BIT(0)))
++			writel_relaxed(ahb, disp_cesta_cc + 0x80dc);
++		wmb();
++	}
++
++	pm_runtime_put_sync(dev);
++	return 0;
 +}
 +
-+static int disp_cc_sm8750_mdss_gdsc_power_on(struct generic_pm_domain *domain)
++static int disp_cc_sm8750_resume_early(struct device *dev)
 +{
++	int ret;
++	u32 ahb;
++
++	if (!disp_cesta_asleep)
++		return 0;
++
 +	disp_cc_sm8750_ensure_cfg_icc();
++	ret = pm_runtime_resume_and_get(dev);
++	if (ret < 0)
++		return 0;
++
++	ahb = readl_relaxed(disp_cesta_cc + 0x80dc);
++	writel_relaxed(ahb | BIT(0), disp_cesta_cc + 0x80dc);
++	writel_relaxed(readl_relaxed(disp_cesta_cc + 0xc00c) | BIT(0),
++		       disp_cesta_cc + 0xc00c);
++	wmb();
++	udelay(10);
++
 +	disp_cc_sm8750_wake_cesta();
-+	return orig_mdss_gdsc_power_on(domain);
++	disp_cesta_asleep = false;
++
++	if (!(ahb & BIT(0)))
++		writel_relaxed(ahb, disp_cesta_cc + 0x80dc);
++	wmb();
++
++	pm_runtime_put_sync(dev);
++	return 0;
 +}
++
++static const struct dev_pm_ops disp_cc_sm8750_pm_ops = {
++	LATE_SYSTEM_SLEEP_PM_OPS(disp_cc_sm8750_suspend_late,
++				 disp_cc_sm8750_resume_early)
++};
 +
  static int disp_cc_sm8750_probe(struct platform_device *pdev)
  {
  	struct regmap *regmap;
-@@ -1937,6 +2111,18 @@
+@@ -1937,6 +2153,11 @@
  	if (ret)
  		goto err_put_rpm;
  
@@ -243,17 +294,18 @@ Signed-off-by: Holodor Project <holodor@local>
 +	disp_cesta_crm = devm_ioremap(&pdev->dev, 0x0af21000, 0x7000);
 +	disp_cesta_scc = devm_ioremap(&pdev->dev, 0x0af30000, 0x7000);
 +	disp_cesta_cc  = devm_ioremap(&pdev->dev, 0x0af00000, 0x10000);
-+	if (disp_cesta_rsc && disp_cesta_crm && disp_cesta_scc && disp_cesta_cc &&
-+	    mdss_gdsc.pd.power_off && mdss_gdsc.pd.power_on) {
-+		orig_mdss_gdsc_power_off = mdss_gdsc.pd.power_off;
-+		orig_mdss_gdsc_power_on  = mdss_gdsc.pd.power_on;
-+		mdss_gdsc.pd.power_off   = disp_cc_sm8750_mdss_gdsc_power_off;
-+		mdss_gdsc.pd.power_on    = disp_cc_sm8750_mdss_gdsc_power_on;
-+	}
 +
  	pm_runtime_put(&pdev->dev);
  
  	return 0;
+@@ -1950,6 +2171,7 @@
+ 	.driver = {
+ 		.name = "disp_cc-sm8750",
+ 		.of_match_table = disp_cc_sm8750_match_table,
++		.pm = &disp_cc_sm8750_pm_ops,
+ 	},
+ };
+ 
 --- a/drivers/pci/controller/dwc/pcie-qcom.c
 +++ b/drivers/pci/controller/dwc/pcie-qcom.c
 @@ -286,6 +286,10 @@
@@ -397,7 +449,7 @@ Signed-off-by: Holodor Project <holodor@local>
  	if (ret)
  		return ret;
  
-+	if (pcie->pci->suspended || pm_suspend_target_state != PM_SUSPEND_MEM)
++	if (!pcie->pci->suspended && pm_suspend_target_state != PM_SUSPEND_MEM)
 +		qcom_pcie_sm8750_cesta_sleep(pcie);
 +
  	if (pcie->pci->suspended) {
