@@ -42,11 +42,18 @@ for c in /sys/bus/soundwire/devices/*/power/control; do
 done
 
 mod_id=""
+prev_default=""
 uid=$(id -u deck 2>/dev/null || echo 1001)
 rdir="/run/user/${uid}"
 if [ -S "${rdir}/pulse/native" ]; then
+  prev_default=$(runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
+    timeout 2 pactl get-default-sink 2>/dev/null || true)
   mod_id=$(runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
     timeout 2 pactl load-module module-null-sink sink_name=pocknix_sleep_null 2>/dev/null || true)
+  if [ -n "${mod_id}" ]; then
+    runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
+      timeout 2 pactl set-default-sink pocknix_sleep_null 2>/dev/null || true
+  fi
   for si in $(runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
     timeout 2 pactl list sink-inputs short 2>/dev/null | awk '{print $1}'); do
     runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
@@ -64,7 +71,7 @@ if [ -S "${rdir}/pulse/native" ]; then
   done
 fi
 
-printf '%s\n' "${mod_id}" > "${state}.tmp" && mv -f "${state}.tmp" "${state}"
+printf 'mod_id=%s\nprev_default=%s\n' "${mod_id}" "${prev_default}" > "${state}.tmp" && mv -f "${state}.tmp" "${state}"
 
 i=0
 after_macro="${before_macro}"

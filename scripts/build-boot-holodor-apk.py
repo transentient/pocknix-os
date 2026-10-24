@@ -702,7 +702,104 @@ def build_resources_arsc() -> bytes:
 # ---------------------------------------------------------------------------
 # 4. Launcher Icon PNG Generator (Holodor Portal + H Emblem)
 # ---------------------------------------------------------------------------
+def scale_rgba_nearest(src_rgba: bytes, src_w: int, src_h: int, dst_size: int) -> bytes:
+    """Nearest-neighbor scale an RGBA image (src_w x src_h) to (dst_size x dst_size) PNG."""
+    raw_rows = bytearray()
+    for y in range(dst_size):
+        raw_rows.append(0)  # Filter 0
+        sy = min(src_h - 1, (y * src_h) // dst_size)
+        for x in range(dst_size):
+            sx = min(src_w - 1, (x * src_w) // dst_size)
+            off = (sy * src_w + sx) * 4
+            raw_rows.extend(src_rgba[off : off + 4])
+
+    def png_chunk(ctype: bytes, cdata: bytes) -> bytes:
+        crc = zlib.crc32(ctype + cdata) & 0xFFFFFFFF
+        return struct.pack(">I", len(cdata)) + ctype + cdata + struct.pack(">I", crc)
+
+    ihdr = struct.pack(">IIBBBBB", dst_size, dst_size, 8, 6, 0, 0, 0)
+    idat = zlib.compress(bytes(raw_rows), 9)
+    return b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", ihdr) + png_chunk(b"IDAT", idat) + png_chunk(b"IEND", b"")
+
+
+def decode_simple_png_rgba(png_bytes: bytes) -> tuple[int, int, bytes]:
+    """Decode an 8-bit RGB/RGBA/Indexed PNG into raw RGBA bytes using stdlib."""
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n", "Not a PNG file"
+    pos = 8
+    w = h = color_type = 0
+    plte = b""
+    trns = b""
+    idat_chunks = []
+    while pos < len(png_bytes):
+        length, ctype = struct.unpack(">I4s", png_bytes[pos : pos + 8])
+        cdata = png_bytes[pos + 8 : pos + 8 + length]
+        pos += 12 + length
+        if ctype == b"IHDR":
+            w, h, bit_depth, color_type, comp, filt, interlace = struct.unpack(">IIBBBBB", cdata)
+            assert bit_depth == 8 and interlace == 0, f"Unsupported PNG bit_depth={bit_depth} interlace={interlace}"
+        elif ctype == b"PLTE":
+            plte = cdata
+        elif ctype == b"tRNS":
+            trns = cdata
+        elif ctype == b"IDAT":
+            idat_chunks.append(cdata)
+        elif ctype == b"IEND":
+            break
+
+    raw = zlib.decompress(b"".join(idat_chunks))
+    bpp = {2: 3, 3: 1, 6: 4}[color_type]
+    stride = w * bpp
+    recon = bytearray(h * stride)
+    for y in range(h):
+        ftype = raw[y * (stride + 1)]
+        row = raw[y * (stride + 1) + 1 : (y + 1) * (stride + 1)]
+        out_off = y * stride
+        prev_off = (y - 1) * stride
+        for i in range(stride):
+            x_val = row[i]
+            a = recon[out_off + i - bpp] if i >= bpp else 0
+            b = recon[prev_off + i] if y > 0 else 0
+            c = recon[prev_off + i - bpp] if (y > 0 and i >= bpp) else 0
+            if ftype == 0:
+                val = x_val
+            elif ftype == 1:
+                val = (x_val + a) & 0xFF
+            elif ftype == 2:
+                val = (x_val + b) & 0xFF
+            elif ftype == 3:
+                val = (x_val + ((a + b) >> 1)) & 0xFF
+            elif ftype == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                pr = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+                val = (x_val + pr) & 0xFF
+            else:
+                raise ValueError(f"Unsupported PNG filter {ftype}")
+            recon[out_off + i] = val
+
+    rgba = bytearray(w * h * 4)
+    for i in range(w * h):
+        if color_type == 6:
+            rgba[i * 4 : i * 4 + 4] = recon[i * 4 : i * 4 + 4]
+        elif color_type == 2:
+            rgba[i * 4 : i * 4 + 3] = recon[i * 3 : i * 3 + 3]
+            rgba[i * 4 + 3] = 255
+        elif color_type == 3:
+            idx = recon[i]
+            rgba[i * 4 : i * 4 + 3] = plte[idx * 3 : idx * 3 + 3]
+            rgba[i * 4 + 3] = trns[idx] if idx < len(trns) else 255
+    return w, h, bytes(rgba)
+
+
 def build_holodor_icon_png(size: int) -> bytes:
+    custom_icon = os.environ.get(
+        "HOLODOR_ICON_PNG",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "ssalmon", "icon.png"),
+    )
+    if os.path.isfile(custom_icon):
+        src_w, src_h, src_rgba = decode_simple_png_rgba(open(custom_icon, "rb").read())
+        return scale_rgba_nearest(src_rgba, src_w, src_h, size)
+
     raw_rows = bytearray()
     cx = (size - 1) / 2.0
     cy = (size - 1) / 2.0

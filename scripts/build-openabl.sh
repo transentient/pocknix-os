@@ -31,6 +31,13 @@ else
   git apply "${PATCH_FILE}"
 fi
 
+if [ -f "${REPO_ROOT}/assets/ssalmon/HolodorSplashArt.h" ]; then
+  cp -f "${REPO_ROOT}/assets/ssalmon/HolodorSplashArt.h" "${OPENABL_DIR}/Menu/HolodorSplashArt.h"
+fi
+if [ -f "${REPO_ROOT}/assets/ssalmon/HolodorWordmarkArt.h" ]; then
+  cp -f "${REPO_ROOT}/assets/ssalmon/HolodorWordmarkArt.h" "${OPENABL_DIR}/View/HolodorWordmarkArt.h"
+fi
+
 ./build.sh "${SOCS[@]}"
 
 for soc in "${SOCS[@]}"; do

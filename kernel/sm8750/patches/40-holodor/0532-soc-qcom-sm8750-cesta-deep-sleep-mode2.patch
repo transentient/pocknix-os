@@ -34,9 +34,10 @@ Fix both in their respective SM8750 drivers exclusively during system sleep:
 
 Signed-off-by: Holodor Project <holodor@local>
 ---
+diff --git a/drivers/clk/qcom/dispcc-sm8750.c b/drivers/clk/qcom/dispcc-sm8750.c
 --- a/drivers/clk/qcom/dispcc-sm8750.c
 +++ b/drivers/clk/qcom/dispcc-sm8750.c
-@@ -5,15 +5,22 @@
+@@ -5,15 +5,23 @@
   */
  
  #include <linux/clk-provider.h>
@@ -53,13 +54,14 @@ Signed-off-by: Holodor Project <holodor@local>
  #include <linux/regmap.h>
 +#include <linux/pm.h>
  #include <linux/pm_runtime.h>
++#include <linux/suspend.h>
  
  #include <dt-bindings/clock/qcom,sm8750-dispcc.h>
 +#include <dt-bindings/interconnect/qcom,icc.h>
  
  #include "common.h"
  #include "clk-alpha-pll.h"
-@@ -1901,6 +1908,226 @@
+@@ -1901,6 +1909,346 @@
  };
  MODULE_DEVICE_TABLE(of, disp_cc_sm8750_match_table);
  
@@ -68,6 +70,9 @@ Signed-off-by: Holodor Project <holodor@local>
 +static void __iomem *disp_cesta_scc;
 +static void __iomem *disp_cesta_cc;
 +static struct icc_path *disp_cesta_cfg_icc;
++static int (*orig_mdss_gdsc_power_off)(struct generic_pm_domain *domain);
++static int (*orig_mdss_gdsc_power_on)(struct generic_pm_domain *domain);
++static bool disp_cesta_system_suspending;
 +static bool disp_cesta_asleep;
 +
 +static void disp_cc_sm8750_ensure_cfg_icc(void)
@@ -106,66 +111,129 @@ Signed-off-by: Holodor Project <holodor@local>
 +static void disp_cc_sm8750_sleep_cesta(void)
 +{
 +	int drv, ch, k, pwr, poll;
-+	u32 sbase = 0xe0;
-+	u32 val;
 +
 +	if (!disp_cesta_rsc || !disp_cesta_crm || !disp_cesta_scc || !disp_cesta_cc)
 +		return;
 +
-+	/*
-+	 * Set HW_CONTROL (BIT(1)) and SW_COLLAPSE (BIT(0)) on DISP_CC_MDSS_CORE_GDSCR
-+	 * so the disp_rsc Mode 2 hardware sequence can observe GDSC collapse.
-+	 */
-+	val = readl_relaxed(disp_cesta_cc + 0x9000);
-+	writel_relaxed(val | BIT(0) | BIT(1), disp_cesta_cc + 0x9000);
++	writel_relaxed(readl_relaxed(disp_cesta_cc + 0xc00c) | 1, disp_cesta_cc + 0xc00c);
++	writel_relaxed(readl_relaxed(disp_cesta_cc + 0xc008) | 1, disp_cesta_cc + 0xc008);
++	writel_relaxed(readl_relaxed(disp_cesta_cc + 0xf000) | BIT(4), disp_cesta_cc + 0xf000);
++	wmb();
++	udelay(20);
++
++	writel_relaxed(0x00000707, disp_cesta_rsc + 0x30);
++	writel_relaxed(0x80ffffff, disp_cesta_rsc + 0x38);
++	writel_relaxed(0xffffffff, disp_cesta_rsc + 0x40);
++	writel_relaxed(0x80000001, disp_cesta_rsc + 0x48);
 +	wmb();
 +
 +	for (drv = 0; drv < 6; drv++) {
-+		u32 base = drv * 0x1000;
-+		u32 scc_base = 0x1000 + drv * 0x1000;
-+
-+		writel_relaxed(0x1, disp_cesta_scc + scc_base + 0x08);
-+		writel_relaxed(0x1, disp_cesta_scc + 0x40 + drv * 4);
-+		writel_relaxed(0xf0, disp_cesta_scc + scc_base + 0x00);
-+		writel_relaxed(0x1, disp_cesta_scc + scc_base + 0x04);
-+		writel_relaxed(0x2, disp_cesta_crm + base + 0xa8);
-+
-+		for (ch = 0; ch < 2; ch++) {
-+			for (k = 0; k < 2; k++) {
-+				for (pwr = 0; pwr < 2; pwr++)
-+					writel_relaxed(0, disp_cesta_crm + base + 0x00 +
-+						       k * 0x14 + ch * 0x08 + pwr * 4);
-+			}
-+			for (k = 0; k < 5; k++) {
-+				for (pwr = 0; pwr < 2; pwr++)
-+					writel_relaxed(0, disp_cesta_crm + base + 0x3c +
-+						       k * 0x14 + ch * 0x08 + pwr * 4);
-+			}
-+			writel_relaxed(BIT(ch), disp_cesta_crm + base + 0xa4);
-+		}
++		writel_relaxed(1, disp_cesta_scc + 0x1000 + drv * 0x1000 + 0x08);
++		writel_relaxed(1, disp_cesta_scc + 0x40 + drv * 4);
++		writel_relaxed(0, disp_cesta_crm + 0xe0 + drv * 0x1000 + 0x100);
 +	}
 +	wmb();
 +
-+	/* Pulse SW_DRV 0 active -> sleep (1 -> 0) to trigger disp_rsc Mode 2 entry */
-+	writel_relaxed(1, disp_cesta_crm + sbase + 0x00);
-+	writel_relaxed(1, disp_cesta_crm + sbase + 0x10);
-+	for (k = 0; k < 5; k++)
-+		writel_relaxed(0x60000001, disp_cesta_crm + sbase + 0x30 + k * 4);
-+	writel_relaxed(1, disp_cesta_crm + sbase + 0x84);
-+	writel_relaxed(1, disp_cesta_crm + 0x6410);
++	writel_relaxed((readl_relaxed(disp_cesta_cc + 0x9000) & ~BIT(0)) | BIT(1),
++		       disp_cesta_cc + 0x9000);
++	wmb();
++	udelay(20);
++
++	for (drv = 0; drv < 6; drv++) {
++		u32 sbase = 0xe0 + drv * 0x1000;
++
++		writel_relaxed(drv == 0 ? 1 : 0, disp_cesta_crm + sbase + 0x00);
++		writel_relaxed(0, disp_cesta_crm + sbase + 0x04);
++		writel_relaxed(0, disp_cesta_crm + sbase + 0x08);
++	}
++	wmb();
++	for (poll = 0; poll < 1000; poll++) {
++		if (readl_relaxed(disp_cesta_crm + 0x6840) == 0 &&
++		    (readl_relaxed(disp_cesta_crm + 0x6818) & 7) == 1)
++			break;
++		udelay(2);
++	}
++	udelay(50);
++
++	for (drv = 0; drv < 6; drv++) {
++		u32 base = drv * 0x1000;
++		u32 sbase = 0x1000 + drv * 0x1000;
++
++		writel_relaxed(BIT(1), disp_cesta_crm + base + 0xa8);
++		for (ch = 0; ch < 2; ch++) {
++			for (pwr = 0; pwr < 2; pwr++) {
++				writel_relaxed(0, disp_cesta_crm + base + 0x00 + ch * 0x8 + pwr * 4);
++				writel_relaxed(0x60000000, disp_cesta_crm + base + 0x14 + ch * 0x8 + pwr * 4);
++				for (k = 0; k < 5; k++)
++					writel_relaxed(0x60000000, disp_cesta_crm + base + 0x28 +
++						       k * 0x14 + ch * 0x8 + pwr * 4);
++			}
++			wmb();
++			writel_relaxed(BIT(ch), disp_cesta_crm + base + 0xa4);
++			wmb();
++			writel_relaxed(0xa, disp_cesta_scc + sbase + 0x04);
++			wmb();
++			udelay(20);
++			writel_relaxed(0x2, disp_cesta_scc + sbase + 0x04);
++			wmb();
++			udelay(20);
++		}
++	}
++
++	for (drv = 0; drv < 6; drv++) {
++		u32 sbase = 0xe0 + drv * 0x1000;
++
++		for (k = 0; k < 5; k++) {
++			writel_relaxed(drv == 0 ? 0x60000001 : 0x60000000,
++				       disp_cesta_crm + sbase + 0x30 + k * 0x10 + 0x0);
++			writel_relaxed(0x60000000, disp_cesta_crm + sbase + 0x30 + k * 0x10 + 0x4);
++			writel_relaxed(0x60000000, disp_cesta_crm + sbase + 0x30 + k * 0x10 + 0x8);
++		}
++		wmb();
++		writel_relaxed(1, disp_cesta_crm + sbase + 0x100);
++		udelay(10);
++		writel_relaxed(0, disp_cesta_crm + sbase + 0x100);
++		udelay(50);
++	}
++
++	for (drv = 0; drv < 6; drv++) {
++		u32 sbase = 0xe0 + drv * 0x1000;
++
++		for (k = 0; k < 5; k++)
++			writel_relaxed(0x60000000, disp_cesta_crm + sbase + 0x30 + k * 0x10 + 0x0);
++		wmb();
++		writel_relaxed(1, disp_cesta_crm + sbase + 0x100);
++		udelay(10);
++		writel_relaxed(0, disp_cesta_crm + sbase + 0x100);
++		udelay(50);
++	}
++
++	writel_relaxed(0xe0000001, disp_cesta_crm + 0xe0 + 0x20);
++	writel_relaxed(0x60000001, disp_cesta_crm + 0xe0 + 0x24);
++	writel_relaxed(0x60000001, disp_cesta_crm + 0xe0 + 0x28);
 +	wmb();
 +	udelay(100);
 +
-+	writel_relaxed(0, disp_cesta_crm + sbase + 0x00);
-+	writel_relaxed(0, disp_cesta_crm + sbase + 0x10);
-+	for (k = 0; k < 5; k++)
-+		writel_relaxed(0, disp_cesta_crm + sbase + 0x30 + k * 4);
-+	writel_relaxed(1, disp_cesta_crm + sbase + 0x84);
-+	writel_relaxed(1, disp_cesta_crm + 0x6410);
-+	wmb();
++	for (drv = 0; drv < 6; drv++) {
++		u32 sbase = 0xe0 + drv * 0x1000;
 +
-+	for (poll = 0; poll < 200; poll++) {
-+		if ((readl_relaxed(disp_cesta_rsc + 0x2d0) & 0x3f) == 0x01)
++		writel_relaxed(0xe0000000, disp_cesta_crm + sbase + 0x20);
++		writel_relaxed(0x60000000, disp_cesta_crm + sbase + 0x24);
++		writel_relaxed(0x60000000, disp_cesta_crm + sbase + 0x28);
++		wmb();
++		udelay(50);
++	}
++	for (poll = 0; poll < 1000; poll++) {
++		if (readl_relaxed(disp_cesta_crm + 0x6aa8) == 0 &&
++		    readl_relaxed(disp_cesta_crm + 0x647c) == 0)
++			break;
++		udelay(2);
++	}
++
++	writel_relaxed(0, disp_cesta_crm + 0xe0 + 0x00);
++	wmb();
++	for (poll = 0; poll < 2000; poll++) {
++		if (readl_relaxed(disp_cesta_rsc + 0x2d0) & BIT(12))
 +			break;
 +		udelay(5);
 +	}
@@ -173,43 +241,87 @@ Signed-off-by: Holodor Project <holodor@local>
 +
 +static void disp_cc_sm8750_wake_cesta(void)
 +{
-+	int k, poll;
-+	u32 sbase = 0xe0;
-+	u32 val;
++	int drv, k, poll;
 +
 +	if (!disp_cesta_rsc || !disp_cesta_crm || !disp_cesta_scc || !disp_cesta_cc)
 +		return;
 +
-+	/* Vote SW_DRV 0 active to wake disp_rsc from Mode 2 (0x20001001 -> 0x0) */
-+	writel_relaxed(1, disp_cesta_crm + sbase + 0x00);
-+	writel_relaxed(1, disp_cesta_crm + sbase + 0x10);
-+	for (k = 0; k < 5; k++)
-+		writel_relaxed(0x60000001, disp_cesta_crm + sbase + 0x30 + k * 4);
-+	writel_relaxed(1, disp_cesta_crm + sbase + 0x84);
-+	writel_relaxed(1, disp_cesta_crm + 0x6410);
++	writel_relaxed(readl_relaxed(disp_cesta_cc + 0xc00c) | 1, disp_cesta_cc + 0xc00c);
++	writel_relaxed(readl_relaxed(disp_cesta_cc + 0xc008) | 1, disp_cesta_cc + 0xc008);
++	writel_relaxed(readl_relaxed(disp_cesta_cc + 0xf000) | BIT(4), disp_cesta_cc + 0xf000);
 +	wmb();
++	udelay(20);
 +
-+	for (poll = 0; poll < 200; poll++) {
++	writel_relaxed((readl_relaxed(disp_cesta_cc + 0x9000) & ~BIT(0)) | BIT(1),
++		       disp_cesta_cc + 0x9000);
++	wmb();
++	udelay(10);
++
++	writel_relaxed(1, disp_cesta_crm + 0xe0 + 0x00);
++	writel_relaxed(0xe0000001, disp_cesta_crm + 0xe0 + 0x20);
++	for (k = 0; k < 5; k++)
++		writel_relaxed(0x60000001, disp_cesta_crm + 0xe0 + 0x30 + k * 0x10 + 0x0);
++	wmb();
++	writel_relaxed(1, disp_cesta_crm + 0xe0 + 0x100);
++	udelay(10);
++	writel_relaxed(0, disp_cesta_crm + 0xe0 + 0x100);
++	wmb();
++	for (poll = 0; poll < 2000; poll++) {
 +		if (readl_relaxed(disp_cesta_rsc + 0x2d0) == 0 &&
-+		    (readl_relaxed(disp_cesta_cc + 0x9000) & BIT(31)))
++		    readl_relaxed(disp_cesta_crm + 0x6840) == 0 &&
++		    (readl_relaxed(disp_cesta_crm + 0x6818) & 7) == 1)
 +			break;
 +		udelay(5);
 +	}
 +
-+	/*
-+	 * Clear HW_CONTROL (BIT(1)) and SW_COLLAPSE (BIT(0)) so Linux gdsc_enable()
-+	 * controls DISP_CC_MDSS_CORE_GDSCR directly while SW_DRV 0 keeps disp_rsc
-+	 * in Mode 0 for the duration of active display operation.
-+	 */
-+	val = readl_relaxed(disp_cesta_cc + 0x9000);
-+	writel_relaxed(val & ~(BIT(0) | BIT(1)), disp_cesta_cc + 0x9000);
++	for (drv = 0; drv < 6; drv++) {
++		writel_relaxed(0, disp_cesta_scc + 0x1000 + drv * 0x1000 + 0x04);
++		writel_relaxed(0, disp_cesta_scc + 0x1000 + drv * 0x1000 + 0x08);
++		writel_relaxed(0, disp_cesta_scc + 0x40 + drv * 4);
++		writel_relaxed(0, disp_cesta_crm + drv * 0x1000 + 0xa8);
++	}
 +	wmb();
 +
-+	for (poll = 0; poll < 200; poll++) {
++	writel_relaxed(readl_relaxed(disp_cesta_cc + 0x9000) & ~(BIT(0) | BIT(1)),
++		       disp_cesta_cc + 0x9000);
++	wmb();
++	for (poll = 0; poll < 2000; poll++) {
 +		if (readl_relaxed(disp_cesta_cc + 0x9000) & BIT(31))
 +			break;
 +		udelay(5);
 +	}
++}
++
++static int disp_cc_sm8750_mdss_gdsc_power_off(struct generic_pm_domain *domain)
++{
++	int ret = 0;
++
++	if (orig_mdss_gdsc_power_off)
++		ret = orig_mdss_gdsc_power_off(domain);
++	if (ret)
++		return ret;
++
++	if (disp_cesta_system_suspending && !disp_cesta_asleep) {
++		disp_cc_sm8750_ensure_cfg_icc();
++		if (disp_cesta_cfg_icc) {
++			disp_cc_sm8750_sleep_cesta();
++			disp_cesta_asleep = true;
++		}
++	}
++	return 0;
++}
++
++static int disp_cc_sm8750_mdss_gdsc_power_on(struct generic_pm_domain *domain)
++{
++	if (disp_cesta_asleep) {
++		disp_cc_sm8750_ensure_cfg_icc();
++		disp_cc_sm8750_wake_cesta();
++		disp_cesta_asleep = false;
++	}
++
++	if (orig_mdss_gdsc_power_on)
++		return orig_mdss_gdsc_power_on(domain);
++	return 0;
 +}
 +
 +static int disp_cc_sm8750_suspend_late(struct device *dev)
@@ -222,12 +334,19 @@ Signed-off-by: Holodor Project <holodor@local>
 +	    !disp_cesta_scc || !disp_cesta_cc)
 +		return 0;
 +
-+	ret = pm_runtime_resume_and_get(dev);
-+	if (ret < 0)
-+		return 0;
++	disp_cesta_system_suspending = true;
 +
-+	/* Only enter CESTA Mode 2 if mdss_gdsc is collapsed (PWR_ON bit 31 == 0) */
-+	if (!(readl_relaxed(disp_cesta_cc + 0x9000) & BIT(31))) {
++	/*
++	 * If mdss_gdsc was already powered off before system suspend started,
++	 * enter CESTA Mode 2 now; otherwise disp_cc_sm8750_mdss_gdsc_power_off()
++	 * will enter Mode 2 when genpd_finish_suspend powers off mdss_gdsc in
++	 * the noirq phase.
++	 */
++	if (mdss_gdsc.pd.status == GENPD_STATE_OFF && !disp_cesta_asleep) {
++		ret = pm_runtime_resume_and_get(dev);
++		if (ret < 0)
++			return 0;
++
 +		ahb = readl_relaxed(disp_cesta_cc + 0x80dc);
 +		writel_relaxed(ahb | BIT(0), disp_cesta_cc + 0x80dc);
 +		writel_relaxed(readl_relaxed(disp_cesta_cc + 0xc00c) | BIT(0),
@@ -241,9 +360,10 @@ Signed-off-by: Holodor Project <holodor@local>
 +		if (!(ahb & BIT(0)))
 +			writel_relaxed(ahb, disp_cesta_cc + 0x80dc);
 +		wmb();
++
++		pm_runtime_put_sync(dev);
 +	}
 +
-+	pm_runtime_put_sync(dev);
 +	return 0;
 +}
 +
@@ -251,6 +371,8 @@ Signed-off-by: Holodor Project <holodor@local>
 +{
 +	int ret;
 +	u32 ahb;
++
++	disp_cesta_system_suspending = false;
 +
 +	if (!disp_cesta_asleep)
 +		return 0;
@@ -286,19 +408,27 @@ Signed-off-by: Holodor Project <holodor@local>
  static int disp_cc_sm8750_probe(struct platform_device *pdev)
  {
  	struct regmap *regmap;
-@@ -1937,6 +2153,11 @@
+@@ -1937,6 +2285,19 @@
  	if (ret)
  		goto err_put_rpm;
  
 +	disp_cesta_rsc = devm_ioremap(&pdev->dev, 0x0af20000, 0x1000);
 +	disp_cesta_crm = devm_ioremap(&pdev->dev, 0x0af21000, 0x7000);
 +	disp_cesta_scc = devm_ioremap(&pdev->dev, 0x0af30000, 0x7000);
-+	disp_cesta_cc  = devm_ioremap(&pdev->dev, 0x0af00000, 0x10000);
++	disp_cesta_cc  = devm_ioremap(&pdev->dev, 0x0af00000, 0x20000);
++
++	if (mdss_gdsc.pd.power_off &&
++	    mdss_gdsc.pd.power_off != disp_cc_sm8750_mdss_gdsc_power_off) {
++		orig_mdss_gdsc_power_off = mdss_gdsc.pd.power_off;
++		orig_mdss_gdsc_power_on  = mdss_gdsc.pd.power_on;
++		mdss_gdsc.pd.power_off   = disp_cc_sm8750_mdss_gdsc_power_off;
++		mdss_gdsc.pd.power_on    = disp_cc_sm8750_mdss_gdsc_power_on;
++	}
 +
  	pm_runtime_put(&pdev->dev);
  
  	return 0;
-@@ -1950,6 +2171,7 @@
+@@ -1952,6 +2313,7 @@
  	.driver = {
  		.name = "disp_cc-sm8750",
  		.of_match_table = disp_cc_sm8750_match_table,
@@ -306,6 +436,7 @@ Signed-off-by: Holodor Project <holodor@local>
  	},
  };
  
+diff --git a/drivers/pci/controller/dwc/pcie-qcom.c b/drivers/pci/controller/dwc/pcie-qcom.c
 --- a/drivers/pci/controller/dwc/pcie-qcom.c
 +++ b/drivers/pci/controller/dwc/pcie-qcom.c
 @@ -286,6 +286,10 @@
@@ -319,7 +450,7 @@ Signed-off-by: Holodor Project <holodor@local>
  };
  
  #define to_qcom_pcie(x)		dev_get_drvdata((x)->dev)
-@@ -1690,6 +1694,106 @@
+@@ -1690,6 +1694,142 @@
  	return ret;
  }
  
@@ -328,13 +459,24 @@ Signed-off-by: Holodor Project <holodor@local>
 +	void __iomem *rsc = pcie->cesta_rsc;
 +	void __iomem *crm = pcie->cesta_crm;
 +	void __iomem *sm  = pcie->cesta_sm;
-+	u32 sbase = 0x3b0;
 +	int drv, ch, k, pwr, poll;
 +
 +	if (!rsc || !crm || !sm || pcie->cesta_asleep)
 +		return;
 +
-+	/* Zero HW_DRV 0 and HW_DRV 1 power state votes (pwr 0..4) */
++	writel_relaxed(0x00000000, rsc + 0x30);
++	writel_relaxed(0x80ffffff, rsc + 0x38);
++	writel_relaxed(0xffffffff, rsc + 0x40);
++	writel_relaxed(0x80000021, rsc + 0x48);
++	wmb();
++
++	writel_relaxed(1, sm + 0x1040);
++	writel_relaxed(1, sm + 0x1048);
++	writel_relaxed(1, sm + 0x4040);
++	writel_relaxed(1, sm + 0x4048);
++	wmb();
++	udelay(50);
++
 +	for (drv = 0; drv < 2; drv++) {
 +		u32 base = drv * 0x1000;
 +
@@ -346,40 +488,49 @@ Signed-off-by: Holodor Project <holodor@local>
 +			}
 +			for (k = 0; k < 6; k++) {
 +				for (pwr = 0; pwr < 5; pwr++)
-+					writel_relaxed(0, crm + base + 0xb0 +
++					writel_relaxed(0x60000000, crm + base + 0xb0 +
 +						       k * 0x2c + ch * 0x14 + pwr * 4);
 +			}
++			wmb();
 +			writel_relaxed(BIT(ch), crm + base + 0x374);
++			wmb();
++			udelay(50);
 +		}
 +	}
 +
-+	/*
-+	 * Pulse SW_DRV 0 active -> sleep (1 -> 0) and set PCIe SM override
-+	 * (0x10) so pcie_crm transitions 1 -> 0 and pcie_rsc enters Mode 2
-+	 * (0x01d002d0 = 0x00000021), clearing DRV[22] PCI0 CESTA in AOSS RBSC.
-+	 */
-+	writel_relaxed(1, crm + sbase + 0x00);
-+	writel_relaxed(1, crm + sbase + 0x20);
-+	for (k = 0; k < 6; k++)
-+		writel_relaxed(0x60000001, crm + sbase + 0x80 + k * 0x20);
-+	writel_relaxed(1, crm + sbase + 0x284);
-+	wmb();
-+	udelay(50);
++	for (drv = 0; drv < 2; drv++) {
++		u32 sbase = 0x3b0 + drv * 0x1000;
 +
-+	for (ch = 0; ch < 2; ch++) {
-+		for (k = 0; k < 2; k++)
-+			writel_relaxed(0, crm + sbase + 0x00 + k * 0x20 + ch * 0x04);
++		for (k = 0; k < 6; k++) {
++			writel_relaxed(0x60000001, crm + sbase + 0x60 + k * 0x10 + 0x0);
++			writel_relaxed(0x60000000, crm + sbase + 0x60 + k * 0x10 + 0x4);
++			writel_relaxed(0x60000000, crm + sbase + 0x60 + k * 0x10 + 0x8);
++		}
++		wmb();
++		writel_relaxed(1, crm + sbase + 0x270);
++		udelay(10);
++		writel_relaxed(0, crm + sbase + 0x270);
++		udelay(100);
++
 +		for (k = 0; k < 6; k++)
-+			writel_relaxed(0, crm + sbase + 0x80 + k * 0x20 + ch * 0x04);
-+		writel_relaxed(BIT(ch), crm + sbase + 0x284);
++			writel_relaxed(0x60000000, crm + sbase + 0x60 + k * 0x10 + 0x0);
++		wmb();
++		writel_relaxed(1, crm + sbase + 0x270);
++		udelay(10);
++		writel_relaxed(0, crm + sbase + 0x270);
++		udelay(100);
++
++		writel_relaxed(0, crm + sbase + 0x00);
++		writel_relaxed(0, crm + sbase + 0x04);
++		writel_relaxed(0, crm + sbase + 0x08);
++		writel_relaxed(0, crm + sbase + 0x10);
++		writel_relaxed(0, crm + sbase + 0x14);
++		writel_relaxed(0, crm + sbase + 0x18);
++		wmb();
 +	}
 +
-+	writel_relaxed(0x10, sm + 0x1040);
-+	writel_relaxed(0x10, sm + 0x1048);
-+	wmb();
-+
-+	for (poll = 0; poll < 200; poll++) {
-+		if ((readl_relaxed(rsc + 0x2d0) & 0x3f) == 0x21)
++	for (poll = 0; poll < 2000; poll++) {
++		if ((readl_relaxed(rsc + 0x2d0) & 0x21) == 0x21)
 +			break;
 +		udelay(5);
 +	}
@@ -393,29 +544,45 @@ Signed-off-by: Holodor Project <holodor@local>
 +	void __iomem *crm = pcie->cesta_crm;
 +	void __iomem *sm  = pcie->cesta_sm;
 +	u32 sbase = 0x3b0;
-+	int k, poll;
++	int ch, k, poll;
 +
 +	if (!rsc || !crm || !sm || !pcie->cesta_asleep)
 +		return;
 +
-+	/*
-+	 * Release PCIe SM override and vote SW_DRV 0 active (PERF_OL = 1,
-+	 * BW_PT_VOTE = 0x60000001). Keep SW_DRV 0 active at runtime so
-+	 * pcie_rsc remains in Mode 0 (0x01d002d0 = 0x0, pt = 0x3, col0 = 0x1)
-+	 * across runtime ASPM L1ss transitions until the next s2idle suspend.
-+	 */
-+	writel_relaxed(0x0, sm + 0x1040);
-+	writel_relaxed(0x0, sm + 0x1048);
++	/* Restore HW_DRV 0 (PCIE_0) PWR_STATE 0 (D0) PERF_OL = 1 and BW_PT_VOTE = 1 */
++	for (ch = 0; ch < 2; ch++) {
++		for (k = 0; k < 2; k++)
++			writel_relaxed(1, crm + 0x00 + k * 0x2c + ch * 0x14 + 0 * 4);
++		for (k = 0; k < 6; k++)
++			writel_relaxed(0x60000001, crm + 0xb0 + k * 0x2c + ch * 0x14 + 0 * 4);
++		wmb();
++		writel_relaxed(BIT(ch), crm + 0x374);
++		wmb();
++		udelay(50);
++	}
 +
-+	writel_relaxed(1, crm + sbase + 0x00);
-+	writel_relaxed(1, crm + sbase + 0x20);
-+	for (k = 0; k < 6; k++)
-+		writel_relaxed(0x60000001, crm + sbase + 0x80 + k * 0x20);
-+	writel_relaxed(1, crm + sbase + 0x284);
++	writel_relaxed(0, sm + 0x1048);
++	writel_relaxed(0, sm + 0x1040);
++	writel_relaxed(0, sm + 0x4048);
++	writel_relaxed(0, sm + 0x4040);
 +	wmb();
 +
-+	for (poll = 0; poll < 200; poll++) {
-+		if (readl_relaxed(rsc + 0x2d0) == 0)
++	writel_relaxed(1, crm + sbase + 0x00);
++	writel_relaxed(1, crm + sbase + 0x10);
++	for (k = 0; k < 6; k++) {
++		writel_relaxed(0x60000001, crm + sbase + 0x60 + k * 0x10 + 0x0);
++		writel_relaxed(0x60000000, crm + sbase + 0x60 + k * 0x10 + 0x4);
++		writel_relaxed(0x60000000, crm + sbase + 0x60 + k * 0x10 + 0x8);
++	}
++	wmb();
++	writel_relaxed(1, crm + sbase + 0x270);
++	udelay(10);
++	writel_relaxed(0, crm + sbase + 0x270);
++	udelay(100);
++
++	for (poll = 0; poll < 2000; poll++) {
++		if (readl_relaxed(rsc + 0x2d0) == 0 &&
++		    (readl_relaxed(crm + 0x2824) & 7) == 1)
 +			break;
 +		udelay(5);
 +	}
@@ -426,14 +593,14 @@ Signed-off-by: Holodor Project <holodor@local>
  static int qcom_pcie_link_transition_count(struct seq_file *s, void *data)
  {
  	struct qcom_pcie *pcie = (struct qcom_pcie *)dev_get_drvdata(s->private);
-@@ -2064,6 +2168,18 @@
+@@ -2064,6 +2204,18 @@
  	if (of_device_is_compatible(dev->of_node, "qcom,pcie-sm8550"))
  		pp->skip_l23_ready = true;
  
 +	if (of_device_is_compatible(dev->of_node, "qcom,pcie-sm8750")) {
 +		pcie->cesta_rsc = devm_ioremap(dev, 0x01d00000, 0x1000);
 +		pcie->cesta_crm = devm_ioremap(dev, 0x01d01000, 0x5000);
-+		pcie->cesta_sm  = devm_ioremap(dev, 0x01d07000, 0x2000);
++		pcie->cesta_sm  = devm_ioremap(dev, 0x01d07000, 0x7000);
 +		if (!pcie->cesta_rsc || !pcie->cesta_crm || !pcie->cesta_sm) {
 +			dev_warn(dev, "Failed to map SM8750 PCIe CESTA regions\n");
 +			pcie->cesta_rsc = NULL;
@@ -445,17 +612,17 @@ Signed-off-by: Holodor Project <holodor@local>
  	ret = qcom_pcie_parse_ports(pcie);
  	if (ret) {
  		if (ret != -ENODEV) {
-@@ -2124,6 +2240,9 @@
+@@ -2124,6 +2276,9 @@
  	if (ret)
  		return ret;
  
-+	if (!pcie->pci->suspended && pm_suspend_target_state != PM_SUSPEND_MEM)
++	if (pm_suspend_target_state != PM_SUSPEND_MEM)
 +		qcom_pcie_sm8750_cesta_sleep(pcie);
 +
  	if (pcie->pci->suspended) {
  		ret = icc_disable(pcie->icc_mem);
  		if (ret)
-@@ -2200,6 +2319,8 @@
+@@ -2200,6 +2355,8 @@
  			return ret;
  		}
  
@@ -464,7 +631,7 @@ Signed-off-by: Holodor Project <holodor@local>
  		ret = icc_enable(pcie->icc_mem);
  		if (ret) {
  			dev_err(dev, "Failed to enable PCIe-MEM interconnect path: %d\n", ret);
-@@ -2229,6 +2350,8 @@
+@@ -2229,6 +2386,8 @@
  					ret);
  				return ret;
  			}

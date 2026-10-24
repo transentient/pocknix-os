@@ -22,6 +22,15 @@
 # transient unit, so the check is deterministic and testable by hand (a /dev/kmsg line is NOT seen by journalctl -k
 # on this image, found 2026-10-15). Test knob: a gateway address in /run/pocknix-wifi-heal-test-gw replaces the
 # route's gateway for the next check (rig only).
+#
+# THIRD case, from ground truth (Odin 3 2026-10-22 20:29:03, journalctl -k + NM/iwd): after resume, iwd connects to
+# one AP BSSID (passes the 2 s after-resume gateway ping), then gets band-steered/deauthed (reason 4) and roams to
+# another BSSID on the same ESSID. On that roam, ath12k_wifi7_pci logs:
+#   `dp_tx: failed to find the peer with peer_id 0`
+# on every TX frame (dropping DHCPv4 Discover), so 45 s later NM fails with `ip-config-unavailable` and disconnects
+# wlan0 with iwd AutoConnect disabled. When the kernel log emits `failed to find the peer with peer_id`, wait 5 s
+# to see if the data path self-heals (gateway answers); if not, cycle the radio (`nmcli radio wifi off/on` stops
+# the vdev and flushes the wedged DP peer table) and bring the profile back up, escalating to `recover` only if needed.
 LOG=/var/lib/pocknix/wifi-heal.log
 PFLAG=/var/lib/pocknix/wifi-sleep-off
 WAIT=${POCKNIX_WIFI_HEAL_WAIT:-40}
@@ -100,6 +109,25 @@ after_resume() {
   if gw_answers "$dev" "$gw"; then say "resume: cured by the reconnect (gateway ${gw} answers)"
   else : > "$NOICMP"; say "resume: UNCURED, gateway ${gw} still silent after the reconnect; resume reconnects disabled until it answers again"; fi
 }
+recover_peer() {
+  sleep 5
+  dev=$(wifi_dev); gw=$(gateway "$dev")
+  if [ "$(wifi_state)" = "connected" ] && [ -n "$gw" ] && gw_answers "$dev" "$gw"; then
+    return
+  fi
+  PROF=$(profile)
+  [ -n "$PROF" ] || { say "dp_tx peer_id fault (wifi: $(wifi_dev) $(wifi_state)) but no wifi profile configured"; return; }
+  say "dp_tx peer_id fault with dead data path (wifi: $(wifi_dev) $(wifi_state)) -> radio cycle + nmcli connection up '${PROF}'"
+  timeout 5 nmcli radio wifi off 2>/dev/null; sleep 1
+  timeout 5 nmcli radio wifi on 2>/dev/null; sleep 4
+  timeout 15 nmcli connection up "$PROF" >/dev/null 2>&1 || true
+  i=0
+  while [ "$i" -lt 20 ]; do
+    [ "$(wifi_state)" = "connected" ] && { say "recovered from dp_tx peer_id fault via radio cycle"; return; }
+    sleep 2; i=$((i + 2))
+  done
+  recover
+}
 case "${1:-}" in
   --after-resume) after_resume; exit 0 ;;
 esac
@@ -109,6 +137,17 @@ if [ -e "$PFLAG" ]; then
   timeout 5 nmcli radio wifi on 2>/dev/null || true
 fi
 say "watching the kernel log for a wifi firmware recovery (service start)"
+last_peer_heal=0
 journalctl -k -f -n 0 -o cat 2>/dev/null | while IFS= read -r line; do
-  case "$line" in *"successfully recovered"*) recover ;; esac
+  case "$line" in
+    *"successfully recovered"*) recover ;;
+    *"failed to find the peer with peer_id"*)
+      now=$(date +%s)
+      if [ $((now - last_peer_heal)) -ge 30 ]; then
+        last_peer_heal=$now
+        recover_peer
+        last_peer_heal=$(date +%s)
+      fi
+      ;;
+  esac
 done

@@ -216,10 +216,66 @@ index e83fbcc..02a1e7c 100644
  Done:
    BufferFree (&Raw);
 diff --git a/Menu/BootSplash.c b/Menu/BootSplash.c
-index fec77a9..4702fc9 100644
+index fec77a9..e266b1e 100644
 --- a/Menu/BootSplash.c
 +++ b/Menu/BootSplash.c
-@@ -456,26 +456,26 @@ MenuBootSplash (
+@@ -23,6 +23,11 @@
+ #include "Efi/Files.h"
+ #include "Efi/Qcom.h"
+ 
++#if __has_include("Menu/HolodorSplashArt.h")
++#include "Menu/HolodorSplashArt.h"
++#define HAVE_HOLODOR_SPLASH_ART 1
++#endif
++
+ extern CONST UINT8 gOablAssetFont[];
+ extern CONST UINTN gOablAssetFontSize;
+ 
+@@ -444,6 +449,43 @@ MenuBootSplash (
+   FillRect (
+     &Splash.Canvas, 0, 0, Splash.Canvas.W, Splash.Canvas.H, 0x000000, 255
+   );
++#ifdef HAVE_HOLODOR_SPLASH_ART
++  {
++    INT32 ScaleX = Splash.Canvas.W / HolodorSplash_W;
++    INT32 ScaleY = Splash.Canvas.H / HolodorSplash_H;
++    INT32 Scale  = ScaleX < ScaleY ? ScaleX : ScaleY;
++    INT32 X0, Y0, X = 0, Y = 0;
++    if (Scale < 1) {
++      Scale = 1;
++    }
++    X0 = (Splash.Canvas.W - HolodorSplash_W * Scale) / 2;
++    Y0 = (Splash.Canvas.H - HolodorSplash_H * Scale) / 2;
++    for (UINTN Off = 0; Off + 1 < HolodorSplash_RLE_SIZE; Off += 2) {
++      UINT32 Rem = gHolodorSplashRle[Off];
++      UINT32 Argb = gHolodorSplashPalette[gHolodorSplashRle[Off + 1]];
++      UINT32 Rgb  = Argb & 0xFFFFFFU;
++      UINT8  Alpha = (UINT8)(Argb >> 24);
++      while (Rem > 0 && Y < HolodorSplash_H) {
++        UINT32 Span = (UINT32)(HolodorSplash_W - X);
++        if (Span > Rem) {
++          Span = Rem;
++        }
++        if (Alpha >= 128 && Rgb != 0x000000U) {
++          FillRect (
++            &Splash.Canvas, X0 + X * Scale, Y0 + Y * Scale,
++            (INT32)Span * Scale, Scale, Rgb, 255
++          );
++        }
++        X += (INT32)Span;
++        if (X >= HolodorSplash_W) {
++          X = 0;
++          Y++;
++        }
++        Rem -= Span;
++      }
++    }
++  }
++#else
+   if (FontLoad (gOablAssetFont, gOablAssetFontSize)) {
+     // Capitals 8.5% of the screen tall, at least 24 pixels, and no wider
+     // than 60% of the screen.
+@@ -456,26 +498,27 @@ MenuBootSplash (
        CapH = 24.0f;
      }
      Em = CapH / FontCapHeight (1.0f);
@@ -245,6 +301,7 @@ index fec77a9..4702fc9 100644
 +      FONT_WEIGHT_MEDIUM, "dor", 0xFF5555
      );
    }
++#endif
    ShowFrame (&Splash);
    MenuLog (
 -    "splash: the OpenABL wordmark drawn over the firmware's on the panel (%s)",
@@ -303,10 +360,22 @@ index 2c43f1e..89fa655 100644
    echo "SUCCESS: $out"
  }
 diff --git a/View/View.c b/View/View.c
-index f1644ab..41113ff 100644
+index f1644ab..5e15758 100644
 --- a/View/View.c
 +++ b/View/View.c
-@@ -763,16 +763,16 @@ RowItem (
+@@ -24,6 +24,11 @@
+ #include "View/Text.h"
+ #include "microui.h"
+ 
++#if __has_include("View/HolodorWordmarkArt.h")
++#include "View/HolodorWordmarkArt.h"
++#define HAVE_HOLODOR_WORDMARK_ART 1
++#endif
++
+ extern CONST UINT8 gOablAssetFontCjk[];
+ extern CONST UINTN gOablAssetFontCjkSize;
+ 
+@@ -763,16 +768,21 @@ RowItem (
  
  // Header and footer
  
@@ -317,8 +386,13 @@ index f1644ab..41113ff 100644
  {
 -  return Measure ("Open", Size, FONT_WEIGHT_MEDIUM) +
 -         Measure ("ABL", Size, FONT_WEIGHT_MEDIUM);
++#ifdef HAVE_HOLODOR_WORDMARK_ART
++  INT32 Scale = Imax ((INT32)RoundF (ToPx (Size / 10.0f)), 1);
++  return (float)(HolodorWordmark_W * Scale);
++#else
 +  return Measure ("Holo", Size, FONT_WEIGHT_MEDIUM) +
 +         Measure ("dor", Size, FONT_WEIGHT_MEDIUM);
++#endif
  }
  
 -// Draws the "OpenABL" wordmark from X, its capitals centred on Cy: "Open"
@@ -328,12 +402,43 @@ index f1644ab..41113ff 100644
  STATIC VOID
  Wordmark (
    IN float X,
-@@ -780,16 +780,16 @@ Wordmark (
+@@ -780,18 +790,50 @@ Wordmark (
    IN float Size
  )
  {
 -  float OpenW = Measure ("Open", Size, FONT_WEIGHT_MEDIUM);
 -  float AblW  = Measure ("ABL", Size, FONT_WEIGHT_MEDIUM);
++#ifdef HAVE_HOLODOR_WORDMARK_ART
++  INT32 Scale = Imax ((INT32)RoundF (ToPx (Size / 10.0f)), 1);
++  INT32 X0    = (INT32)RoundF (X);
++  INT32 Y0    = (INT32)RoundF (Cy) - (HolodorWordmark_H * Scale) / 2;
++  INT32 Px    = 0;
++  INT32 Py    = 0;
++  for (UINTN Off = 0; Off + 1 < HolodorWordmark_RLE_SIZE; Off += 2) {
++    UINT32 Rem   = gHolodorWordmarkRle[Off];
++    UINT32 Argb  = gHolodorWordmarkPalette[gHolodorWordmarkRle[Off + 1]];
++    UINT32 Rgb   = Argb & 0xFFFFFFU;
++    UINT8  Alpha = (UINT8)(Argb >> 24);
++    while (Rem > 0 && Py < HolodorWordmark_H) {
++      UINT32 Span = (UINT32)(HolodorWordmark_W - Px);
++      if (Span > Rem) {
++        Span = Rem;
++      }
++      if (Alpha >= 128) {
++        Fill (
++          Rect (X0 + Px * Scale, Y0 + Py * Scale, (INT32)Span * Scale, Scale),
++          Rgb, Alpha
++        );
++      }
++      Px += (INT32)Span;
++      if (Px >= HolodorWordmark_W) {
++        Px = 0;
++        Py++;
++      }
++      Rem -= Span;
++    }
++  }
++#else
 +  float OpenW = Measure ("Holo", Size, FONT_WEIGHT_MEDIUM);
 +  float AblW  = Measure ("dor", Size, FONT_WEIGHT_MEDIUM);
    float H     = ToPx (Size) * 2;
@@ -348,7 +453,10 @@ index f1644ab..41113ff 100644
 +    Rectf (X + OpenW, Cy - H / 2, AblW + ToPx (2), H), "dor", Size,
      FONT_WEIGHT_MEDIUM, THEME_BRAND, ALIGN_LEFT
    );
++#endif
  }
+ 
+ // The wordmark and the version in a chip at the right.
 diff --git a/build.sh b/build.sh
 index 38df141..79f2426 100755
 --- a/build.sh

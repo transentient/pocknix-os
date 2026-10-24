@@ -6,8 +6,11 @@
 
 state=/run/pocknix-audio-quiesce-state
 mod_id=""
+prev_default=""
 if [ -f "${state}" ]; then
-  mod_id=$(cat "${state}" 2>/dev/null)
+  mod_id=$(sed -n 's/^mod_id=//p' "${state}" 2>/dev/null)
+  prev_default=$(sed -n 's/^prev_default=//p' "${state}" 2>/dev/null)
+  [ -z "${mod_id}" ] && [ -z "${prev_default}" ] && mod_id=$(head -n 1 "${state}" 2>/dev/null)
   rm -f "${state}"
 fi
 
@@ -37,6 +40,10 @@ if [ -S "${rdir}/pulse/native" ]; then
     runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
       timeout 2 pactl suspend-source "${src}" 0 2>/dev/null || true
   done
+  if [ -n "${prev_default}" ] && [ "${prev_default}" != "pocknix_sleep_null" ]; then
+    runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
+      timeout 2 pactl set-default-sink "${prev_default}" 2>/dev/null || true
+  fi
   if [ -n "${mod_id}" ]; then
     runuser -u deck -- env XDG_RUNTIME_DIR="${rdir}" \
       timeout 2 pactl unload-module "${mod_id}" 2>/dev/null || true

@@ -42,7 +42,7 @@ for d in /sys/class/power_supply/*/; do
     if [ "$bypass" = "1" ]; then
       [ "$cur" = "0" ] || echo 0 > "$cc" 2>/dev/null || true
     else
-      if [ "$cur" = "0" ]; then
+      if [ "$cur" = "0" ] && [ "$(cat "$d/status" 2>/dev/null)" != "Full" ]; then
         max_cc=$(cat "$d/constant_charge_current_max" 2>/dev/null)
         case "$max_cc" in
           ''|*[!0-9]*|0) max_cc=3000000 ;;

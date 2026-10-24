@@ -3,7 +3,7 @@
 R=deck@192.168.1.32; D=/var/tmp/spk
 js() { ssh $R "python3 $D/steamjs.py '$1'"; }
 case $1 in
-install) shift; for a in "$@"; do js "SteamClient.Installs.OpenInstallWizard([$a])" >/dev/null; sleep 3; js "SteamClient.Installs.ContinueInstall()" >/dev/null; sleep 2; done;;
+install) shift; for a in "$@"; do js "SteamClient.Installs.OpenInstallWizard([$a], 0)" >/dev/null; sleep 3; js "SteamClient.Installs.ContinueInstall()" >/dev/null; sleep 2; done;;
 status) js 'JSON.stringify(collectionStore.allAppsCollection.allApps.filter(a=>a.app_type==1&&(a.per_client_data[0].installed||a.per_client_data[0].bytes_total)).map(a=>[a.display_name,a.per_client_data[0].installed,a.per_client_data[0].bytes_downloaded,a.per_client_data[0].bytes_total,a.size_on_disk]))' | python3 -c '
 import json,sys; l=json.loads(json.load(sys.stdin))
 for n,i,d,t,s in l: print(f"{n[:34]:34s} installed={i!s:5s} dl={ (d or 0)/1e9:6.2f}/{(t or 0)/1e9:6.2f} GB disk={(int(s) if s else 0)/1e9:6.2f} GB")';;

@@ -32,9 +32,6 @@ rm -f "${state}"
 [ -r "${clk}" ] || exit 0
 before=$(cat "${clk}" 2>/dev/null || echo 0)
 before_dcodec=$(cat "${clk_dcodec}" 2>/dev/null || echo 0)
-if [ "${before:-0}" -le 0 ] 2>/dev/null && [ "${before_dcodec:-0}" -le 0 ] 2>/dev/null; then
-  exit 0
-fi
 
 for f in /sys/devices/platform/sound/*/pmdown_time; do
   [ -w "${f}" ] && echo 0 > "${f}" 2>/dev/null || true

@@ -23,7 +23,7 @@
 #
 pkgname=pocknix-emulation
 pkgver=0.1.0
-pkgrel=8
+pkgrel=9    # 9 (2026-10-22): add ConditionUser=!root to pocknix-roms-init.service so root SSH sessions (user@0.service) do not seed /root/Emulation.
 pkgdesc="ES-DE + preconfigured emulators: drop ROMs into ~/Emulation or insert an exFAT SD card and play"
 arch=('any')
 url="https://github.com/shuuri-labs/pocknix-os"

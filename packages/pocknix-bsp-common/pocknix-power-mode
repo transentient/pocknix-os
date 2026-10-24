@@ -31,7 +31,7 @@ elif [ "${1:-}" = "restore" ]; then
   rm -f /run/pocknix/transient-power-mode 2>/dev/null
   set --
 fi
-MODE="${1:-$(cat "$MODE_FILE" 2>/dev/null || echo performance)}"
+MODE="${1:-$(cat "$MODE_FILE" 2>/dev/null || echo balanced)}"
 # `max` is session-only: it pins the GPU and the CPU governor (95C, -20..-34%/h) and once
 # survived a reboot from a bench into a full day of play (2026-08-17). With no argument
 # (= the boot re-apply from pocknix-power-mode.service) a persisted `max` becomes balanced.

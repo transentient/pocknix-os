@@ -12,7 +12,7 @@ n=0; pid=""; pm=0; pp=0; pg=0; ps=0; pt=$(date +%s%N)
 while :; do
   [ $(( n % 10 )) = 0 ] && pid=$(pick); n=$(( n + 1 ))
   ma=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1024 ))
-  gf=$(cat /sys/class/devfreq/3d00000.gpu/cur_freq 2>/dev/null)
+  gf=$(cat /sys/class/devfreq/*gpu*/cur_freq 2>/dev/null | head -1)
   mt=$(cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | sort -n | tail -1)
   ld=$(cut -d' ' -f1 /proc/loadavg)
   now=$(date +%s%N); dt=$(( (now - pt) / 1000000 )); [ $dt -lt 1 ] && dt=1; pt=$now
